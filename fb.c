@@ -69,6 +69,11 @@ mbtowc(wchar_t *p, const __u8 *s, int n)
 }
 
 #endif
+void fb_render(FB * fb)
+{
+	memcpy(fb->data, fb->backbuffer, fb->screensize);
+}
+
 void fb_destroy(FB * fb)
 {
 	if (fb->fd >= 0)
@@ -198,7 +203,8 @@ FB *fb_new(int angle)
 	fb->stride = fb_fix.line_length;
 	fb->type = fb_fix.type;
 	fb->visual = fb_fix.visual;
-
+	fb->screensize = fb->width * fb->height * fb->bpp/8;
+	fb->backbuffer = malloc(fb->screensize);
 
 	fb->base = (char *) mmap((caddr_t) NULL,
 				 /*fb_fix.smem_len */
@@ -214,9 +220,8 @@ FB *fb_new(int angle)
 	off =
 	    (unsigned long) fb_fix.smem_start %
 	    (unsigned long) getpagesize();
-
+		
 	fb->data = fb->base + off;
-
 #if 0
 	/* FIXME: No support for 8pp as yet  */
 	if (visual == FB_VISUAL_PSEUDOCOLOR
@@ -292,12 +297,12 @@ fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 	switch (fb->bpp) {
 	case 24:
 	case 32:
-		*(fb->data + off) = red;
-		*(fb->data + off + 1) = green;
-		*(fb->data + off + 2) = blue;
+		*(fb->backbuffer + off) = red;
+		*(fb->backbuffer + off + 1) = green;
+		*(fb->backbuffer + off + 2) = blue;
 		break;
 	case 16:
-		*(volatile uint16 *) (fb->data + off)
+		*(volatile uint16 *) (fb->backbuffer + off)
 		    = ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >>
 								  3);
 		break;

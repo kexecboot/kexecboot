@@ -21,7 +21,7 @@
 
 void display_slot(FB *fb, struct boot * boot,int slot, int height, int iscurrent)
 {
-	int margin = fb->width/64;
+	int margin = (height - CF_IMG_HEIGHT)/2;
 	char text[100];
 	if(!iscurrent)
 		fb_draw_rect(fb, 0, slot*height, fb->width, height,
@@ -33,16 +33,16 @@ void display_slot(FB *fb, struct boot * boot,int slot, int height, int iscurrent
 			, height-2*margin, 0xec, 0xec, 0xe1);
 	}
 	if(!strncmp(boot->device,"/dev/hd",strlen("/dev/hd")))
-		fb_draw_image(fb, 2*margin, slot*height+2*margin, CF_IMG_WIDTH, 
+		fb_draw_image(fb, margin, slot*height+margin, CF_IMG_WIDTH, 
 			CF_IMG_HEIGHT, CF_IMG_BYTES_PER_PIXEL, CF_IMG_RLE_PIXEL_DATA);
 	else if(!strncmp(boot->device,"/dev/mmcblk",strlen("/dev/mmcblk")))
-		fb_draw_image(fb, 2*margin, slot*height + 2*margin, MMC_IMG_WIDTH,
+		fb_draw_image(fb, margin, slot*height + margin, MMC_IMG_WIDTH,
 			MMC_IMG_HEIGHT, MMC_IMG_BYTES_PER_PIXEL, MMC_IMG_RLE_PIXEL_DATA);
 	else if(!strncmp(boot->device,"/dev/mtdblock",strlen("/dev/mtdblock")))
-		fb_draw_image(fb, 2*margin, slot*height + 2*margin, MEMORY_IMG_WIDTH,
+		fb_draw_image(fb, margin, slot*height + margin, MEMORY_IMG_WIDTH,
 			MEMORY_IMG_HEIGHT, MEMORY_IMG_BYTES_PER_PIXEL, MEMORY_IMG_RLE_PIXEL_DATA);
 	sprintf(text,"%s (%s)",boot->device, boot->fstype);
-	fb_draw_text (fb, CF_IMG_WIDTH+2*margin, slot*height+2*margin, 0, 0, 0, 
+	fb_draw_text (fb, CF_IMG_WIDTH+margin, slot*height+margin, 0, 0, 0, 
 			&radeon_font, text);
 			
 }
@@ -56,7 +56,6 @@ void display_menu(FB *fb, struct bootlist *bl, int current)
 	// struct boot that is in fist slot
 	static int firstslot=0;
 	char test[20];
-
 	/* Clear the background with #ecece1 */
 	fb_draw_rect(fb, 0, 0, fb->width, fb->height,0xec, 0xec, 0xe1);
 
@@ -76,9 +75,10 @@ void display_menu(FB *fb, struct bootlist *bl, int current)
 		firstslot=current;
 	if(current > firstslot + slots -1)
 		firstslot = current - (slots -1);
-	for(i=1, j=firstslot; i <= slots; i++, j++){
+	for(i=1, j=firstslot; i <= slots, j< bl->size; i++, j++){
 		display_slot(fb, bl->list[j], i, slotheight, j == current);
 	}
+	fb_render(fb);
 }
 
 void start_kernel(struct boot *boot)
@@ -193,12 +193,12 @@ int main(int argc, char **argv)
 
 	// deactivate terminal input
 
-/*	tcgetattr(fileno(stdin), &old);
+	tcgetattr(fileno(stdin), &old);
 	new = old;
 	new.c_lflag &= ~ECHO;
-	new.c_cflag &=~CREAD;
+//	new.c_cflag &=~CREAD;
 	tcsetattr(fileno(stdin), TCSANOW, &new);
-*/
+
 	do{
 		display_menu(fb, bl, choice);
 		do
@@ -211,11 +211,11 @@ int main(int argc, char **argv)
 			choice++;
 		//printf("%d %d\n",choice, evt.code);
 	    
-	}while(evt.code != 87 && evt.code != 63 );
+	}while(evt.code != 87 && evt.code != 63);
 	fclose(f);
 	// reset terminal
-//	tcsetattr(fileno(stdin), TCSANOW, &old);
+	tcsetattr(fileno(stdin), TCSANOW, &old);
 	fb_destroy(fb);
-	start_kernel(bl->list[choice]);
+//	start_kernel(bl->list[choice]);
 	return 0;
 }

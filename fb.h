@@ -44,8 +44,10 @@ typedef struct FB {
 	int bpp;
 	int stride;
 	char *data;
+	char *backbuffer;
 	char *base;
-
+	
+	int screensize;
 	int angle;
 	int real_width, real_height;
 } FB;
@@ -81,5 +83,5 @@ fb_draw_text(FB * fb,
 	     uint8 red,
 	     uint8 green, uint8 blue, const Font * font, const char *text);
 
-
+void fb_render(FB * fb);
 #endif
