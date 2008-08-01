@@ -30,11 +30,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-
 #include "res/font.h"
 
        
-
 typedef unsigned char uint8;
 typedef unsigned short uint16;
 
