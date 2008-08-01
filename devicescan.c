@@ -59,7 +59,7 @@ struct fslist *scan_filesystems()
 			fl->list =
 			    realloc(fl->list, size * sizeof(char *));
 		}
-		//      printf("filesystem supported: %s\n",split);
+		//printf("filesystem supported: %s\n",split);
 	}
 	fclose(f);
 	fl->size = count;
@@ -120,7 +120,7 @@ struct bootlist *scan_devices()
 		    malloc((strlen(split) + strlen("/dev/") +
 			    1) * sizeof(char));
 		sprintf(device, "/dev/%s", split);
-		//      printf("%s\n",device);
+		printf("Probing %s\n",device);
 		int fd = open(device, O_RDONLY);
 		if (fd < 0) {
 			perror(device);
@@ -141,15 +141,15 @@ struct bootlist *scan_devices()
 			free(device);
 			continue;
 		}
-		//      printf("found %s (%s)\n",device, fstype);
+		printf("found %s (%s)\n",device, fstype);
 		// mount fs
 		if (mount(device, "/mnt", fstype, MS_RDONLY, NULL)) {
-			//              printf("mount failed\n");
-			//              perror(device);
+			printf("mount failed\n");
+			perror(device);
 			free(device);
 			continue;
 		}
-		//      printf("mount successful\n");
+		printf("mount successful\n");
 		if ( (g = fopen("/mnt/zImage", "r")) )
 			kernelpath = "/mnt/zImage";
 		else if ( (g = fopen("/mnt/boot/zImage", "r")) )
@@ -173,6 +173,7 @@ struct bootlist *scan_devices()
 			      g);
 			fclose(g);
 			printf("found command line\n");
+			bl->list[count]->cmdline[strlen(bl->list[count]->cmdline)-1] = '\0';
 		} else
 			bl->list[count]->cmdline = NULL;
 

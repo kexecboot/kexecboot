@@ -17,7 +17,7 @@
  */
 #include "fb.h"
 
-#if 0
+#ifdef GLIBC
 typedef __u16 wchar_t;
 struct utf8_table {
         int     cmask;

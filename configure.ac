@@ -1,5 +1,5 @@
 AC_PREREQ(2.53)
-AC_INIT([kexecboot], [0.1], [thommycheck@gmx.de])
+AC_INIT([kexecboot], [0.2], [thommycheck@gmx.de])
 AM_INIT_AUTOMAKE([-Wall foreign])
 AC_CONFIG_SRCDIR(kexecboot.c)
 AM_CONFIG_HEADER(config.h)

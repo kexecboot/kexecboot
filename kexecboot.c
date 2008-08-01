@@ -55,7 +55,7 @@ void display_menu(FB *fb, struct bootlist *bl, int current)
 	int slots = fb->height/slotheight -1;
 	// struct boot that is in fist slot
 	static int firstslot=0;
-	char test[20];
+	
 	/* Clear the background with #ecece1 */
 	fb_draw_rect(fb, 0, 0, fb->width, fb->height,0xec, 0xec, 0xe1);
 
@@ -68,14 +68,11 @@ void display_menu(FB *fb, struct bootlist *bl, int current)
 		      LOGO_IMG_BYTES_PER_PIXEL, LOGO_IMG_RLE_PIXEL_DATA);
 	fb_draw_text (fb, LOGO_IMG_WIDTH + margin, margin, 0, 0, 0, &radeon_font,
 			"Which device do\nyou want to boot\ntoday?");
-	sprintf(test, "%d", current);
-	fb_draw_text (fb, margin, margin, 0, 0, 0, &radeon_font,
-			test);
 	if(current < firstslot)
 		firstslot=current;
 	if(current > firstslot + slots -1)
 		firstslot = current - (slots -1);
-	for(i=1, j=firstslot; i <= slots, j< bl->size; i++, j++){
+	for(i=1, j=firstslot; i <= slots && j< bl->size; i++, j++){
 		display_slot(fb, bl->list[j], i, slotheight, j == current);
 	}
 	fb_render(fb);
@@ -85,16 +82,16 @@ void start_kernel(struct boot *boot)
 {
 	//kexec --command-line="CMDLINE" -l /mnt/boot/zImage
 	char command[COMMAND_LINE_SIZE + 50];
-//	mount(boot->device, "/mnt", boot->fstype, MS_RDONLY, NULL);
+	mount(boot->device, "/mnt", boot->fstype, MS_RDONLY, NULL);
 	if( boot->cmdline )
 		sprintf(command,"kexec --command-line=\"%s\" -l %s", 
 			boot->cmdline, boot->kernelpath);
 	else
 		sprintf(command,"kexec -l %s", boot->kernelpath);
-//	system(command);
-	puts(command);
-//	system("kexec -e");
-//	umount("/mnt");
+	system(command);
+//	puts(command);		
+	umount("/mnt");
+	system("kexec -e");
 }
 
 int main(int argc, char **argv)
@@ -131,8 +128,12 @@ int main(int argc, char **argv)
 	if ((fb = fb_new(angle)) == NULL)
 		exit(-1);
 
-	//bl = scan_devices();
-	bl = malloc(sizeof(struct bootlist));
+	bl = scan_devices();
+	if(!bl->size){
+		puts("No bootable device found");
+		exit(-1);
+	}
+/*	bl = malloc(sizeof(struct bootlist));
 	bl->size = 8;
 	bl->list = malloc(8 * sizeof(struct boot*));
 	
@@ -183,7 +184,7 @@ int main(int argc, char **argv)
 	bl->list[7]->fstype = "ext2";
 	bl->list[7]->kernelpath = "/boot/zImage";
 	bl->list[7]->cmdline = NULL;
-	
+*/	
 	FILE *f = fopen(eventif,"r");
 	if(!f){
 	    perror(eventif);
@@ -216,6 +217,6 @@ int main(int argc, char **argv)
 	// reset terminal
 	tcsetattr(fileno(stdin), TCSANOW, &old);
 	fb_destroy(fb);
-//	start_kernel(bl->list[choice]);
+	start_kernel(bl->list[choice]);
 	return 0;
 }
