@@ -81,17 +81,17 @@ void display_menu(FB *fb, struct bootlist *bl, int current)
 void start_kernel(struct boot *boot)
 {
 	//kexec --command-line="CMDLINE" -l /mnt/boot/zImage
-	char command[COMMAND_LINE_SIZE + 50];
+	char command[COMMAND_LINE_SIZE + 60];
 	mount(boot->device, "/mnt", boot->fstype, MS_RDONLY, NULL);
 	if( boot->cmdline )
-		sprintf(command,"kexec --command-line=\"%s\" -l %s", 
+		sprintf(command,"/usr/sbin/kexec --command-line=\"%s\" -l %s", 
 			boot->cmdline, boot->kernelpath);
 	else
 		sprintf(command,"kexec -l %s", boot->kernelpath);
 	system(command);
 //	puts(command);		
 	umount("/mnt");
-	system("kexec -e");
+	system("/usr/sbin/kexec -e");
 }
 
 int main(int argc, char **argv)
@@ -129,10 +129,6 @@ int main(int argc, char **argv)
 		exit(-1);
 
 	bl = scan_devices();
-	if(!bl->size){
-		puts("No bootable device found");
-		exit(-1);
-	}
 /*	bl = malloc(sizeof(struct bootlist));
 	bl->size = 8;
 	bl->list = malloc(8 * sizeof(struct boot*));
@@ -184,7 +180,12 @@ int main(int argc, char **argv)
 	bl->list[7]->fstype = "ext2";
 	bl->list[7]->kernelpath = "/boot/zImage";
 	bl->list[7]->cmdline = NULL;
-*/	
+	*/
+	if(!bl->size){
+		puts("No bootable device found");
+		exit(-1);
+	}
+	
 	FILE *f = fopen(eventif,"r");
 	if(!f){
 	    perror(eventif);
@@ -210,7 +211,7 @@ int main(int argc, char **argv)
 			choice--;
 		if(evt.code == KEY_DOWN && choice < bl->size-1)
 			choice++;
-		//printf("%d %d\n",choice, evt.code);
+	//	printf("%d %d\n",choice, evt.code);
 	    
 	}while(evt.code != 87 && evt.code != 63);
 	fclose(f);

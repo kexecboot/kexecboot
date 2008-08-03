@@ -17,58 +17,6 @@
  */
 #include "fb.h"
 
-#ifdef GLIBC
-typedef __u16 wchar_t;
-struct utf8_table {
-        int     cmask;
-        int     cval;
-        int     shift;
-        long    lmask;
-        long    lval;
-};
-
-static const struct utf8_table utf8_table[] =
-{
-    {0x80,  0x00,   0*6,    0x7F,           0,         /* 1 byte sequence */},
-    {0xE0,  0xC0,   1*6,    0x7FF,          0x80,      /* 2 byte sequence */},
-    {0xF0,  0xE0,   2*6,    0xFFFF,         0x800,     /* 3 byte sequence */},
-    {0xF8,  0xF0,   3*6,    0x1FFFFF,       0x10000,   /* 4 byte sequence */},
-    {0xFC,  0xF8,   4*6,    0x3FFFFFF,      0x200000,  /* 5 byte sequence */},
-    {0xFE,  0xFC,   5*6,    0x7FFFFFFF,     0x4000000, /* 6 byte sequence */},
-    {0,                                                /* end of table    */}
-};
-
-int
-mbtowc(wchar_t *p, const __u8 *s, int n)
-{
-        long l;
-        int c0, c, nc;
-        const struct utf8_table *t;
-
-        nc = 0;
-        c0 = *s;
-        l = c0;
-        for (t = utf8_table; t->cmask; t++) {
-                nc++;
-                if ((c0 & t->cmask) == t->cval) {
-                        l &= t->lmask;
-                        if (l < t->lval)
-                                return -1;
-                        *p = l;
-                        return nc;
-                }
-                if (n <= nc)
-                        return -1;
-                s++;
-                c = (*s ^ 0x80) & 0xFF;
-                if (c & 0xC0)
-                        return -1;
-                l = (l << 6) | c;
-        }
-        return -1;
-}
-
-#endif
 void fb_render(FB * fb)
 {
 	memcpy(fb->data, fb->backbuffer, fb->screensize);
@@ -78,7 +26,8 @@ void fb_destroy(FB * fb)
 {
 	if (fb->fd >= 0)
 		close(fb->fd);
-
+	if(fb->backbuffer)
+		free(fb->backbuffer);
 	free(fb);
 }
 
@@ -300,8 +249,12 @@ fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 		*(fb->backbuffer + off) = red;
 		*(fb->backbuffer + off + 1) = green;
 		*(fb->backbuffer + off + 2) = blue;
+	//	*(fb->data + off) = red;
+	//	*(fb->data + off + 1) = green;
+	//	*(fb->data + off + 2) = blue;
 		break;
 	case 16:
+	//	*(volatile uint16 *) (fb->data + off)
 		*(volatile uint16 *) (fb->backbuffer + off)
 		    = ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >>
 								  3);
@@ -374,7 +327,7 @@ void fb_draw_image(FB * fb, int x, int y, int img_width, int img_height,
 
 /* Font rendering code based on BOGL by Ben Pfaff */
 
-static int font_glyph(const Font * font, wchar_t wc, u_int32_t ** bitmap)
+static int font_glyph(const Font * font, char wc, u_int32_t ** bitmap)
 {
 	int mask = font->index_mask;
 	int i;
@@ -397,14 +350,12 @@ void fb_text_size(FB * fb, int *width, int *height, const Font * font,
 		const char *text)
 {
 	char *c = (char *) text;
-	wchar_t wc;
-	int k, n, w, h, mw;
+	int n, w, h, mw;
 
 	n = strlen(text);
 	mw = h = w = 0;
 
-	mbtowc(0, 0, 0);
-	for (; (k = mbtowc(&wc, c, n)) > 0; c += k, n -= k) {
+	for(;*c;c++){
 		if (*c == '\n') {
 			if (w > mw)
 				mw = 0;
@@ -412,7 +363,7 @@ void fb_text_size(FB * fb, int *width, int *height, const Font * font,
 			continue;
 		}
 
-		w += font_glyph(font, wc, NULL);
+		w += font_glyph(font, *c, NULL);
 	}
 
 	*width = (w > mw) ? w : mw;
@@ -422,16 +373,14 @@ void fb_text_size(FB * fb, int *width, int *height, const Font * font,
 void fb_draw_text(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue, 
 		const Font * font, const char *text)
 {
-	int h, w, k, n, cx, cy, dx, dy;
+	int h, w, n, cx, cy, dx, dy;
 	char *c = (char *) text;
-	wchar_t wc;
 
 	n = strlen(text);
 	h = font->height;
 	dx = dy = 0;
 
-	mbtowc(0, 0, 0);
-	for (; (k = mbtowc(&wc, c, n)) > 0; c += k, n -= k) {
+	for(; *c;c++){
 		u_int32_t *glyph = NULL;
 
 		if (*c == '\n') {
@@ -440,7 +389,7 @@ void fb_draw_text(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue,
 			continue;
 		}
 
-		w = font_glyph(font, wc, &glyph);
+		w = font_glyph(font, *c, &glyph);
 
 		if (glyph == NULL)
 			continue;
