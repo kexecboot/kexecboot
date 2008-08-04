@@ -84,8 +84,8 @@ void start_kernel(struct boot *boot)
 	char command[COMMAND_LINE_SIZE + 60];
 	mount(boot->device, "/mnt", boot->fstype, MS_RDONLY, NULL);
 	if( boot->cmdline )
-		sprintf(command,"/usr/sbin/kexec --command-line=\"%s\" -l %s", 
-			boot->cmdline, boot->kernelpath);
+		sprintf(command,"/usr/sbin/kexec --command-line=\"%s root=%s rootfstype=%s rootdelay=3\" -l %s", 
+			boot->cmdline, boot->device, boot->fstype, boot->kernelpath);
 	else
 		sprintf(command,"kexec -l %s", boot->kernelpath);
 	system(command);
