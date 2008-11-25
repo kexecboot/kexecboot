@@ -24,6 +24,10 @@
 #include <string.h>
 #include <linux/input.h>
 #include <termios.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <ctype.h>
 #include "fb.h"
 #include "devicescan.h"
 #include "res/logo-img.h"
@@ -32,5 +36,15 @@
 #include "res/logo-img.h"
 #include "res/memory-img.h"
 #include "res/radeon-font.h"
+
+/* Macro for dealing with NULL strings */
+#define strlenn(s)	( (NULL != s) ? (strlen(s)) : 0 )
+
+/* Tags we want from /proc/cmdline */
+char *wanted_tags[] = {
+	"mtdparts",
+	NULL
+};
+
 
 #endif
