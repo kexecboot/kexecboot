@@ -115,7 +115,7 @@ struct bootlist *scan_devices()
 		FILE *g;
 
 		line[strlen(line) - 1] = '\0';
-		split = line + strspn(line, " 01234567789");
+		split = line + strspn(line, " 0123456789");
 		device =
 		    malloc((strlen(split) + strlen("/dev/") +
 			    1) * sizeof(char));
