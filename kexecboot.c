@@ -536,11 +536,23 @@ int main(int argc, char **argv)
 			fread(&evt, sizeof(struct input_event), 1, f);
 		while(evt.type != EV_KEY || evt.value != 0);
 
-		if(evt.code == KEY_UP && choice >0)
-			choice--;
-		if(evt.code == KEY_DOWN && choice < bl->size-1)
-			choice++;
-	//	printf("%d %d\n",choice, evt.code);
+		switch (evt.code) {
+		case KEY_UP:
+			if (choice > 0) choice--;
+			break;
+		case KEY_DOWN:
+			if ( choice < (bl->size - 1) ) choice++;
+			break;
+		case KEY_R:
+			/* FIXME: Should work while no boot devices is found */
+			sync();
+			sleep(1);
+			/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
+			if ( -1 == reboot(RB_AUTOBOOT) ) {
+				perror("Can't initiate reboot");
+			}
+			break;
+		}
 
 	}while(evt.code != 87 && evt.code != 63);
 	fclose(f);

@@ -29,6 +29,7 @@
 #include <sys/wait.h>
 #include <ctype.h>
 #include <errno.h>
+#include <sys/reboot.h>
 #include "fb.h"
 #include "devicescan.h"
 #include "res/logo-img.h"
