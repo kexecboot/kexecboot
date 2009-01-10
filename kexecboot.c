@@ -273,13 +273,26 @@ void start_kernel(struct boot *boot)
 	char *const envp[] = { NULL };
 
 	const char *kexec_load_argv[] = { NULL, "-l", NULL, NULL, NULL };
-	const char *kexec_exec_argv[] = { NULL, "-e", NULL};
+	const char *kexec_exec_argv[] = { NULL, "-e", NULL, NULL};
 
 	char extra_cmdline_buffer[COMMAND_LINE_SIZE];
 	char *extra_cmdline, *cmdline_arg = NULL;
 	int n, idx;
+	struct stat *sinfo = malloc(sizeof(struct stat));
 	
 	kexec_exec_argv[0] = kexec_path;
+
+	/* Check /proc/sys/net presence */
+	if ( -1 == stat("/proc/sys/net", sinfo) ) {
+		if (ENOENT == errno) {
+			/* We have no network, don't issue ifdown() while kexec'ing */
+			kexec_exec_argv[2] = "-x";
+		} else {
+			perror("Can't stat /proc/sys/net");
+		}
+	}
+	free(sinfo);
+
 	kexec_load_argv[0] = kexec_path;
 
 	/* --command-line arg generation */
@@ -339,10 +352,12 @@ void start_kernel(struct boot *boot)
 	/* Append kernelpath as last arg of kexec */
 	kexec_load_argv[idx] = boot->kernelpath;
 
-	/* Debug
-	fprintf(stderr, "%s\n%s\n%s\n%s\n", kexec_load_argv[0],
+	DPRINTF("kexec_load_argv: %s, %s, %s, %s\n", kexec_load_argv[0],
 			kexec_load_argv[1], kexec_load_argv[2],
-			kexec_load_argv[3]); */
+			kexec_load_argv[3]);
+
+	DPRINTF("kexec_exec_argv: %s, %s, %s\n", kexec_load_argv[0],
+			kexec_load_argv[1], kexec_load_argv[2]);
 
 	/* Mount boot device */
 	if ( -1 == mount(boot->device, mount_point, boot->fstype,
@@ -369,13 +384,100 @@ void start_kernel(struct boot *boot)
 
 int main(int argc, char **argv)
 {
-	int i = 0, angle = 0, choice = 0;
+	int i = 0, choice = 0;
+	int initmode = 0;
 	FB *fb;
+	FILE *f;
+	int angle = 270;
+	char *eventif = "/dev/event0";
+	char *tmp;
 	struct bootlist * bl;
-	char* eventif = "/dev/input/event0";
 	struct input_event evt;
 	struct termios old, new;
+	char line[80];
 
+	/* Hardware Models and appropriate FB angles */
+	/* Terrier and Collie/Tosa/Poodle has unknown FB angle ATM */
+	struct model_angle angles_by_models [] = {
+		{"Shepherd",	0},
+		{"Husky",	0},
+		{"Corgi",	0},
+
+		{"Akita",	270},
+		{"Borzoi",	270},
+		{"Spitz",	270},
+
+		{"Collie",	270},
+		{"Tosa",	270},
+		{"Poodle",	270},
+		{NULL, 0}
+	};
+
+	/* When our pid is 1 we are init-process */
+	if ( 1 == getpid() ) {
+		initmode = 1;
+
+		DPRINTF("I'm the init-process!\n");
+
+		/* Mount procfs */
+		if ( -1 == mount("proc", "/proc", "proc",
+				0, NULL) ) {
+			perror("Can't mount procfs");
+			exit(-1);
+		}
+
+		DPRINTF("Procfs mounted\n");
+
+		/* Set up console loglevel */
+		f = fopen("/proc/sys/kernel/printk", "w");
+		if (NULL == f) {
+			perror("/proc/sys/kernel/printk");
+			exit(-1);
+		}
+		fputs("0 4 1 7\n", f);
+		fclose(f);
+
+		DPRINTF("Console loglevel is set\n");
+
+	}
+
+	/* Trying to recognise FB angle by hardware model */
+	f = fopen("/proc/cpuinfo", "r");
+	if (!f) {
+		perror("/proc/cpuinfo");
+		exit(-1);
+	}
+	while (fgets(line, 80, f)) {
+		line[strlen(line) - 1] = '\0';
+		DPRINTF("Line: %s\n", line);
+		/* Search string 'Hardware' */
+		tmp = strstr(line, "Hardware");
+		if ( NULL == tmp) continue;
+
+		/* Search colon and skip it and space after */
+		tmp = strchr(tmp, ':');
+		tmp += 2;
+		DPRINTF("+ model is: %s\n", tmp);
+
+		/* Check against array of models */
+		for (i = 0; angles_by_models[i].model != NULL; i++) {
+			DPRINTF("+ comparing with %s\n", angles_by_models[i].model);
+			if ( NULL != strstr(tmp, angles_by_models[i].model) ) {
+				/* match found */
+				angle = angles_by_models[i].angle;
+				DPRINTF("+ angle found: %d\n", angle);
+				break;
+			}
+		}
+
+		break;
+	}
+	fclose(f);
+	DPRINTF("Model is checked\n");
+
+	/* Check command-line args while not an init-process */
+	if (!initmode) {
+		i = 0;
 	while (++i < argc) {
 		if (!strcmp(argv[i], "-a") || !strcmp(argv[i], "--angle")) {
 			if (++i > argc)
@@ -397,6 +499,9 @@ int main(int argc, char **argv)
 			argv[0]);
 		exit(-1);
 	}
+	}
+
+	DPRINTF("Going to fb mode\n");
 
 	if ((fb = fb_new(angle)) == NULL)
 		exit(-1);
@@ -459,7 +564,7 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 	
-	FILE *f = fopen(eventif,"r");
+	f = fopen(eventif,"r");
 	if(!f){
 	    perror(eventif);
 	    exit(3);

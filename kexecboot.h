@@ -28,6 +28,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <ctype.h>
+#include <errno.h>
 #include "fb.h"
 #include "devicescan.h"
 #include "res/logo-img.h"
@@ -40,11 +41,26 @@
 /* Macro for dealing with NULL strings */
 #define strlenn(s)	( (NULL != s) ? (strlen(s)) : 0 )
 
+/* Debug macro */
+#define DEBUG
+#ifdef DEBUG
+#define DPRINTF(fmt, args...)	do { \
+		fprintf(stderr, fmt, ##args); \
+	} while (0)
+#else
+#define DPRINTF(fmt, args...)	do { } while (0)
+#endif
+
+
 /* Tags we want from /proc/cmdline */
 char *wanted_tags[] = {
 	"mtdparts",
 	NULL
 };
 
+struct model_angle {
+	char *model;
+	int angle;
+};
 
 #endif
