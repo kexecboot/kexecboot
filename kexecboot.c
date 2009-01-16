@@ -442,7 +442,7 @@ int main(int argc, char **argv)
 
 	}
 
-	/* Trying to recognise FB angle by hardware model */
+	/* Trying to recognize FB angle by hardware model */
 	f = fopen("/proc/cpuinfo", "r");
 	if (!f) {
 		perror("/proc/cpuinfo");
@@ -476,7 +476,7 @@ int main(int argc, char **argv)
 	fclose(f);
 	DPRINTF("Model is checked\n");
 
-	/* Check command-line args while not an init-process */
+	/* Check command-line args when not an init-process */
 	if (!initmode) {
 		i = 0;
 		while (++i < argc) {
@@ -548,7 +548,7 @@ int main(int argc, char **argv)
 	tcsetattr(fileno(stdin), TCSANOW, &old);
 	fb_destroy(fb);
 	start_kernel(bl->list[choice]);
-	/* When we reach this point then some error was occured */
+	/* When we reach this point then some error has occured */
 	DPRINTF("We should not reach this point!");
 	return -1;
 }
