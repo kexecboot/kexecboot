@@ -287,6 +287,7 @@ void start_kernel(struct boot *boot)
 		if (ENOENT == errno) {
 			/* We have no network, don't issue ifdown() while kexec'ing */
 			kexec_exec_argv[2] = "-x";
+			DPRINTF("No network is detected, disabling ifdown()");
 		} else {
 			perror("Can't stat /proc/sys/net");
 		}
@@ -501,6 +502,7 @@ int main(int argc, char **argv)
 	}
 	}
 
+	DPRINTF("FB angle is %d, input device is %s\n", angle, eventif);
 	DPRINTF("Going to fb mode\n");
 
 	if ((fb = fb_new(angle)) == NULL)
@@ -598,5 +600,6 @@ int main(int argc, char **argv)
 	fb_destroy(fb);
 	start_kernel(bl->list[choice]);
 	/* When we reach this point then some error was occured */
+	DPRINTF("We should not reach this point!");
 	return -1;
 }
