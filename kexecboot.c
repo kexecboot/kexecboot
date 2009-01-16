@@ -1,5 +1,5 @@
-/* 
- *  kexecboot - A kexec based bootloader 
+/*
+ *  kexecboot - A kexec based bootloader
  *
  *      Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *  small parts:
@@ -33,7 +33,7 @@ void display_slot(FB *fb, struct boot * boot,int slot, int height, int iscurrent
 			, height-2*margin, 0xec, 0xec, 0xe1);
 	}
 	if(!strncmp(boot->device,"/dev/hd",strlen("/dev/hd")))
-		fb_draw_image(fb, margin, slot*height+margin, CF_IMG_WIDTH, 
+		fb_draw_image(fb, margin, slot*height+margin, CF_IMG_WIDTH,
 			CF_IMG_HEIGHT, CF_IMG_BYTES_PER_PIXEL, CF_IMG_RLE_PIXEL_DATA);
 	else if(!strncmp(boot->device,"/dev/mmcblk",strlen("/dev/mmcblk")))
 		fb_draw_image(fb, margin, slot*height + margin, MMC_IMG_WIDTH,
@@ -42,9 +42,9 @@ void display_slot(FB *fb, struct boot * boot,int slot, int height, int iscurrent
 		fb_draw_image(fb, margin, slot*height + margin, MEMORY_IMG_WIDTH,
 			MEMORY_IMG_HEIGHT, MEMORY_IMG_BYTES_PER_PIXEL, MEMORY_IMG_RLE_PIXEL_DATA);
 	sprintf(text,"%s (%s)",boot->device, boot->fstype);
-	fb_draw_text (fb, CF_IMG_WIDTH+margin, slot*height+margin, 0, 0, 0, 
+	fb_draw_text (fb, CF_IMG_WIDTH+margin, slot*height+margin, 0, 0, 0,
 			&radeon_font, text);
-			
+
 }
 
 void display_menu(FB *fb, struct bootlist *bl, int current)
@@ -55,7 +55,7 @@ void display_menu(FB *fb, struct bootlist *bl, int current)
 	int slots = fb->height/slotheight -1;
 	// struct boot that is in fist slot
 	static int firstslot=0;
-	
+
 	/* Clear the background with #ecece1 */
 	fb_draw_rect(fb, 0, 0, fb->width, fb->height,0xec, 0xec, 0xe1);
 
@@ -101,7 +101,7 @@ int get_extra_cmdline(char *const extra_cmdline, const size_t extra_cmdline_size
 	int overflow = 0;
 
 	const char proc_cmdline_path[] = "/proc/cmdline";
-	
+
 	/* Open /proc/cmdline and read cmdline */
 	FILE *f = fopen(proc_cmdline_path, "r");
 	if (NULL == f) {
@@ -116,18 +116,18 @@ int get_extra_cmdline(char *const extra_cmdline, const size_t extra_cmdline_size
 	}
 
 	fclose(f);
-	
+
 	/* clean up buffer before parsing */
 	t = extra_cmdline;
 	*t = '\0';
-	
+
 	p = line-1;		/* because of ++p below */
 
 	sp_size = 0;	/* size of (first) space */
-	
+
 	do {
 		++p;
-		
+
 		if ( (NULL == tag) && (isalnum(*p)) ) {
 			/* new tag found */
 			tag = p;
@@ -136,7 +136,7 @@ int get_extra_cmdline(char *const extra_cmdline, const size_t extra_cmdline_size
 
 			if (isspace(*p) || ('\0' == *p) || ('=' == *p) ) {
 				/* end of tag or '=' found */
-				
+
 				if (!wanted_tag_found) {
 					/* search in wanted_tags */
 					for (i = 0; wanted_tags[i] != NULL; i++) {
@@ -147,10 +147,10 @@ int get_extra_cmdline(char *const extra_cmdline, const size_t extra_cmdline_size
 						}
 					}
 				}
-				
+
 				if ( ('=' != *p) && wanted_tag_found ) {
 					/* end of wanted tag found -> copy */
-					
+
 					len = p - tag;
 					if ( (sum_len + len + sp_size) < extra_cmdline_size ) {
 						if (sp_size) {
@@ -162,7 +162,7 @@ int get_extra_cmdline(char *const extra_cmdline, const size_t extra_cmdline_size
 						} else {
 							sp_size = sizeof(char);
 						}
-			
+
 						/* NOTE: tag is not null-terminated so copy only
 						 * len chars and terminate it directly
 						 */
@@ -181,7 +181,7 @@ int get_extra_cmdline(char *const extra_cmdline, const size_t extra_cmdline_size
 					/* reset wanted_tag_found */
 					wanted_tag_found = 0;
 				}
-				
+
 				/* reset tag */
 				if (!wanted_tag_found) tag = NULL;
 
@@ -279,7 +279,7 @@ void start_kernel(struct boot *boot)
 	char *extra_cmdline, *cmdline_arg = NULL;
 	int n, idx;
 	struct stat *sinfo = malloc(sizeof(struct stat));
-	
+
 	kexec_exec_argv[0] = kexec_path;
 
 	/* Check /proc/sys/net presence */
@@ -320,7 +320,7 @@ void start_kernel(struct boot *boot)
 				strlenn(str_root) + strlenn(boot->device) +
 				strlenn(str_rootfstype) + strlenn(boot->fstype) +
 				strlenn(str_rootwait) + sizeof(char);
-		
+
 		cmdline_arg = (char *)malloc(n);
 		if (NULL == cmdline_arg) {
 			perror("Can't allocate memory for cmdline_arg");
@@ -479,27 +479,27 @@ int main(int argc, char **argv)
 	/* Check command-line args while not an init-process */
 	if (!initmode) {
 		i = 0;
-	while (++i < argc) {
-		if (!strcmp(argv[i], "-a") || !strcmp(argv[i], "--angle")) {
-			if (++i > argc)
-				goto fail;
-			angle = atoi(argv[i]);
-			continue;
-		}
+		while (++i < argc) {
+			if (!strcmp(argv[i], "-a") || !strcmp(argv[i], "--angle")) {
+				if (++i > argc)
+					goto fail;
+				angle = atoi(argv[i]);
+				continue;
+			}
 
-		if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--input")) {
-			if (++i > argc)
-				goto fail;
-			eventif = argv[i];
-			continue;
-		}
+			if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--input")) {
+				if (++i > argc)
+					goto fail;
+				eventif = argv[i];
+				continue;
+			}
 
-	      fail:
-		fprintf(stderr,	"Usage: %s [-a|--angle <0|90|180|270>] \
-			[-i|--input </dev/eventX>\n",
-			argv[0]);
-		exit(-1);
-	}
+			fail:
+			fprintf(stderr,	"Usage: %s [-a|--angle <0|90|180|270>] \
+				[-i|--input </dev/eventX>\n",
+				argv[0]);
+			exit(-1);
+		}
 	}
 
 	DPRINTF("FB angle is %d, input device is %s\n", angle, eventif);
@@ -509,69 +509,18 @@ int main(int argc, char **argv)
 		exit(-1);
 
 	bl = scan_devices();
-/*	bl = malloc(sizeof(struct bootlist));
-	bl->size = 8;
-	bl->list = malloc(8 * sizeof(struct boot*));
-	
-	bl->list[0] = malloc(sizeof(struct boot));
-	bl->list[0]->device = "/dev/mtdblock2";
-	bl->list[0]->fstype = "jffs2";
-	bl->list[0]->kernelpath = "/boot/zImage";
-	bl->list[0]->cmdline = "cmdline0";
-	
-	bl->list[1] = malloc(sizeof(struct boot));
-	bl->list[1]->device = "/dev/mmcblk0p1";
-	bl->list[1]->fstype = "ext2";
-	bl->list[1]->kernelpath = "/boot/zImage";
-	bl->list[1]->cmdline = "cmdline1";
-	
-	bl->list[2] = malloc(sizeof(struct boot));
-	bl->list[2]->device = "/dev/hda1";
-	bl->list[2]->fstype = "ext3";
-	bl->list[2]->kernelpath = "/boot/zImage";
-	bl->list[2]->cmdline = "cmdline2";
-	
-	bl->list[3] = malloc(sizeof(struct boot));
-	bl->list[3]->device = "/dev/mmcblk1p2";
-	bl->list[3]->fstype = "ext2";
-	bl->list[3]->kernelpath = "/boot/zImage";
-	bl->list[3]->cmdline = "cmdline3";
-	
-	bl->list[4] = malloc(sizeof(struct boot));
-	bl->list[4]->device = "/dev/mtdblock2";
-	bl->list[4]->fstype = "jffs2";
-	bl->list[4]->kernelpath = "/boot/zImage";
-	bl->list[4]->cmdline = NULL;
-	
-	bl->list[5] = malloc(sizeof(struct boot));
-	bl->list[5]->device = "/dev/mmcblk0p1";
-	bl->list[5]->fstype = "ext2";
-	bl->list[5]->kernelpath = "/boot/zImage";
-	bl->list[5]->cmdline = NULL;
-	
-	bl->list[6] = malloc(sizeof(struct boot));
-	bl->list[6]->device = "/dev/hda1";
-	bl->list[6]->fstype = "ext3";
-	bl->list[6]->kernelpath = "/boot/zImage";
-	bl->list[6]->cmdline = NULL;
-	
-	bl->list[7] = malloc(sizeof(struct boot));
-	bl->list[7]->device = "/dev/mmcblk1p2";
-	bl->list[7]->fstype = "ext2";
-	bl->list[7]->kernelpath = "/boot/zImage";
-	bl->list[7]->cmdline = NULL;
-	*/
+
 	if(!bl->size){
 		puts("No bootable device found");
 		exit(-1);
 	}
-	
+
 	f = fopen(eventif,"r");
 	if(!f){
 	    perror(eventif);
 	    exit(3);
 	}
-	
+
 
 	// deactivate terminal input
 
@@ -586,13 +535,13 @@ int main(int argc, char **argv)
 		do
 			fread(&evt, sizeof(struct input_event), 1, f);
 		while(evt.type != EV_KEY || evt.value != 0);
-				    
+
 		if(evt.code == KEY_UP && choice >0)
 			choice--;
 		if(evt.code == KEY_DOWN && choice < bl->size-1)
 			choice++;
 	//	printf("%d %d\n",choice, evt.code);
-	    
+
 	}while(evt.code != 87 && evt.code != 63);
 	fclose(f);
 	// reset terminal
