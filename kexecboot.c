@@ -67,7 +67,7 @@ void display_menu(FB *fb, struct bootlist *bl, int current)
 		      LOGO_IMG_HEIGHT,
 		      LOGO_IMG_BYTES_PER_PIXEL, LOGO_IMG_RLE_PIXEL_DATA);
 	fb_draw_text (fb, LOGO_IMG_WIDTH + margin, margin, 0, 0, 0, &radeon_font,
-			"Which device do\nyou want to boot\ntoday?");
+			"Make your choice by selecting\nan item with the cursor keys\nand press OK to continue");
 	if(current < firstslot)
 		firstslot=current;
 	if(current > firstslot + slots -1)
