@@ -1,5 +1,5 @@
-/* 
- *  kexecboot - A kexec based bootloader 
+/*
+ *  kexecboot - A kexec based bootloader
  *
  *      Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *
@@ -99,7 +99,7 @@ struct bootlist *scan_devices()
 	bl->list = malloc(size * sizeof(struct boot));
 	struct fslist *fl = scan_filesystems();
 
-	// get list of bootable filesystems     
+	// get list of bootable filesystems
 	FILE *f = fopen("/proc/partitions", "r");
 	if (!f) {
 		perror("/proc/partitions");
@@ -127,6 +127,7 @@ struct bootlist *scan_devices()
 			free(device);
 			continue;
 		}
+		printf("Device %s is opened\n", device);
 		if (-1 == identify_fs(fd, &fstype, NULL, 0)) {
 			free(device);
 			continue;
@@ -136,6 +137,7 @@ struct bootlist *scan_devices()
 			free(device);
 			continue;
 		}
+		printf("FS on device %s is %s\n", device, fstype);
 		// no unknown filesystems
 		if (contains(fstype, fl) == -1) {
 			free(device);
