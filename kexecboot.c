@@ -356,8 +356,8 @@ void start_kernel(struct boot *boot)
 			kexec_load_argv[1], kexec_load_argv[2],
 			kexec_load_argv[3]);
 
-	DPRINTF("kexec_exec_argv: %s, %s, %s\n", kexec_load_argv[0],
-			kexec_load_argv[1], kexec_load_argv[2]);
+	DPRINTF("kexec_exec_argv: %s, %s, %s\n", kexec_exec_argv[0],
+			kexec_exec_argv[1], kexec_exec_argv[2]);
 
 	/* Mount boot device */
 	if ( -1 == mount(boot->device, mount_point, boot->fstype,
@@ -495,7 +495,7 @@ int main(int argc, char **argv)
 
 	      fail:
 		fprintf(stderr,	"Usage: %s [-a|--angle <0|90|180|270>] \
-			[-i|--input </dev/input/eventX>\n",
+			[-i|--input </dev/eventX>\n",
 			argv[0]);
 		exit(-1);
 	}
