@@ -287,7 +287,7 @@ void start_kernel(struct boot *boot)
 		if (ENOENT == errno) {
 			/* We have no network, don't issue ifdown() while kexec'ing */
 			kexec_exec_argv[2] = "-x";
-			DPRINTF("No network is detected, disabling ifdown()");
+			DPRINTF("No network is detected, disabling ifdown()\n");
 		} else {
 			perror("Can't stat /proc/sys/net");
 		}
