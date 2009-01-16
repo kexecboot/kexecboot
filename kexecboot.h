@@ -1,5 +1,5 @@
-/* 
- *  kexecboot - A kexec based bootloader  
+/*
+ *  kexecboot - A kexec based bootloader
  *
  *  Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *  Copyright (c) 2006 Matthew Allum <mallum@o-hand.com>
@@ -42,7 +42,7 @@
 #define strlenn(s)	( (NULL != s) ? (strlen(s)) : 0 )
 
 /* Debug macro */
-#define DEBUG
+/* #define DEBUG */
 #ifdef DEBUG
 #define DPRINTF(fmt, args...)	do { \
 		fprintf(stderr, fmt, ##args); \
