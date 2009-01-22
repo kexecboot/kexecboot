@@ -539,7 +539,7 @@ int main(int argc, char **argv)
 	}
 */
 
-	do{
+	do {
 		display_menu(fb, bl, choice);
 		do
 			fread(&evt, sizeof(struct input_event), 1, f);
@@ -563,7 +563,7 @@ int main(int argc, char **argv)
 			break;
 		}
 
-	}while(evt.code != 87 && evt.code != 63);
+	} while( (bl->size == 0) || (evt.code != 87 && evt.code != 63) );
 	fclose(f);
 	// reset terminal
 	tcsetattr(fileno(stdin), TCSANOW, &old);
