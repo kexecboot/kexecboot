@@ -1,6 +1,7 @@
-/* 
- *  kexecboot - A kexec based bootloader 
+/*
+ *  kexecboot - A kexec based bootloader
  *
+ *  Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
  *  Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *  Copyright (c) 2006 Matthew Allum <mallum@o-hand.com>
  *
@@ -32,7 +33,7 @@
 
 #include "res/font.h"
 
-       
+
 typedef unsigned char uint8;
 typedef unsigned short uint16;
 
@@ -46,7 +47,7 @@ typedef struct FB {
 	char *data;
 	char *backbuffer;
 	char *base;
-	
+
 	int screensize;
 	int angle;
 	int real_width, real_height;

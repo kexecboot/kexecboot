@@ -1,6 +1,7 @@
 /*
- *  kexecboot - A kexec based bootloader 
+ *  kexecboot - A kexec based bootloader
  *
+ *  Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
  *  Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *  Copyright (c) 2006 Matthew Allum <mallum@o-hand.com>
  *
@@ -169,7 +170,7 @@ FB *fb_new(int angle)
 	off =
 	    (unsigned long) fb_fix.smem_start %
 	    (unsigned long) getpagesize();
-		
+
 	fb->data = fb->base + off;
 #if 0
 	/* FIXME: No support for 8pp as yet  */
@@ -266,7 +267,7 @@ fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 
 }
 
-void fb_draw_rect(FB * fb, int x, int y, int width, int height, 
+void fb_draw_rect(FB * fb, int x, int y, int width, int height,
 		uint8 red, uint8 green, uint8 blue)
 {
 	int dx, dy;
@@ -277,7 +278,7 @@ void fb_draw_rect(FB * fb, int x, int y, int width, int height,
 				      blue);
 }
 
-void fb_draw_image(FB * fb, int x, int y, int img_width, int img_height, 
+void fb_draw_image(FB * fb, int x, int y, int img_width, int img_height,
 		int img_bytes_per_pixel, uint8 * rle_data)
 {
 	uint8 *p = rle_data;
@@ -346,7 +347,7 @@ static int font_glyph(const Font * font, char wc, u_int32_t ** bitmap)
 	return 0;
 }
 
-void fb_text_size(FB * fb, int *width, int *height, const Font * font, 
+void fb_text_size(FB * fb, int *width, int *height, const Font * font,
 		const char *text)
 {
 	char *c = (char *) text;
@@ -370,7 +371,7 @@ void fb_text_size(FB * fb, int *width, int *height, const Font * font,
 	*height = (h == 0) ? font->height : h;
 }
 
-void fb_draw_text(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue, 
+void fb_draw_text(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue,
 		const Font * font, const char *text)
 {
 	int h, w, n, cx, cy, dx, dy;
