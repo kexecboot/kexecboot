@@ -31,8 +31,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "util.h"
 #include "res/font.h"
-
 
 typedef unsigned char uint8;
 typedef unsigned short uint16;

@@ -2,7 +2,6 @@
  *  kexecboot - A kexec based bootloader
  *
  *  Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
- *  Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,32 +14,3 @@
  *  GNU General Public License for more details.
  *
  */
-#ifndef _HAVE_DEVICESCAN_H_
-#define _HAVE_DEVICESCAN_H_
-
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <sys/mount.h>
-#include <asm/setup.h> // for COMMAND_LINE_SIZE
-#include "fstype/fstype.h"
-#include "util.h"
-
-struct boot {
-	char *device;
-	char *fstype;
-	char *kernelpath;
-	char *cmdline;
-};
-
-struct bootlist {
-	struct boot **list;
-	unsigned int size;
-};
-
-struct bootlist *scan_devices();
-void free_bootlist(struct bootlist* bl);
-#endif
