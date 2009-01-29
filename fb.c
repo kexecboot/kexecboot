@@ -20,7 +20,17 @@
 
 void fb_render(FB * fb)
 {
-	memcpy(fb->data, fb->backbuffer, fb->screensize);
+	/* klibc uses 8bit transfers that breaks image on tosa */
+	/* memcpy(fb->data, fb->backbuffer, fb->screensize); */
+	uint16 *source, *dest;
+	int n = fb->screensize/2;
+
+	source = (uint16 *)fb->backbuffer;
+	dest = (uint16 *)fb->data;
+
+	while (n--) {
+		*dest++ = *source++;
+	}
 }
 
 void fb_destroy(FB * fb)
