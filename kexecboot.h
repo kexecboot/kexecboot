@@ -26,8 +26,6 @@
 #include <linux/input.h>
 #include <termios.h>
 #include <unistd.h>
-#include <signal.h>
-#include <sys/wait.h>
 #include <ctype.h>
 #include <errno.h>
 #include <sys/reboot.h>
@@ -41,29 +39,20 @@
 #include "res/memory-img.h"
 #include "res/radeon-font.h"
 
-/* Macro for dealing with NULL strings */
-#define strlenn(s)	( (NULL != s) ? (strlen(s)) : 0 )
-
-/* Debug macro */
-/* #define DEBUG */
-#ifdef DEBUG
-#define DPRINTF(fmt, args...)	do { \
-		fprintf(stderr, fmt, ##args); \
-	} while (0)
-#else
-#define DPRINTF(fmt, args...)	do { } while (0)
+/* Default event interface. Can be redefined */
+#ifndef KXB_EVENTIF
+#define KXB_EVENTIF "/dev/event0"
 #endif
 
+/* Default FB angle. Can be redefined */
+#ifndef KXB_FBANGLE
+#define KXB_FBANGLE 0
+#endif
 
 /* Tags we want from /proc/cmdline */
 char *wanted_tags[] = {
 	"mtdparts",
 	NULL
-};
-
-struct model_angle {
-	char *model;
-	int angle;
 };
 
 #endif

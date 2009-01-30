@@ -14,3 +14,87 @@
  *  GNU General Public License for more details.
  *
  */
+
+#ifndef _HAVE_UTIL_H_
+#define _HAVE_UTIL_H_
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <string.h>
+
+
+/* Macro for dealing with NULL strings */
+#define strlenn(s)	( (NULL != s) ? (strlen(s)) : 0 )
+
+/* Debug macro */
+/* #define DEBUG */
+#ifdef DEBUG
+#define DPRINTF(fmt, args...)	do { \
+		fprintf(stderr, fmt, ##args); \
+	} while (0)
+#else
+#define DPRINTF(fmt, args...)	do { } while (0)
+#endif
+
+/* Known hardware models */
+enum hw_model_ids {
+	HW_MODEL_UNKNOWN,
+
+	HW_SHARP_POODLE,
+	HW_SHARP_COLLIE,
+	HW_SHARP_CORGI,
+	HW_SHARP_SHEPHERD,
+	HW_SHARP_HUSKY,
+	HW_SHARP_TOSA,
+	HW_SHARP_AKITA,
+	HW_SHARP_SPITZ,
+	HW_SHARP_BORZOI,
+	HW_SHARP_TERRIER
+};
+
+/*
+ * Hardware models info (id, name, parameters...)
+ * Name is searched in 'Hardware' line of /proc/cpuinfo to detect model.
+ */
+struct hw_model_info {
+	enum hw_model_ids hw_model_id;
+	char *name;
+	// parameters
+	int angle;
+};
+
+
+/*
+ * FUNCTIONS
+ */
+
+/*
+ * Function: fexecw()
+ * (fork, execve and wait)
+ * kexecboot's replace of system() call without /bin/sh invocation.
+ * During execution  of the command, SIGCHLD will be blocked,
+ * and SIGINT and SIGQUIT will be ignored (like system() does).
+ * Takes 3 args (execve()-like):
+ * - path - full path to executable file
+ * - argv[] - array of args for executed file (command options e.g.)
+ * - envp[] - array of environment strings ("key=value")
+ * Return value:
+ * - command exit status on success
+ * - -1 on error (e.g. fork() failed)
+ */
+int fexecw(const char *path, char *const argv[], char *const envp[]);
+
+/*
+ * Function: detect_hw_model()
+ * Detect hardware model.
+ * Return value:
+ * - pointer to hw_model_info structure from model_info array
+ */
+struct hw_model_info *detect_hw_model(void);
+
+
+#endif //_HAVE_UTIL_H_

@@ -96,6 +96,7 @@ struct bootlist *scan_devices()
 	char *split;
 	unsigned int size = 4;
 	unsigned int count = 0;
+	struct stat sinfo;
 	struct bootlist *bl = malloc(sizeof(struct bootlist));
 	bl->list = malloc(size * sizeof(struct boot));
 	struct fslist *fl = scan_filesystems();
@@ -117,65 +118,69 @@ struct bootlist *scan_devices()
 
 		line[strlen(line) - 1] = '\0';
 		split = line + strspn(line, " 0123456789");
-		device =
-		    malloc((strlen(split) + strlen("/dev/") +
-			    1) * sizeof(char));
-		sprintf(device, "/dev/%s", split);
-		printf("Probing %s\n",device);
+		device = malloc( (strlen(split) + strlen("/dev/") + 1) * sizeof(char) );
+		strcpy(device, "/dev/");
+		strcat(device, split);
+		DPRINTF("Probing %s\n",device);
+
 		int fd = open(device, O_RDONLY);
 		if (fd < 0) {
 			perror(device);
 			free(device);
 			continue;
 		}
-		printf("Device %s is opened\n", device);
+		DPRINTF("+ device is opened\n");
+
 		if (-1 == identify_fs(fd, &fstype, NULL, 0)) {
 			free(device);
 			continue;
 		}
 		close(fd);
+		DPRINTF("+ device is closed\n");
+
 		if (!fstype) {
 			free(device);
 			continue;
 		}
-		printf("FS on device %s is %s\n", device, fstype);
+		DPRINTF("+ FS on device is %s\n", fstype);
+
 		// no unknown filesystems
 		if (contains(fstype, fl) == -1) {
 			free(device);
 			continue;
 		}
-		printf("found %s (%s)\n",device, fstype);
+		DPRINTF("+ FS is known\n");
+
 		// mount fs
 		if (mount(device, "/mnt", fstype, MS_RDONLY, NULL)) {
-			printf("mount failed\n");
 			perror(device);
 			free(device);
 			continue;
 		}
-		printf("mount successful\n");
-		if ( (g = fopen("/mnt/zImage", "r")) )
+		DPRINTF("+ FS is mounted\n");
+
+		if ( 0 == stat("/mnt/zImage", &sinfo) ) {
 			kernelpath = "/mnt/zImage";
-		else if ( (g = fopen("/mnt/boot/zImage", "r")) )
+		} else if ( 0 == stat("/mnt/boot/zImage", &sinfo) ) {
 			kernelpath = "/mnt/boot/zImage";
-		else {
-			printf("%s no kernel found, umounting\n", device);
+		} else {
+			DPRINTF("+ no kernel found on FS, umounting\n", device);
 			free(device);
 			umount("/mnt");
 			continue;
 		}
-		fclose(g);
-		printf("found kernel\n");
+		DPRINTF("+ found kernel\n");
+
 		bl->list[count] = malloc(sizeof(struct boot));
 		bl->list[count]->device = device;
-		bl->list[count]->fstype = fstype;
-		bl->list[count]->kernelpath = kernelpath;
+		bl->list[count]->fstype = strdup(fstype);
+		bl->list[count]->kernelpath = strdup(kernelpath);
+
 		if ( (g = fopen("/mnt/boot/kernel-cmdline", "r")) ) {
-			bl->list[count]->cmdline =
-			    malloc(COMMAND_LINE_SIZE);
-			fgets(bl->list[count]->cmdline, COMMAND_LINE_SIZE,
-			      g);
+			bl->list[count]->cmdline = malloc(COMMAND_LINE_SIZE);
+			fgets(bl->list[count]->cmdline, COMMAND_LINE_SIZE, g);
 			fclose(g);
-			printf("found command line\n");
+			DPRINTF("+ found command line\n");
 			bl->list[count]->cmdline[strlen(bl->list[count]->cmdline)-1] = '\0';
 		} else
 			bl->list[count]->cmdline = NULL;
@@ -183,9 +188,7 @@ struct bootlist *scan_devices()
 		count++;
 		if (count == size) {
 			size *= 2;
-			bl->list =
-			    realloc(bl->list,
-				    size * sizeof(struct boot *));
+			bl->list = realloc(bl->list, size * sizeof(struct boot *));
 		}
 		umount("/mnt");
 	}

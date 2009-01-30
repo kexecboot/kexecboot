@@ -98,6 +98,7 @@ void display_menu(FB *fb, struct bootlist *bl, int current)
  * - length of extra_cmdline on success (w/o term. zero);
  * - -1 on error;
  * - (- length of extra_cmdline - 1)  on insufficient buffer space.
+ * REFACTOR: do something with wanted_tags and this function (may be move to util)
  */
 
 int get_extra_cmdline(char *const extra_cmdline, const size_t extra_cmdline_size)
@@ -203,70 +204,6 @@ int get_extra_cmdline(char *const extra_cmdline, const size_t extra_cmdline_size
 	return sum_len;
 }
 
-/*
- * Function: kexec_execw()
- * (execve and wait)
- * kexecboot's replace of system() call without /bin/sh invocation.
- * During execution  of the command, SIGCHLD will be blocked,
- * and SIGINT and SIGQUIT will be ignored (like system() does).
- * Takes 2 args (execve()-like):
- * - path - full path to executable file
- * - argv[] - array of args for executed file (command options e.g.)
- * - envp[] - array of environment strings ("key=value")
- * Return value:
- * - command exit status on success
- * - -1 on error (e.g. fork() failed)
- */
-int kexec_execw(const char *path, char *const argv[], char *const envp[])
-{
-	pid_t pid;
-	struct sigaction ignore, old_int, old_quit;
-	sigset_t masked, oldmask;
-	int status;
-
-	/* Block SIGCHLD and ignore SIGINT and SIGQUIT */
-	/* Do this before the fork() to avoid races */
-
-	ignore.sa_handler = SIG_IGN;
-	sigemptyset(&ignore.sa_mask);
-	ignore.sa_flags = 0;
-	sigaction(SIGINT, &ignore, &old_int);
-	sigaction(SIGQUIT, &ignore, &old_quit);
-
-	sigemptyset(&masked);
-	sigaddset(&masked, SIGCHLD);
-	sigprocmask(SIG_BLOCK, &masked, &oldmask);
-
-	pid = fork();
-
-	if (pid < 0)
-		/* can't fork */
-		return -1;
-	else if (pid == 0) {
-		/* it is child */
-		sigaction(SIGINT, &old_int, NULL);
-		sigaction(SIGQUIT, &old_quit, NULL);
-		sigprocmask(SIG_SETMASK, &oldmask, NULL);
-
-		/* replace child with executed file */
-		execve(path, (char *const *)argv, (char *const *)envp);
-		/* should not happens but... */
-		_exit(127);
-	}
-
-	/* it is parent */
-
-	/* wait for our child and store status */
-	waitpid(pid, &status, 0);
-
-	/* restore signal handlers */
-	sigaction(SIGINT, &old_int, NULL);
-	sigaction(SIGQUIT, &old_quit, NULL);
-	sigprocmask(SIG_SETMASK, &oldmask, NULL);
-
-	return status;
-}
-
 void start_kernel(struct boot *boot)
 {
 	/* we use var[] instead of *var because sizeof(var) using */
@@ -337,7 +274,7 @@ void start_kernel(struct boot *boot)
 			exit(-1);
 			*/
 		} else {
-			strcat(cmdline_arg, str_cmdline_start);
+			strcpy(cmdline_arg, str_cmdline_start);
 			if (extra_cmdline)
 				strcat(cmdline_arg, extra_cmdline);
 			if (boot->cmdline && extra_cmdline)
@@ -377,7 +314,7 @@ void start_kernel(struct boot *boot)
 	}
 
 	/* Load kernel */
-	n = kexec_execw(kexec_path, (char *const *)kexec_load_argv, envp);
+	n = fexecw(kexec_path, (char *const *)kexec_load_argv, envp);
 	if (-1 == n) {
 		perror("Kexec can't load kernel");
 		exit(-1);
@@ -394,34 +331,16 @@ void start_kernel(struct boot *boot)
 
 int main(int argc, char **argv)
 {
-	int i = 0, choice = 0;
+	int choice = 0;
 	int initmode = 0;
 	FB *fb;
 	FILE *f;
-	int angle = 270;
-	char *eventif = "/dev/event0";
-	char *tmp;
+	int angle = KXB_FBANGLE;
+	char *eventif = KXB_EVENTIF;
 	struct bootlist * bl;
 	struct input_event evt;
 	struct termios old, new;
-	char line[80];
-
-	/* Hardware Models and appropriate FB angles */
-	/* Terrier and Collie/Tosa/Poodle has unknown FB angle ATM */
-	struct model_angle angles_by_models [] = {
-		{"Shepherd",	0},
-		{"Husky",	0},
-		{"Corgi",	0},
-
-		{"Akita",	270},
-		{"Borzoi",	270},
-		{"Spitz",	270},
-
-		{"Collie",	270},
-		{"Tosa",	270},
-		{"Poodle",	270},
-		{NULL, 0}
-	};
+	struct hw_model_info *model;
 
 	/* When our pid is 1 we are init-process */
 	if ( 1 == getpid() ) {
@@ -451,43 +370,16 @@ int main(int argc, char **argv)
 
 	}
 
-	/* Trying to recognize FB angle by hardware model */
-	f = fopen("/proc/cpuinfo", "r");
-	if (!f) {
-		perror("/proc/cpuinfo");
-		exit(-1);
+	/* Get hardware model parameters (now FB angle only) */
+	model = detect_hw_model();
+	if (model->hw_model_id != HW_MODEL_UNKNOWN) {
+		angle = model->angle;
+		DPRINTF("Model is %s, fbangle is %d\n", model->name, model->angle);
 	}
-	while (fgets(line, 80, f)) {
-		line[strlen(line) - 1] = '\0';
-		DPRINTF("Line: %s\n", line);
-		/* Search string 'Hardware' */
-		tmp = strstr(line, "Hardware");
-		if ( NULL == tmp) continue;
-
-		/* Search colon and skip it and space after */
-		tmp = strchr(tmp, ':');
-		tmp += 2;
-		DPRINTF("+ model is: %s\n", tmp);
-
-		/* Check against array of models */
-		for (i = 0; angles_by_models[i].model != NULL; i++) {
-			DPRINTF("+ comparing with %s\n", angles_by_models[i].model);
-			if ( NULL != strstr(tmp, angles_by_models[i].model) ) {
-				/* match found */
-				angle = angles_by_models[i].angle;
-				DPRINTF("+ angle found: %d\n", angle);
-				break;
-			}
-		}
-
-		break;
-	}
-	fclose(f);
-	DPRINTF("Model is checked\n");
 
 	/* Check command-line args when not an init-process */
 	if (!initmode) {
-		i = 0;
+		int i = 0;
 		while (++i < argc) {
 			if (!strcmp(argv[i], "-a") || !strcmp(argv[i], "--angle")) {
 				if (++i > argc)
@@ -514,9 +406,6 @@ int main(int argc, char **argv)
 	DPRINTF("FB angle is %d, input device is %s\n", angle, eventif);
 	DPRINTF("Going to fb mode\n");
 
-	/* Switch cursor off. NOTE: works only when master-console is tty */
-	printf("\033[?25l\n");
-
 	if ((fb = fb_new(angle)) == NULL)
 		exit(-1);
 
@@ -526,6 +415,9 @@ int main(int argc, char **argv)
 	    exit(3);
 	}
 
+	/* Switch cursor off. NOTE: works only when master-console is tty */
+	printf("\033[?25l\n");
+
 	// deactivate terminal input
 	tcgetattr(fileno(stdin), &old);
 	new = old;
@@ -534,12 +426,6 @@ int main(int argc, char **argv)
 	tcsetattr(fileno(stdin), TCSANOW, &new);
 
 	bl = scan_devices();
-/*
-	if(!bl->size){
-		puts("No bootable device found");
-		exit(-1);
-	}
-*/
 
 	do {
 		display_menu(fb, bl, choice);
