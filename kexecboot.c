@@ -454,7 +454,9 @@ int main(int argc, char **argv)
 			break;
 		}
 
-	} while( (bl->size == 0) || (evt.code != 87 && evt.code != 63) );
+	} while( (bl->size == 0) || (evt.code != 87 && evt.code != 63 &&
+		evt.code != KEY_SPACE && evt.code != KEY_ENTER &&
+		evt.code != KEY_HIRAGANA && evt.code != KEY_HENKAN) );
 	fclose(f);
 	// reset terminal
 	tcsetattr(fileno(stdin), TCSANOW, &old);
