@@ -140,7 +140,9 @@ FB *fb_new(int angle)
 		goto fail;
 	}
 
-	if (fb_var.bits_per_pixel < 16) {
+	if (fb_var.bits_per_pixel != 1 && fb_var.bits_per_pixel != 2
+		&& fb_var.bits_per_pixel < 16)
+	{
 		fprintf(stderr,
 			"Error, no support currently for %i bpp frame buffers\n"
 			"Trying to change pixel format...\n",
@@ -227,29 +229,40 @@ FB *fb_new(int angle)
 	return NULL;
 }
 
-#define OFFSET(fb,x,y) (((y) * (fb)->stride) + ((x) * ((fb)->bpp >> 3)))
+static inline int
+fb_offset(FB *fb, int x, int y)
+{
+	switch (fb->bpp)
+	{
+	/* pixel offset */
+	case 2: return (y * (fb->stride << 2)) + x;
+	case 1: return (y * (fb->stride << 3)) + x;
+	/* byte offset */
+	default: return (y * fb->stride) + (x * (fb->bpp >> 3));
+	}
+}
 
 inline void
 fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 {
-	int off;
+	int off, shift;
 
 	if (x < 0 || x > fb->width - 1 || y < 0 || y > fb->height - 1)
 		return;
 
 	switch (fb->angle) {
 	case 270:
-		off = OFFSET(fb, fb->height - y - 1, x);
+		off = fb_offset(fb, fb->height - y - 1, x);
 		break;
 	case 180:
-		off = OFFSET(fb, fb->width - x - 1, fb->height - y - 1);
+		off = fb_offset(fb, fb->width - x - 1, fb->height - y - 1);
 		break;
 	case 90:
-		off = OFFSET(fb, y, fb->width - x - 1);
+		off = fb_offset(fb, y, fb->width - x - 1);
 		break;
 	case 0:
 	default:
-		off = OFFSET(fb, x, y);
+		off = fb_offset(fb, x, y);
 		break;
 	}
 
@@ -267,8 +280,19 @@ fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 	case 16:
 	//	*(volatile uint16 *) (fb->data + off)
 		*(volatile uint16 *) (fb->backbuffer + off)
-		    = ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >>
-								  3);
+		    = ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
+		break;
+	case 2:
+		shift = (3 - (off & 3)) << 1;
+		*(fb->data + (off >> 2)) = (*(fb->data + (off >> 2)) & ~(3 << shift))
+		| (((11*red + 16*green + 5*blue) >> 11) << shift);
+		break;
+	case 1:
+		shift = 7 - (off & 7);
+		if (((11*red + 16*green + 5*blue) >> 5) >= 128)
+			*(fb->data + (off >> 3)) |= (1 << shift);
+		else
+			*(fb->data + (off >> 3)) &= ~(1 << shift);
 		break;
 	default:
 		/* depth not supported yet */
