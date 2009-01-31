@@ -400,7 +400,7 @@ int main(int argc, char **argv)
 
 			fail:
 			fprintf(stderr,	"Usage: %s [-a|--angle <0|90|180|270>] \
-				[-i|--input </dev/eventX>\n",
+				[-i|--input </dev/input/eventX>\n",
 				argv[0]);
 			exit(-1);
 		}
