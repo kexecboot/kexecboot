@@ -21,7 +21,27 @@
 
 #include "kexecboot.h"
 
-void display_slot(FB *fb, struct boot * boot,int slot, int height, int iscurrent)
+/* Draw background with logo and text */
+void draw_background(FB *fb, const char *text) {
+	int margin = fb->width/64;
+
+	/* Clear the background with #ecece1 */
+	fb_draw_rect(fb, 0, 0, fb->width, fb->height,0xec, 0xec, 0xe1);
+
+	/* logo */
+	fb_draw_image(fb,
+		      0,
+		      0,
+		      LOGO_IMG_WIDTH,
+		      LOGO_IMG_HEIGHT,
+		      LOGO_IMG_BYTES_PER_PIXEL, LOGO_IMG_RLE_PIXEL_DATA);
+
+	fb_draw_text (fb, LOGO_IMG_WIDTH + margin, margin, 0, 0, 0,
+		&radeon_font, text);
+}
+
+/* Draw one slot in menu */
+void draw_slot(FB *fb, struct boot * boot,int slot, int height, int iscurrent)
 {
 	int margin = (height - CF_IMG_HEIGHT)/2;
 	char text[100];
@@ -49,32 +69,19 @@ void display_slot(FB *fb, struct boot * boot,int slot, int height, int iscurrent
 
 }
 
+/* Display bootlist menu with selection */
 void display_menu(FB *fb, struct bootlist *bl, int current)
 {
 	int i,j;
-	int margin = fb->width/64;
 	int slotheight = LOGO_IMG_HEIGHT;
 	int slots = fb->height/slotheight -1;
 	// struct boot that is in fist slot
 	static int firstslot=0;
 
-	/* Clear the background with #ecece1 */
-	fb_draw_rect(fb, 0, 0, fb->width, fb->height,0xec, 0xec, 0xe1);
-
-	/* logo */
-	fb_draw_image(fb,
-		      0,
-		      0,
-		      LOGO_IMG_WIDTH,
-		      LOGO_IMG_HEIGHT,
-		      LOGO_IMG_BYTES_PER_PIXEL, LOGO_IMG_RLE_PIXEL_DATA);
-	/* If no devices found print a message */
 	if (0 == bl->size) {
-		fb_draw_text (fb, LOGO_IMG_WIDTH + margin, margin, 0, 0, 0, &radeon_font,
-			"No bootable devices found.\nInsert bootable device\nand press 'R' to reboot.");
+		draw_background(fb, "No bootable devices found.\nInsert bootable device!\nR: Reboot  S: Rescan devices");
 	} else {
-		fb_draw_text (fb, LOGO_IMG_WIDTH + margin, margin, 0, 0, 0, &radeon_font,
-			"Make your choice by selecting\nan item with the cursor keys\nand press OK to continue.\nPress 'R' to reboot.");
+		draw_background(fb, "Make your choice by selecting\nan item with the cursor keys.\nOK/Enter: Boot selected device\nR: Reboot  S: Rescan devices");
 	}
 
 	if(current < firstslot)
@@ -82,8 +89,14 @@ void display_menu(FB *fb, struct bootlist *bl, int current)
 	if(current > firstslot + slots -1)
 		firstslot = current - (slots -1);
 	for(i=1, j=firstslot; i <= slots && j< bl->size; i++, j++){
-		display_slot(fb, bl->list[j], i, slotheight, j == current);
+		draw_slot(fb, bl->list[j], i, slotheight, j == current);
 	}
+	fb_render(fb);
+}
+
+/* Display custom text near logo */
+void display_text(FB *fb, const char *text) {
+	draw_background(fb, text);
 	fb_render(fb);
 }
 
@@ -444,13 +457,18 @@ int main(int argc, char **argv)
 			if ( choice < (bl->size - 1) ) choice++;
 			break;
 		case KEY_R:
-			/* FIXME: Should work while no boot devices is found */
+			display_text(fb, "Rebooting...");
 			sync();
 			sleep(1);
 			/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
 			if ( -1 == reboot(RB_AUTOBOOT) ) {
 				perror("Can't initiate reboot");
 			}
+			break;
+		case KEY_S:	/* reScan */
+			display_text(fb, "Rescanning devices.\nPlease wait...");
+			free_bootlist(bl);
+			bl = scan_devices();
 			break;
 		}
 

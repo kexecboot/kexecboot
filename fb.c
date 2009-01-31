@@ -247,7 +247,7 @@ fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 {
 	int off, shift;
 
-	if (x < 0 || x > fb->width - 1 || y < 0 || y > fb->height - 1)
+	if (x < 0 || x > (fb->width - 1) || y < 0 || y > (fb->height - 1))
 		return;
 
 	switch (fb->angle) {
