@@ -459,7 +459,6 @@ int main(int argc, char **argv)
 		case KEY_R:
 			display_text(fb, "Rebooting...");
 			sync();
-			sleep(1);
 			/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
 			if ( -1 == reboot(RB_AUTOBOOT) ) {
 				perror("Can't initiate reboot");
