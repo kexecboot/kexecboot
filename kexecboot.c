@@ -348,6 +348,9 @@ int main(int argc, char **argv)
 
 		DPRINTF("I'm the init-process!\n");
 
+		/* extra delay for initializing slow SD/CF */
+		sleep(1);
+
 		/* Mount procfs */
 		if ( -1 == mount("proc", "/proc", "proc",
 				0, NULL) ) {
