@@ -92,17 +92,21 @@ void free_bootlist(struct bootlist *bl)
 
 struct bootlist *scan_devices()
 {
-	char line[80];
-	char *split;
+	char line[80], *tmp, **p, *partinfo[4];
+	int major, minor, blocks;
 	unsigned int size = 4;
 	unsigned int count = 0;
+	char *device;
+	const char *fstype;
+	const char *kernelpath;
+	FILE *g, *f;
 	struct stat sinfo;
 	struct bootlist *bl = malloc(sizeof(struct bootlist));
 	bl->list = malloc(size * sizeof(struct boot));
 	struct fslist *fl = scan_filesystems();
 
 	// get list of bootable filesystems
-	FILE *f = fopen("/proc/partitions", "r");
+	f = fopen("/proc/partitions", "r");
 	if (!f) {
 		perror("/proc/partitions");
 		exit(-1);
@@ -111,16 +115,42 @@ struct bootlist *scan_devices()
 	fgets(line, 80, f);
 	fgets(line, 80, f);
 	while (fgets(line, 80, f)) {
-		char *device;
-		const char *fstype;
-		const char *kernelpath;
-		FILE *g;
-
 		line[strlen(line) - 1] = '\0';
-		split = line + strspn(line, " 0123456789");
-		device = malloc( (strlen(split) + strlen("/dev/") + 1) * sizeof(char) );
+		tmp = line;
+
+		/* Split string by spaces or tabs into 4 fields - strsep() magic */
+		for (p = partinfo; (*p = strsep(&tmp, " \t")) != NULL;)
+			if (**p != '\0')
+				if (++p >= &partinfo[4])
+					break;
+
+		tmp = partinfo[3];
+		major = atoi(partinfo[0]);
+		minor = atoi(partinfo[1]);
+		blocks = atoi(partinfo[2])/1024;
+
+		device = malloc( (strlen(tmp) + strlen("/dev/") + 1) * sizeof(char) );
 		strcpy(device, "/dev/");
-		strcat(device, split);
+		strcat(device, tmp);
+
+		DPRINTF("Got device %s (%d, %d) of size %dMb\n", device, major, minor, blocks);
+
+		/* Create device node if not exists */
+		if ( -1 == stat(device, &sinfo) )
+			if (ENOENT == errno) {
+				/* Devide node does not exists */
+				DPRINTF("Device %s (%d, %d) does not exists\n", device, major, minor);
+				if ( -1 == mknod( device, (S_IFBLK |
+					S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH),
+					makedev(major, minor) ) )
+				{
+					perror("mknod");
+					free(device);
+					continue;
+				}
+				DPRINTF("Device %s is created\n", device, major, minor);
+			}
+
 		DPRINTF("Probing %s\n",device);
 
 		int fd = open(device, O_RDONLY);

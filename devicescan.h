@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <sys/mount.h>
 #include <asm/setup.h> // for COMMAND_LINE_SIZE
+#include <errno.h>
 #include "fstype/fstype.h"
 #include "util.h"
 
