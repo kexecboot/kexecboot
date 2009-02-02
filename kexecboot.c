@@ -387,7 +387,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Get hardware model parameters (now FB angle only) */
-	model = detect_hw_model();
+	model = detect_hw_model(model_info);
 	if (model->hw_model_id != HW_MODEL_UNKNOWN) {
 		angle = model->angle;
 		DPRINTF("Model is %s, fbangle is %d\n", model->name, model->angle);
@@ -441,7 +441,7 @@ int main(int argc, char **argv)
 //	new.c_cflag &=~CREAD;
 	tcsetattr(fileno(stdin), TCSANOW, &new);
 
-	bl = scan_devices();
+	bl = scan_devices(model);
 
 	do {
 		display_menu(fb, bl, choice);
@@ -467,7 +467,7 @@ int main(int argc, char **argv)
 		case KEY_S:	/* reScan */
 			display_text(fb, "Rescanning devices.\nPlease wait...");
 			free_bootlist(bl);
-			bl = scan_devices();
+			bl = scan_devices(model);
 			break;
 		}
 

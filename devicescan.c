@@ -56,7 +56,7 @@ struct fslist *scan_filesystems()
 		strcpy(fl->list[count], split);
 		count++;
 		if (count == size) {
-			size *= 2;
+			size <<= 1;	/* size *= 2; */
 			fl->list =
 			    realloc(fl->list, size * sizeof(char *));
 		}
@@ -90,13 +90,13 @@ void free_bootlist(struct bootlist *bl)
 }
 
 
-struct bootlist *scan_devices()
+struct bootlist *scan_devices(struct hw_model_info *model)
 {
-	char line[80], *tmp, **p, *partinfo[4];
-	int major, minor, blocks;
 	unsigned int size = 4;
 	unsigned int count = 0;
-	char *device;
+	int major, minor, blocks;
+	char line[80], device[80];
+	char *tmp, **p, **kernels, *partinfo[4];
 	const char *fstype;
 	const char *kernelpath;
 	FILE *g, *f;
@@ -111,11 +111,42 @@ struct bootlist *scan_devices()
 		perror("/proc/partitions");
 		exit(-1);
 	}
+
+	char str_kernpath[] = "/mnt/boot/zImage";
+
+	/* Where to look for kernels */
+	char *default_kernel_paths[] = {
+		NULL,
+		str_kernpath,
+		"/mnt/zImage",
+		NULL
+	};
+
+	kernels = default_kernel_paths;
+
+	/* Fill first kernel path with /mnt/boot/zImage-<machine> */
+	tmp = malloc( strlen(model->name) * sizeof(char) );
+	if (tmp) {
+		strtolower(model->name, tmp);
+		kernelpath = malloc( ( strlen(str_kernpath) +
+			strlen(tmp) + 2 ) * sizeof(char) );
+
+		strcpy(kernelpath, str_kernpath);
+		strcat(kernelpath, "-");
+		strcat(kernelpath, tmp);
+		free(tmp);
+		*kernels = kernelpath;
+		DPRINTF("Kernelpath filled with %s\n", kernelpath);
+	} else {
+		/* We can't fill fist kernel path, skip it */
+		++kernels;
+	}
+
 	// first two lines are bogus
-	fgets(line, 80, f);
-	fgets(line, 80, f);
-	while (fgets(line, 80, f)) {
-		line[strlen(line) - 1] = '\0';
+	fgets(line, sizeof(line), f);
+	fgets(line, sizeof(line), f);
+	while (fgets(line, sizeof(line), f)) {
+		line[strlen(line) - 1] = '\0';	/* Kill '\n' in the end of string */
 		tmp = line;
 
 		/* Split string by spaces or tabs into 4 fields - strsep() magic */
@@ -124,59 +155,53 @@ struct bootlist *scan_devices()
 				if (++p >= &partinfo[4])
 					break;
 
-		tmp = partinfo[3];
 		major = atoi(partinfo[0]);
 		minor = atoi(partinfo[1]);
-		blocks = atoi(partinfo[2])/1024;
+		blocks = atoi(partinfo[2]);
+		tmp = partinfo[3];
 
-		device = malloc( (strlen(tmp) + strlen("/dev/") + 1) * sizeof(char) );
+		/* Format device name */
+		device[0] = '\0';
+		if ( (strlen(tmp) + strlen("/dev/") + 1) >= sizeof(device) ) {
+			DPRINTF("No enough memory for device name '%s', skipping\n", tmp);
+			continue;
+		}
 		strcpy(device, "/dev/");
 		strcat(device, tmp);
+		DPRINTF("Got device %s (%d, %d) of size %dMb\n", device, major, minor, blocks>>10);
 
-		DPRINTF("Got device %s (%d, %d) of size %dMb\n", device, major, minor, blocks);
-
-		/* Create device node if not exists */
-		if ( -1 == stat(device, &sinfo) )
-			if (ENOENT == errno) {
-				/* Devide node does not exists */
-				DPRINTF("Device %s (%d, %d) does not exists\n", device, major, minor);
-				if ( -1 == mknod( device, (S_IFBLK |
-					S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH),
-					makedev(major, minor) ) )
-				{
-					perror("mknod");
-					free(device);
-					continue;
-				}
-				DPRINTF("Device %s is created\n", device, major, minor);
-			}
+		/* Remove old device node and create new */
+		DPRINTF("Re-creating device node %s (%d, %d)\n", device, major, minor);
+		unlink(device);	/* We don't care about unlink() result */
+		if ( -1 == mknod( device,
+			(S_IFBLK | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH),
+			makedev(major, minor) ) )
+		{
+			perror("mknod");
+			continue;
+		}
 
 		DPRINTF("Probing %s\n",device);
-
 		int fd = open(device, O_RDONLY);
 		if (fd < 0) {
 			perror(device);
-			free(device);
 			continue;
 		}
 		DPRINTF("+ device is opened\n");
 
 		if (-1 == identify_fs(fd, &fstype, NULL, 0)) {
-			free(device);
 			continue;
 		}
 		close(fd);
 		DPRINTF("+ device is closed\n");
 
 		if (!fstype) {
-			free(device);
 			continue;
 		}
 		DPRINTF("+ FS on device is %s\n", fstype);
 
 		// no unknown filesystems
 		if (contains(fstype, fl) == -1) {
-			free(device);
 			continue;
 		}
 		DPRINTF("+ FS is known\n");
@@ -184,27 +209,31 @@ struct bootlist *scan_devices()
 		// mount fs
 		if (mount(device, "/mnt", fstype, MS_RDONLY, NULL)) {
 			perror(device);
-			free(device);
 			continue;
 		}
 		DPRINTF("+ FS is mounted\n");
 
-		if ( 0 == stat("/mnt/zImage", &sinfo) ) {
-			kernelpath = "/mnt/zImage";
-		} else if ( 0 == stat("/mnt/boot/zImage", &sinfo) ) {
-			kernelpath = "/mnt/boot/zImage";
-		} else {
-			DPRINTF("+ no kernel found on FS, umounting\n", device);
-			free(device);
+		/* Check that kernel is exists on FS */
+		p = kernels;
+		while (*p) {
+			DPRINTF("+ looking for %s\n", *p);
+			if ( 0 == stat(*p, &sinfo) ) break; /* Break when found */
+			++p; /* Go to next kernel path */
+		}
+
+		/* *p will be NULL when end of default_kernels is reached */
+		if (NULL == *p) {
+			DPRINTF("+ no kernel found on FS, umounting\n");
 			umount("/mnt");
 			continue;
 		}
-		DPRINTF("+ found kernel\n");
+
+		DPRINTF("+ found kernel %s\n", *p);
 
 		bl->list[count] = malloc(sizeof(struct boot));
-		bl->list[count]->device = device;
+		bl->list[count]->device = strdup(device);
 		bl->list[count]->fstype = strdup(fstype);
-		bl->list[count]->kernelpath = strdup(kernelpath);
+		bl->list[count]->kernelpath = strdup(*p);
 
 		if ( (g = fopen("/mnt/boot/kernel-cmdline", "r")) ) {
 			bl->list[count]->cmdline = malloc(COMMAND_LINE_SIZE);
@@ -217,13 +246,14 @@ struct bootlist *scan_devices()
 
 		count++;
 		if (count == size) {
-			size *= 2;
+			size <<= 1;	/* size *= 2; */
 			bl->list = realloc(bl->list, size * sizeof(struct boot *));
 		}
 		umount("/mnt");
 	}
 	free_fslist(fl);
 	fclose(f);
+	if (NULL != default_kernel_paths[0]) free(default_kernel_paths[0]);
 	bl->size = count;
 	return bl;
 }

@@ -42,6 +42,6 @@ struct bootlist {
 	unsigned int size;
 };
 
-struct bootlist *scan_devices();
+struct bootlist *scan_devices(struct hw_model_info *model);
 void free_bootlist(struct bootlist* bl);
 #endif

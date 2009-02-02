@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <string.h>
+#include <ctype.h>
 
 
 /* Macro for dealing with NULL strings */
@@ -73,6 +74,17 @@ struct hw_model_info {
  */
 
 /*
+ * Function: detect_hw_model()
+ * Lowercase the string.
+ * Takes 2 arg:
+ * - source string;
+ * - destination buffer to store lowercased string.
+ * Return value:
+ * - pointer to destination string.
+ */
+char *strtolower(const char *src, char *dst);
+
+/*
  * Function: fexecw()
  * (fork, execve and wait)
  * kexecboot's replace of system() call without /bin/sh invocation.
@@ -94,7 +106,7 @@ int fexecw(const char *path, char *const argv[], char *const envp[]);
  * Return value:
  * - pointer to hw_model_info structure from model_info array
  */
-struct hw_model_info *detect_hw_model(void);
+struct hw_model_info *detect_hw_model(struct hw_model_info model_info[]);
 
 
 #endif //_HAVE_UTIL_H_

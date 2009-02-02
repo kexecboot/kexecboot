@@ -18,6 +18,27 @@
 #include "util.h"
 
 /*
+ * Function: strtolower()
+ * Lowercase the string
+ * Look in util.h for description
+ */
+char *strtolower(const char *src, char *dst) {
+	unsigned char *c1 = (unsigned char *)src;
+	unsigned char *c2 = (unsigned char *)dst;
+
+	while ('\0' != *c1) {
+		/* toupper() expects an unsigned char (implicitly cast to int)
+			as input, and returns an int, which is exactly what we want. */
+		*c2 = tolower(*c1);
+		++c1;
+		++c2;
+	}
+	*c2 = '\0';
+
+	return dst;
+}
+
+/*
  * Function: fexecw()
  * (fork, execve and wait)
  * Look in util.h for description
@@ -77,27 +98,11 @@ int fexecw(const char *path, char *const argv[], char *const envp[])
  * Detect hardware model.
  * Look in util.h for description
  */
-struct hw_model_info *detect_hw_model(void) {
+struct hw_model_info *detect_hw_model(struct hw_model_info model_info[]) {
 	int i;
 	char *tmp, line[80];
 	struct hw_model_info *found_model = NULL;
 	FILE *f;
-
-	struct hw_model_info model_info[] = {
-		{HW_SHARP_POODLE,	"Poodle",	270	},
-		{HW_SHARP_COLLIE,	"Collie",	270	},
-		{HW_SHARP_CORGI,	"Corgi",	0	},
-		{HW_SHARP_SHEPHERD,	"Shepherd",	0	},
-		{HW_SHARP_HUSKY,	"Husky",	0	},
-		{HW_SHARP_TOSA,		"Tosa",		0	},
-		{HW_SHARP_AKITA,	"Akita",	270	},
-		{HW_SHARP_SPITZ,	"Spitz",	270	},
-		{HW_SHARP_BORZOI,	"Borzoi",	270	},
-		{HW_SHARP_TERRIER,	"Terrier",	270	},
-
-		{HW_MODEL_UNKNOWN,	NULL,		0	}
-	};
-
 
 	f = fopen("/proc/cpuinfo", "r");
 	if (!f) {
