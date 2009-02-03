@@ -115,28 +115,29 @@ struct hw_model_info *detect_hw_model(struct hw_model_info model_info[]) {
 		DPRINTF("Line: %s\n", line);
 		/* Search string 'Hardware' */
 		tmp = strstr(line, "Hardware");
-		if ( NULL == tmp) continue;
+		if (NULL != tmp) break;
+	}
+	fclose(f);
 
+	if ( NULL != tmp) {
 		/* Search colon and skip it and space after */
 		tmp = strchr(tmp, ':');
 		tmp += 2;
 		DPRINTF("+ model is: %s\n", tmp);
-
-		/* Check against array of models */
-		for (i = 0; model_info[i].hw_model_id != HW_MODEL_UNKNOWN; i++) {
-			DPRINTF("+ comparing with %s\n", model_info[i].name);
-			if ( NULL != strstr(tmp, model_info[i].name) ) {
-				/* match found */
-				DPRINTF("+ match found!\n");
-				found_model = &model_info[i];
-				break;
-			}
-		}
-		break;
 	}
-	fclose(f);
 
-	return found_model;
+	/* Check against array of models */
+	for (i = 0; model_info[i].hw_model_id != HW_MODEL_UNKNOWN; i++) {
+		DPRINTF("+ comparing with %s\n", model_info[i].name);
+		if (NULL == tmp) continue;	/* Fastforwarding to unknown model */
+		if ( NULL != strstr(tmp, model_info[i].name) ) {
+			/* match found */
+			DPRINTF("+ match found!\n");
+			break;
+		}
+	}
+
+	return &model_info[i];
 }
 
 
