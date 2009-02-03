@@ -30,6 +30,7 @@
 #include "minix_fs.h"
 #include "ext2_fs.h"
 #include "ext3_fs.h"
+#include "ext4_fs.h"
 #include "xfs_sb.h"
 #include "luks_fs.h"
 #include "lvm2_sb.h"
@@ -137,12 +138,28 @@ static int minix_image(const void *buf, unsigned long long *bytes)
 	return 0;
 }
 
+static int ext4_image(const void *buf, unsigned long long *bytes)
+{
+	const struct ext4_super_block *sb =
+	    (const struct ext4_super_block *) buf;
+
+	if (sb->s_magic == __cpu_to_le16(EXT4_SUPER_MAGIC) &&
+	    sb->s_feature_compat & __cpu_to_le32(EXT4_FEATURE_COMPAT_HAS_JOURNAL) &&
+		sb->s_feature_incompat & __cpu_to_le32(EXT4_FEATURE_INCOMPAT_EXTENTS)) {
+		*bytes =
+		    (unsigned long long) __le32_to_cpu(sb->s_blocks_count_lo)
+		    << (10 + __le32_to_cpu(sb->s_log_block_size));
+		return 1;
+	}
+	return 0;
+}
+
 static int ext3_image(const void *buf, unsigned long long *bytes)
 {
 	const struct ext3_super_block *sb =
 	    (const struct ext3_super_block *) buf;
 
-	if (sb->s_magic == __cpu_to_le16(EXT2_SUPER_MAGIC) &&
+	if (sb->s_magic == __cpu_to_le16(EXT3_SUPER_MAGIC) &&
 	    sb->s_feature_compat &
 	    __cpu_to_le32(EXT3_FEATURE_COMPAT_HAS_JOURNAL)) {
 		*bytes =
@@ -307,6 +324,7 @@ static struct imagetype images[] = {
 	{0, "cramfs", cramfs_image},
 	{0, "romfs", romfs_image},
 	{0, "xfs", xfs_image},
+	{1, "ext4", ext4_image},
 	{1, "ext3", ext3_image},
 	{1, "ext2", ext2_image},
 	{1, "minix", minix_image},
