@@ -1,3 +1,6 @@
+#ifndef __REISERFS_FS_H
+#define __REISERFS_FS_H
+
 struct journal_params {
 	__u32 jp_journal_1st_block;	/* where does journal start from on its
 					 * device */
@@ -67,3 +70,5 @@ struct reiserfs_super_block {
         __le32_to_cpu((SB_V1_DISK_SUPER_BLOCK(s)->s_block_count))
 #define REISERFS_MAGIC(s) \
         (SB_V1_DISK_SUPER_BLOCK(s)->s_magic)
+
+#endif /* __REISERFS_FS_H */

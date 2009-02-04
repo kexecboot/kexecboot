@@ -19,25 +19,25 @@
 
 /* On-disk "super block" */
 struct luks_partition_header {
-	char magic[LUKS_MAGIC_L];
-	__be16 version;
-	char cipherName[LUKS_CIPHERNAME_L];
-	char cipherMode[LUKS_CIPHERMODE_L];
-	char hashSpec[LUKS_HASHSPEC_L];
-	__be32 payloadOffset;
-	__be32 keyBytes;
-	char mkDigest[LUKS_DIGESTSIZE];
-	char mkDigestSalt[LUKS_SALTSIZE];
-	__be32 mkDigestIterations;
-	char uuid[LUKS_UUID_STRING_L];
+	char	magic[LUKS_MAGIC_L];
+	__be16	version;
+	char	cipherName[LUKS_CIPHERNAME_L];
+	char	cipherMode[LUKS_CIPHERMODE_L];
+	char	hashSpec[LUKS_HASHSPEC_L];
+	__be32	payloadOffset;
+	__be32	keyBytes;
+	char	mkDigest[LUKS_DIGESTSIZE];
+	char	mkDigestSalt[LUKS_SALTSIZE];
+	__be32	mkDigestIterations;
+	char	uuid[LUKS_UUID_STRING_L];
 
 	struct {
-		__be32 active;
+		__be32	active;
 		/* Parameters for PBKDF2 processing */
-		__be32 passwordIterations;
-		char passwordSalt[LUKS_SALTSIZE];
-		__be32 keyMaterialOffset;
-		__be32 stripes;
+		__be32	passwordIterations;
+		char	passwordSalt[LUKS_SALTSIZE];
+		__be32	keyMaterialOffset;
+		__be32	stripes;
 	} keyblock[LUKS_NUMKEYS];
 };
 

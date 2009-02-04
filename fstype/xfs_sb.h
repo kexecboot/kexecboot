@@ -1,3 +1,6 @@
+#ifndef __XFS_SB_H
+#define __XFS_SB_H
+
 /*
  * Super block
  * Fits into a sector-sized buffer at address 0 of each allocation group.
@@ -14,3 +17,5 @@ typedef struct xfs_sb {
 	__u32 sb_blocksize;	/* logical block size, bytes */
 	__u64 sb_dblocks;	/* number of data blocks */
 } xfs_sb_t;
+
+#endif /* __XFS_SB_H */

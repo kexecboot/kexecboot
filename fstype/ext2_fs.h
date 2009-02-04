@@ -1,3 +1,6 @@
+#ifndef __EXT2_FS_H
+#define __EXT2_FS_H
+
 /*
  * The second extended file system magic number
  */
@@ -77,3 +80,5 @@ struct ext2_super_block {
 	__le32 s_first_meta_bg;	/* First metablock block group */
 	__u32 s_reserved[190];	/* Padding to the end of the block */
 };
+
+#endif /* __EXT2_FS_H */

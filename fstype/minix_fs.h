@@ -38,8 +38,8 @@ struct minix_inode {
 	__u16 i_uid;
 	__u32 i_size;
 	__u32 i_time;
-	__u8 i_gid;
-	__u8 i_nlinks;
+	__u8  i_gid;
+	__u8  i_nlinks;
 	__u16 i_zone[9];
 };
 
@@ -79,7 +79,7 @@ struct minix_super_block {
 
 struct minix_dir_entry {
 	__u16 inode;
-	char name[0];
+	char  name[0];
 };
 
 #endif

@@ -6,10 +6,7 @@
  *  FSTYPE - filesystem type
  *  FSSIZE - filesystem size (if known)
  *
- * We currently detect (in order):
- *  gzip, cramfs, romfs, xfs, minix, ext3, ext2, reiserfs, jfs
- *
- * MINIX, ext3 and Reiserfs bits are currently untested.
+ * We currently detect the fs listed in struct imagetype.
  */
 
 #ifndef FSTYPE_H
