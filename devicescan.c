@@ -189,10 +189,9 @@ struct bootlist *scan_devices(struct hw_model_info *model)
 		}
 		DPRINTF("+ device is opened\n");
 
-		if (-1 == identify_fs(fd, &fstype, NULL, 0)) {
-			continue;
-		}
+		major = identify_fs(fd, &fstype, NULL, 0);	/* Reused variable major */
 		close(fd);
+		if (-1 == major) continue;
 		DPRINTF("+ device is closed\n");
 
 		if (!fstype) {
