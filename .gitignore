@@ -1,2 +1,3 @@
 *.kdev*
 Doxyfile
+*.test*
