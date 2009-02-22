@@ -33,9 +33,7 @@
 
 #include "util.h"
 #include "res/font.h"
-
-typedef unsigned char uint8;
-typedef unsigned short uint16;
+#include "xpm.h"
 
 typedef struct FB {
 	int fd;
@@ -72,6 +70,8 @@ fb_draw_image(FB * fb,
 	      int y,
 	      int img_width,
 	      int img_height, int img_bytes_pre_pixel, uint8 * rle_data);
+
+void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data);
 
 void
 fb_text_size(FB * fb,

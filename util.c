@@ -38,6 +38,58 @@ char *strtolower(const char *src, char *dst) {
 	return dst;
 }
 
+
+int get_word(char *str, char **word)
+{
+	char *p = str;
+	char *wstart;
+
+	/* Skip space before word */
+	while( isspace(*p) && ('\0' != *p) ) ++p;
+
+	if ('\0' != *p) {
+		wstart = p;
+
+		/* Search end of word */
+		while (!isspace(*p) && '\0' != *p) ++p;
+		*word = wstart;
+		return (p - wstart);
+	} else {
+		*word = NULL;
+		return 0;
+	}
+
+}
+
+/* Get non-negative integer */
+int get_nni(const char *str, char **endptr)
+{
+	long val;
+
+	errno = 0;
+	val = strtoul(str, endptr, 10);
+
+	/* Check for various possible errors */
+	if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN))
+		|| (errno != 0 && val == 0)) {
+		perror("get_pui");
+		return -1;
+	}
+
+	if (val > INT_MAX) {
+		DPRINTF("get_pui: Value too big for unsigned int\n");
+		return -1;
+	}
+
+	if (*endptr == str) {
+		DPRINTF("get_pui: No digits were found\n");
+		return -1;
+	}
+
+	/* If we got here, strtol() successfully parsed a number */
+	return (unsigned int)val;
+}
+
 /*
  * Function: fexecw()
  * (fork, execve and wait)
@@ -101,7 +153,6 @@ int fexecw(const char *path, char *const argv[], char *const envp[])
 struct hw_model_info *detect_hw_model(struct hw_model_info model_info[]) {
 	int i;
 	char *tmp, line[80];
-	struct hw_model_info *found_model = NULL;
 	FILE *f;
 
 	f = fopen("/proc/cpuinfo", "r");

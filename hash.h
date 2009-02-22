@@ -42,14 +42,14 @@ struct htable_t {
 };
 
 /*
- * Function: make_hash()
- * Create hash key from data
+ * Functions: hkey_crc32(), hkey_char()
+ * Create hash key from data with crc32 algorythm.
  * Args:
  * - data from which hash should be created
  * - size of data for hashing
  * Return value: hash key value.
  */
-hkey_t make_hash(void *data, unsigned int size);
+hkey_t hkey_crc32(void *data, unsigned int size);
 
 /*
  * Function: htable_create()
@@ -113,7 +113,7 @@ int htable_plain_insert(struct htable_t *htable, hkey_t key, void *data, unsigne
  * Args:
  * - hash table structure
  * - key value to remove
- * Return value: 
+ * Return value:
  * -  0 on success
  * - -1 when no such key found
  */
@@ -159,7 +159,7 @@ int htable_bin_insert(struct htable_t *htable, hkey_t key, void *data, unsigned 
  * Args:
  * - hash table structure
  * - key value to remove
- * Return value: 
+ * Return value:
  * -  0 on success
  * - -1 when no such key found
  */

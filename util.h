@@ -26,7 +26,13 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>     /* uint's below */
+#include <errno.h>
+#include <limits.h>		/* LONG_MAX, INT_MAX */
 
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
 
 /* Macro for dealing with NULL strings */
 #define strlenn(s)	( (NULL != s) ? (strlen(s)) : 0 )
@@ -74,7 +80,7 @@ struct hw_model_info {
  */
 
 /*
- * Function: detect_hw_model()
+ * Function: strtolower()
  * Lowercase the string.
  * Takes 2 arg:
  * - source string;
@@ -83,6 +89,12 @@ struct hw_model_info {
  * - pointer to destination string.
  */
 char *strtolower(const char *src, char *dst);
+
+/* Get word from string */
+int get_word(char *str, char **word);
+
+/* Get non-negative integer */
+int get_nni(const char *str, char **endptr);
 
 /*
  * Function: fexecw()
