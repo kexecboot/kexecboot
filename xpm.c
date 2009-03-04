@@ -19,14 +19,6 @@
 #include "xpm.h"
 #include "rgbtab.h"
 
-char *xpmColorKeys[] = {
-	"s",				/* key #1: symbol */
-	"m",				/* key #2: mono visual */
-	"g4",				/* key #3: 4 grays visual */
-	"g",				/* key #4: gray visual */
-	"c",				/* key #5: color visual */
-};
-
 /* Free XPM image array allocated by xpm_load_image() */
 void xpm_destroy_image(char **xpm_data, const int rows)
 {
@@ -333,10 +325,11 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 		unsigned int bpp)
 {
 	int width = 0, height = 0, ncolors = 0, chpp = 0;	/* XPM image values */
-	int len, i, is_transparent;
+	int len, i, half, rest;
+	int is_transparent;
 	struct xpm_parsed_t *xpm_parsed;	/* return value */
-	/* Associative arrays: misc, color table, color names */
-	struct htable_t *ht_ctable, *ht_cnames;
+	/* Associative arrays: misc, color table */
+	struct htable_t *ht_ctable;
 	struct hdata_t *hdata;
 	/* Named color structure */
 	struct xpm_named_color_t *cname;
@@ -412,25 +405,6 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 	}
 	for(i = 1; i < (XPM_KEY_UNKNOWN); i++) {
 		cline[i] = color + i * MAX_COLORNAME_LEN;
-	}
-
-	/* name->color array */
-	ht_cnames = htable_create(XPM_ROWS(xpm_color_names), 5);
-	if (NULL == ht_cnames) {
-		DPRINTF("Can't allocate memory for name->color table\n");
-		goto free_cline;
-	}
-
-	/* Fill name -> color array */
-	cname = xpm_color_names;
-	while (NULL != cname->name) {
-		if ( -1 == htable_bin_insert(ht_cnames, hkey_crc32(cname->name,
-				strlen(cname->name)), cname, sizeof(cname)) )
-		{
-			DPRINTF("Can't store name->color pair\n");
-			goto free_ht_cnames;
-		}
-		++cname;
 	}
 
 	/** PARSE COLORS **/
@@ -509,7 +483,7 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 
 			if ('\0' == color) {
 				DPRINTF("Wrong XPM format: wrong colors line '%s'\n", *data);
-				goto free_ht_cnames;
+				goto free_cline;
 			}
 		}
 
@@ -519,7 +493,7 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 		if ('#' == color[0]) {	/* hex */
 			if ( -1 == hex2rgb(color, xpm_color) ) {
 				DPRINTF("Can't parse hex color code '%s'\n", color);
-				goto free_ht_cnames;
+				goto free_cline;
 			}
 
 		} else {	/* name */
@@ -547,22 +521,48 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 					tmp[2] = 'a';	/* Convert to "gray" */
 				}
 
-				hdata = htable_bin_search(ht_cnames, hkey_crc32(color, strlen(color)));
+				/* Binary search in color names array */
+				len = XPM_ROWS(xpm_color_names);
 
-				if (NULL == hdata) {
+				half = len >> 1;
+				rest = len - half;
+
+				cname = xpm_color_names + half;
+				len = 0; /* Used as flag */
+
+				while (half > 0) {
+					half = rest >> 1;
+					i = strcmp(tmp, cname->name);
+					if (i < 0) {
+						cname -= half;
+					} else if (i > 0) {
+						cname += half;
+					} else {
+						len = 1;
+						break;
+					}
+					rest -= half;
+				}
+
+				if (0 == len) {	/* Not found */
 					DPRINTF("Color name '%s' not in colors database, returning red\n", color);
 					/* Return 'red' color like libXpm does */
 					xpm_color->b = 0;
 					xpm_color->g = 0;
 					xpm_color->r = 0xFF;
 				} else {
-					cname = (struct xpm_named_color_t *)hdata->data;
-					xpm_color->b = (cname->rgb) & 0x000000FFU;
-					xpm_color->g = (cname->rgb >> 8) & 0x000000FFU;
-					xpm_color->r = (cname->rgb >> 16) & 0x000000FFU;
+					xpm_color->r = cname->r;
+					xpm_color->g = cname->g;
+					xpm_color->b = cname->b;
 				}
 
 			}
+		}
+
+		if (chpp < 3) { /* Optimise for pixels key of 1-2 char length */
+
+		} else {
+
 		}
 
 		/* Store color key and pointer to color to ht_ctable */
@@ -572,14 +572,11 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 				(is_transparent ? (struct xpm_color_t **)&tmp : &xpm_color), sizeof(xpm_color)))
 		{
 			DPRINTF("Can't store pixel->cpointer pair\n");
-			goto free_ht_cnames;
+			goto free_cline;
 		}
 
 		++xpm_color;
 	}
-
-	/* Destroy name -> color table */
-	htable_destroy(ht_cnames);
 
 	/* Destroy colors line array */
 	free(cline[0]);
@@ -629,6 +626,7 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 	htable_destroy(ht_ctable);
 	free(pixel);
 
+/*
 	xpm_pixel = xpm_pixels;
 	for(i = 0; i < height; i++) {
 		for(len = 0; len < width; len++) {
@@ -642,6 +640,7 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 		}
 		DPRINTF("\n");
 	}
+*/
 
 	/* Prepare return values */
 	xpm_parsed = malloc(sizeof(*xpm_parsed));
@@ -658,9 +657,6 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 	xpm_parsed->pixels = xpm_pixels;
 
 	return xpm_parsed;
-
-free_ht_cnames:
-	htable_destroy(ht_cnames);
 
 free_cline:
 	if (NULL != cline[0]) free(cline[0]);
