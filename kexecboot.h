@@ -32,6 +32,7 @@
 #include "util.h"
 #include "fb.h"
 #include "devicescan.h"
+#include "configparser.h"
 #include "res/logo-img.h"
 #include "res/cf-img.h"
 #include "res/mmc-img.h"
@@ -53,22 +54,6 @@
 char *wanted_tags[] = {
 	"mtdparts",
 	NULL
-};
-
-/* Known hardware models */
-struct hw_model_info model_info[] = {
-	{HW_SHARP_POODLE,	"Poodle",	270	},
-	{HW_SHARP_COLLIE,	"Collie",	270	},
-	{HW_SHARP_CORGI,	"Corgi",	0	},
-	{HW_SHARP_SHEPHERD,	"Shepherd",	0	},
-	{HW_SHARP_HUSKY,	"Husky",	0	},
-	{HW_SHARP_TOSA,		"Tosa",		0	},
-	{HW_SHARP_AKITA,	"Akita",	270	},
-	{HW_SHARP_SPITZ,	"Spitz",	270	},
-	{HW_SHARP_BORZOI,	"Borzoi",	270	},
-	{HW_SHARP_TERRIER,	"Terrier",	270	},
-
-	{HW_MODEL_UNKNOWN,	"Unknown",	0	}
 };
 
 #endif

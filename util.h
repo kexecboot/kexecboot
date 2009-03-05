@@ -1,6 +1,7 @@
 /*
  *  kexecboot - A kexec based bootloader
  *
+ *  Copyright (c) 2009 Omegamoon <omegamoon@gmail.com>
  *  Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -47,6 +48,10 @@ typedef uint32_t uint32;
 #define DPRINTF(fmt, args...)	do { } while (0)
 #endif
 
+#define dispose(ptr) do { \
+		if (ptr) free(ptr); \
+	} while (0)
+
 /* Known hardware models */
 enum hw_model_ids {
 	HW_MODEL_UNKNOWN,
@@ -74,10 +79,43 @@ struct hw_model_info {
 	int angle;
 };
 
+enum gui_type { GUIMODUS, TEXTMODUS };
+enum debug_modus { DEBUG_ON, DEBUG_OFF };
+
+typedef struct _menu_item_ {
+	int  id;                           // Unique menu ID
+	char *device;                      // eg. /dev/mmcblk0p1
+	char *fstype;                      // eg. ext2, ext4, jffs2
+	char *description;                 // Description of menu item as displayed
+	char *kernelpath;                  // Complete path to kernel image
+	char *iconpath;                    // Complete path to custom icon
+	char *icondata;                    // Custom icon image
+	char *cmdline;                     // Command line to be added on execution
+	int  order;                        // Sort order position
+} menu_item;
+
+typedef struct _global_settings_ {
+	struct hw_model_info model;        // Device model
+	int timeout;                       // # Seconds before autostart default item (0=autostart disabled)
+	enum gui_type gui;                 // GUI/Textmodus
+	char *logopath;                    // Complete path to custom logo (NULL=use build-in logo)
+	char *logodata;                    // Custom logo data
+	menu_item *default_item;           // Default menu item (NULL=none selected)
+	enum debug_modus debug;            // Debug modus
+} global_settings;
+
+struct bootlist {
+	menu_item **list;
+	unsigned int size;
+};
 
 /*
  * FUNCTIONS
  */
+
+void trim(char *s);
+char *upcase(char *s);
+char *locase(char *s);
 
 /*
  * Function: strtolower()

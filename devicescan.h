@@ -30,18 +30,11 @@
 #include "fstype/fstype.h"
 #include "util.h"
 
-struct boot {
-	char *device;
-	char *fstype;
-	char *kernelpath;
-	char *cmdline;
-};
-
-struct bootlist {
-	struct boot **list;
+struct fslist {
+	char **list;
 	unsigned int size;
 };
 
-struct bootlist *scan_devices(struct hw_model_info *model);
+struct bootlist *scan_devices(global_settings *settings);
 void free_bootlist(struct bootlist* bl);
 #endif

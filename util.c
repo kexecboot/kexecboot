@@ -1,6 +1,7 @@
 /*
  *  kexecboot - A kexec based bootloader
  *
+ *  Copyright (c) 2009 Omegamoon <omegamoon@gmail.com>
  *  Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -16,6 +17,61 @@
  */
 
 #include "util.h"
+
+void trim(char *s)
+{
+    // Trim leading spaces and tabs
+    int i=0, j;
+
+    while ( (s[i]==' ') || (s[i]== '\t') )
+        i++;
+
+    if (i > 0) {
+        for (j=0; j < strlen(s); j++)
+            s[j]=s[j+i];
+
+       s[j]='\0';
+    }
+
+    // Trim trailing spaces, tabs and newlines
+    i = strlen(s)-1;
+    while ( (s[i] == ' ') || (s[i] == '\t') || (s[i] == '\n') )
+        i--;
+
+    if (i < (strlen(s)-1))
+        s[i+1]='\0';
+}
+
+enum casetype {upper, lower};
+
+char *docase(char *s, enum casetype c)
+{
+  char* dest;
+  int i;
+
+  if (!s)
+  	return NULL;
+
+  dest = malloc(strlen(s)+1);
+
+  for (i = 0; i < (int)strlen(s); i++)
+  	dest[i] = ( c==upper ? toupper(s[i]) : tolower(s[i]) );
+
+  dest[i] = '\0';
+
+  return dest;
+}
+
+char *upcase(char *s)
+{
+	return docase(s, upper);
+}
+
+char *locase(char *s)
+{
+	return docase(s, lower);
+}
+
 
 /*
  * Function: strtolower()

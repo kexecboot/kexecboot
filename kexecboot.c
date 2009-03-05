@@ -21,6 +21,8 @@
 
 #include "kexecboot.h"
 
+global_settings settings;
+
 /* Draw background with logo and text */
 void draw_background(FB *fb, const char *text) {
 	int margin = fb->width/64;
@@ -41,7 +43,7 @@ void draw_background(FB *fb, const char *text) {
 }
 
 /* Draw one slot in menu */
-void draw_slot(FB *fb, struct boot * boot,int slot, int height, int iscurrent)
+void draw_slot(FB *fb, menu_item *mitem, int slot, int height, int iscurrent)
 {
 	int margin = (height - CF_IMG_HEIGHT)/2;
 	char text[100];
@@ -54,17 +56,17 @@ void draw_slot(FB *fb, struct boot * boot,int slot, int height, int iscurrent)
 		fb_draw_rect(fb, margin, slot*height+margin, fb->width-2*margin
 			, height-2*margin, 0xec, 0xec, 0xe1);
 	}
-	if(!strncmp(boot->device,"/dev/hd",strlen("/dev/hd")))
-		fb_draw_image(fb, margin, slot*height+margin, CF_IMG_WIDTH,
+	if(!strncmp(mitem->device, "/dev/hd", strlen("/dev/hd")))
+		fb_draw_image(fb, margin, slot * height + margin, CF_IMG_WIDTH,
 			CF_IMG_HEIGHT, CF_IMG_BYTES_PER_PIXEL, CF_IMG_RLE_PIXEL_DATA);
-	else if(!strncmp(boot->device,"/dev/mmcblk",strlen("/dev/mmcblk")))
-		fb_draw_image(fb, margin, slot*height + margin, MMC_IMG_WIDTH,
+	else if(!strncmp(mitem->device, "/dev/mmcblk", strlen("/dev/mmcblk")))
+		fb_draw_image(fb, margin, slot * height + margin, MMC_IMG_WIDTH,
 			MMC_IMG_HEIGHT, MMC_IMG_BYTES_PER_PIXEL, MMC_IMG_RLE_PIXEL_DATA);
-	else if(!strncmp(boot->device,"/dev/mtdblock",strlen("/dev/mtdblock")))
-		fb_draw_image(fb, margin, slot*height + margin, MEMORY_IMG_WIDTH,
+	else if(!strncmp(mitem->device, "/dev/mtdblock", strlen("/dev/mtdblock")))
+		fb_draw_image(fb, margin, slot * height + margin, MEMORY_IMG_WIDTH,
 			MEMORY_IMG_HEIGHT, MEMORY_IMG_BYTES_PER_PIXEL, MEMORY_IMG_RLE_PIXEL_DATA);
-	sprintf(text,"%s (%s)",boot->device, boot->fstype);
-	fb_draw_text (fb, CF_IMG_WIDTH+margin, slot*height+margin, 0, 0, 0,
+	sprintf(text, "%s (%s)", mitem->device, mitem->fstype);
+	fb_draw_text (fb, CF_IMG_WIDTH + margin, slot * height + margin, 0, 0, 0,
 			&radeon_font, text);
 
 }
@@ -217,7 +219,7 @@ int get_extra_cmdline(char *const extra_cmdline, const size_t extra_cmdline_size
 	return sum_len;
 }
 
-void start_kernel(struct boot *boot)
+void start_kernel(menu_item *mitem)
 {
 	/* we use var[] instead of *var because sizeof(var) using */
 	const char mount_point[] = "/mnt";
@@ -272,12 +274,12 @@ void start_kernel(struct boot *boot)
 	}
 
 	/* fill '--command-line' option */
-	if (boot->cmdline || extra_cmdline || boot->device) {
+	if (mitem->cmdline || extra_cmdline || mitem->device) {
 		/* allocate space */
-		n = strlenn(str_cmdline_start) + strlenn(boot->cmdline) +
+		n = strlenn(str_cmdline_start) + strlenn(mitem->cmdline) +
 				sizeof(char) + strlenn(extra_cmdline) +
-				strlenn(str_root) + strlenn(boot->device) +
-				strlenn(str_rootfstype) + strlenn(boot->fstype) +
+				strlenn(str_root) + strlenn(mitem->device) +
+				strlenn(str_rootfstype) + strlenn(mitem->fstype) +
 				strlenn(str_rootwait) + sizeof(char);
 
 		cmdline_arg = (char *)malloc(n);
@@ -290,16 +292,16 @@ void start_kernel(struct boot *boot)
 			strcpy(cmdline_arg, str_cmdline_start);
 			if (extra_cmdline)
 				strcat(cmdline_arg, extra_cmdline);
-			if (boot->cmdline && extra_cmdline)
+			if (mitem->cmdline && extra_cmdline)
 				strcat(cmdline_arg, " ");
-			if (boot->cmdline)
-				strcat(cmdline_arg, boot->cmdline);
-			if (boot->device) {
+			if (mitem->cmdline)
+				strcat(cmdline_arg, mitem->cmdline);
+			if (mitem->device) {
 				strcat(cmdline_arg, str_root);
-				strcat(cmdline_arg, boot->device);
-				if (boot->fstype) {
+				strcat(cmdline_arg, mitem->device);
+				if (mitem->fstype) {
 					strcat(cmdline_arg, str_rootfstype);
-					strcat(cmdline_arg, boot->fstype);
+					strcat(cmdline_arg, mitem->fstype);
 				}
 			}
 			strcat(cmdline_arg, str_rootwait);
@@ -310,7 +312,7 @@ void start_kernel(struct boot *boot)
 	}
 
 	/* Append kernelpath as last arg of kexec */
-	kexec_load_argv[idx] = boot->kernelpath;
+	kexec_load_argv[idx] = mitem->kernelpath;
 
 	DPRINTF("kexec_load_argv: %s, %s, %s, %s\n", kexec_load_argv[0],
 			kexec_load_argv[1], kexec_load_argv[2],
@@ -320,7 +322,7 @@ void start_kernel(struct boot *boot)
 			kexec_exec_argv[1], kexec_exec_argv[2]);
 
 	/* Mount boot device */
-	if ( -1 == mount(boot->device, mount_point, boot->fstype,
+	if ( -1 == mount(mitem->device, mount_point, mitem->fstype,
 			MS_RDONLY, NULL) ) {
 		perror("Can't mount boot device");
 		exit(-1);
@@ -350,10 +352,9 @@ int main(int argc, char **argv)
 	FILE *f;
 	int angle = KXB_FBANGLE;
 	char *eventif = KXB_EVENTIF;
-	struct bootlist * bl;
+	struct bootlist *bl;
 	struct input_event evt;
 	struct termios old, new;
-	struct hw_model_info *model;
 
 	/* When our pid is 1 we are init-process */
 	if ( 1 == getpid() ) {
@@ -386,12 +387,9 @@ int main(int argc, char **argv)
 
 	}
 
-	/* Get hardware model parameters (now FB angle only) */
-	model = detect_hw_model(model_info);
-	if (model->hw_model_id != HW_MODEL_UNKNOWN) {
-		angle = model->angle;
-		DPRINTF("Model is %s, fbangle is %d\n", model->name, model->angle);
-	}
+	// Set default settings
+	init_global_settings(&settings);
+	angle = settings.model.angle;
 
 	/* Check command-line args when not an init-process */
 	if (!initmode) {
@@ -441,7 +439,8 @@ int main(int argc, char **argv)
 //	new.c_cflag &=~CREAD;
 	tcsetattr(fileno(stdin), TCSANOW, &new);
 
-	bl = scan_devices(model);
+	bl = scan_devices(&settings);
+	sort_bootlist(bl, 0, bl->size-1);
 
 	do {
 		display_menu(fb, bl, choice);
@@ -467,7 +466,8 @@ int main(int argc, char **argv)
 		case KEY_S:	/* reScan */
 			display_text(fb, "Rescanning devices.\nPlease wait...");
 			free_bootlist(bl);
-			bl = scan_devices(model);
+			bl = scan_devices(&settings);
+			sort_bootlist(bl, 0, bl->size-1);
 			break;
 		}
 
@@ -478,6 +478,7 @@ int main(int argc, char **argv)
 	// reset terminal
 	tcsetattr(fileno(stdin), TCSANOW, &old);
 	fb_destroy(fb);
+	free_global_settings(&settings);
 	start_kernel(bl->list[choice]);
 	/* When we reach this point then some error has occured */
 	DPRINTF("We should not reach this point!");
