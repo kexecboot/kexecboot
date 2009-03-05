@@ -66,19 +66,18 @@
 /* Swap needs the definition of block size */
 #include "swap_fs.h"
 
-static int jffs2_image(const unsigned char *buf, unsigned long *blocks)
+static int jffs2_image(const void *buf, unsigned long long *bytes)
 {
+	const unsigned char *p = buf;
 	// Very sloppy! ;-E
-	if (*buf == 0x85 && buf[1] == 0x19)
+	if (*p == 0x85 && p[1] == 0x19)
 		return 1;
 
 	return 0;
 }
 
-static int vfat_image(const unsigned char *buf, unsigned long *blocks)
+static int vfat_image(const void *buf, unsigned long long *bytes)
 {
-	const struct romfs_super_block *sb =
-	    (const struct romfs_super_block *) buf;
 	if (!strncmp(buf + 54, "FAT12   ", 8)
 	    || !strncmp(buf + 54, "FAT16   ", 8)
 	    || !strncmp(buf + 82, "FAT32   ", 8))
