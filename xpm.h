@@ -116,4 +116,13 @@ int xpm_load_image(char ***xpm_data, const char *filename);
 struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 		unsigned int bpp);
 
+/*
+ * Function: xpm_destroy_parsed()
+ * Free XPM image data allocated by xpm_parse_image()
+ * Args:
+ * - pointer to xpm parsed data
+ * Return value: None
+ */
+void xpm_destroy_parsed(struct xpm_parsed_t *xpm);
+
 #endif // _HAVE_XPM_H

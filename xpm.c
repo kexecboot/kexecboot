@@ -612,7 +612,7 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 
 			hdata = htable_bin_search(ht_ctable, hkey_char(pixel));
 			if (NULL == hdata) {
-				DPRINTF("Wrong XPM format: pixel pixel not found\n");
+				DPRINTF("Wrong XPM format: pixel %s not found\n", pixel);
 				goto free_xpm_pixels;
 			}
 
@@ -685,3 +685,13 @@ free_xpm_pixels_colors:
 
 }
 
+
+/* Free XPM image data allocated by xpm_parse_image() */
+void xpm_destroy_parsed(struct xpm_parsed_t *xpm)
+{
+	if (NULL == xpm) return;
+
+	free(xpm->colors);
+	free(xpm->pixels);
+	free(xpm);
+}
