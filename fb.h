@@ -85,4 +85,5 @@ fb_draw_text(FB * fb,
 	     uint8 green, uint8 blue, const Font * font, const char *text);
 
 void fb_render(FB * fb);
-#endif
+
+#endif	/* _HAVE_FB_H */

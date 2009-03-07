@@ -364,6 +364,8 @@ void fb_draw_image(FB * fb, int x, int y, int img_width, int img_height,
 /* Draw xpm image from parsed data */
 void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data)
 {
+	if (NULL == xpm_data) return;
+
 	unsigned int i, j;
 	int dx = 0, dy = 0;
 	struct xpm_color_t **xpm_pixel, *xpm_color;
