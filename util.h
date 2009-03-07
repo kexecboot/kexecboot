@@ -79,36 +79,6 @@ struct hw_model_info {
 	int angle;
 };
 
-enum gui_type { GUIMODUS, TEXTMODUS };
-enum debug_modus { DEBUG_ON, DEBUG_OFF };
-
-typedef struct _menu_item_ {
-	int  id;                           // Unique menu ID
-	char *device;                      // eg. /dev/mmcblk0p1
-	char *fstype;                      // eg. ext2, ext4, jffs2
-	char *description;                 // Description of menu item as displayed
-	char *kernelpath;                  // Complete path to kernel image
-	char *iconpath;                    // Complete path to custom icon
-	char *icondata;                    // Custom icon image
-	char *cmdline;                     // Command line to be added on execution
-	int  order;                        // Sort order position
-} menu_item;
-
-typedef struct _global_settings_ {
-	struct hw_model_info model;        // Device model
-	int timeout;                       // # Seconds before autostart default item (0=autostart disabled)
-	enum gui_type gui;                 // GUI/Textmodus
-	char *logopath;                    // Complete path to custom logo (NULL=use build-in logo)
-	char *logodata;                    // Custom logo data
-	menu_item *default_item;           // Default menu item (NULL=none selected)
-	enum debug_modus debug;            // Debug modus
-} global_settings;
-
-struct bootlist {
-	menu_item **list;
-	unsigned int size;
-};
-
 /*
  * FUNCTIONS
  */

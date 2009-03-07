@@ -1,3 +1,4 @@
 *.kdev*
 Doxyfile
 *.test*
+res/orig

@@ -124,8 +124,6 @@ void set_icon(menu_item *i, char *value)
 	} else {
 		dispose(i->iconpath);
 		i->iconpath = strdup(value);
-
-		// TODO: Load image into memory
 	}
 }
 
@@ -215,7 +213,6 @@ void init_item_settings(int id, menu_item *item, char *device, const char *fstyp
 	item->description = NULL;
 	item->kernelpath = NULL;
 	item->iconpath = NULL;
-	item->icondata = NULL;
 	item->cmdline = NULL;
 	item->order = INT_MAX;  // Unordered
 }
@@ -227,7 +224,6 @@ void free_item_settings(menu_item *item)
 	dispose(item->description);
 	dispose(item->kernelpath);
 	dispose(item->iconpath);
-	dispose(item->icondata);
 	dispose(item->cmdline);
 }
 
@@ -241,8 +237,6 @@ void init_global_settings(global_settings *settings)
 
 	// Use build-in logo on default
 	settings->logopath = NULL;
-	settings->logodata = NULL;
-	//set_logo(settings, "");
 
 	settings->default_item = NULL;
 
@@ -261,7 +255,6 @@ void init_global_settings(global_settings *settings)
 void free_global_settings(global_settings *settings)
 {
 	dispose(settings->logopath);
-	dispose(settings->logodata);
 }
 
 void sort_bootlist(struct bootlist *bl, int low, int high)

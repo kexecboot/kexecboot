@@ -21,31 +21,32 @@
 
 #include "kexecboot.h"
 
-global_settings settings;
+/* Global images like before */
+struct xpm_parsed_t *icon_logo, *icon_cf, *icon_mmc, *icon_memory;
 
 /* Draw background with logo and text */
-void draw_background(FB *fb, const char *text) {
-	int margin = fb->width/64;
+void draw_background(FB *fb, const char *text, struct xpm_parsed_t *logo) {
+	int margin = fb->width/40;
 
 	/* Clear the background with #ecece1 */
 	fb_draw_rect(fb, 0, 0, fb->width, fb->height,0xec, 0xec, 0xe1);
 
 	/* logo */
-	fb_draw_image(fb,
-		      0,
-		      0,
-		      LOGO_IMG_WIDTH,
-		      LOGO_IMG_HEIGHT,
-		      LOGO_IMG_BYTES_PER_PIXEL, LOGO_IMG_RLE_PIXEL_DATA);
+	if (NULL != logo) {	/* Custom logo */
+		fb_draw_xpm_image(fb, 0, 0, logo);
+	} else {	/* Default logo */
+		fb_draw_xpm_image(fb, 0, 0, icon_logo);
+	}
 
-	fb_draw_text (fb, LOGO_IMG_WIDTH + margin, margin, 0, 0, 0,
+	fb_draw_text (fb, 32 + margin, margin, 0, 0, 0,
 		&radeon_font, text);
 }
 
 /* Draw one slot in menu */
-void draw_slot(FB *fb, menu_item *mitem, int slot, int height, int iscurrent)
+void draw_slot(FB *fb, menu_item *mitem, int slot, int height,
+		int iscurrent, struct xpm_parsed_t *icon)
 {
-	int margin = (height - CF_IMG_HEIGHT)/2;
+	int margin = (height - 32)/2;
 	char text[100];
 	if(!iscurrent)
 		fb_draw_rect(fb, 0, slot*height, fb->width, height,
@@ -53,37 +54,39 @@ void draw_slot(FB *fb, menu_item *mitem, int slot, int height, int iscurrent)
 	else { //draw red border
 		fb_draw_rect(fb, 0, slot*height, fb->width, height,
 			0xff, 0x00, 0x00);
-		fb_draw_rect(fb, margin, slot*height+margin, fb->width-2*margin
-			, height-2*margin, 0xec, 0xec, 0xe1);
+		fb_draw_rect(fb, margin, slot*height+margin, fb->width-2*margin,
+			height-2*margin, 0xec, 0xec, 0xe1);
 	}
-	if(!strncmp(mitem->device, "/dev/hd", strlen("/dev/hd")))
-		fb_draw_image(fb, margin, slot * height + margin, CF_IMG_WIDTH,
-			CF_IMG_HEIGHT, CF_IMG_BYTES_PER_PIXEL, CF_IMG_RLE_PIXEL_DATA);
-	else if(!strncmp(mitem->device, "/dev/mmcblk", strlen("/dev/mmcblk")))
-		fb_draw_image(fb, margin, slot * height + margin, MMC_IMG_WIDTH,
-			MMC_IMG_HEIGHT, MMC_IMG_BYTES_PER_PIXEL, MMC_IMG_RLE_PIXEL_DATA);
-	else if(!strncmp(mitem->device, "/dev/mtdblock", strlen("/dev/mtdblock")))
-		fb_draw_image(fb, margin, slot * height + margin, MEMORY_IMG_WIDTH,
-			MEMORY_IMG_HEIGHT, MEMORY_IMG_BYTES_PER_PIXEL, MEMORY_IMG_RLE_PIXEL_DATA);
-	sprintf(text, "%s (%s)", mitem->device, mitem->fstype);
-	fb_draw_text (fb, CF_IMG_WIDTH + margin, slot * height + margin, 0, 0, 0,
+
+	if (NULL != icon) {
+		fb_draw_xpm_image(fb, 0, 0, icon);
+	} else if(!strncmp(mitem->device, "/dev/hd", strlen("/dev/hd"))) {
+		fb_draw_xpm_image(fb, margin, slot * height + margin, icon_cf);
+	} else if(!strncmp(mitem->device, "/dev/mmcblk", strlen("/dev/mmcblk"))) {
+		fb_draw_xpm_image(fb, margin, slot * height + margin, icon_mmc);
+	} else if(!strncmp(mitem->device, "/dev/mtdblock", strlen("/dev/mtdblock"))) {
+		fb_draw_xpm_image(fb, margin, slot * height + margin, icon_memory);
+	}
+	sprintf(text, "%s\n%s (%s)", mitem->description, mitem->device, mitem->fstype);
+	fb_draw_text (fb, 32 + margin, slot * height + 4, 0, 0, 0,
 			&radeon_font, text);
 
 }
 
 /* Display bootlist menu with selection */
-void display_menu(FB *fb, struct bootlist *bl, int current)
+void display_menu(FB *fb, struct bootlist *bl, int current,
+		struct xpm_parsed_t **icons_array, struct xpm_parsed_t *logo)
 {
 	int i,j;
-	int slotheight = LOGO_IMG_HEIGHT;
+	int slotheight = 40;
 	int slots = fb->height/slotheight -1;
 	// struct boot that is in fist slot
 	static int firstslot=0;
 
 	if (0 == bl->size) {
-		draw_background(fb, "No bootable devices found.\nInsert bootable device!\nR: Reboot  S: Rescan devices");
+		draw_background(fb, "No bootable devices found.\nInsert bootable device!\nR: Reboot  S: Rescan devices", logo);
 	} else {
-		draw_background(fb, "Make your choice by selecting\nan item with the cursor keys.\nOK/Enter: Boot selected device\nR: Reboot  S: Rescan devices");
+		draw_background(fb, "Make your choice by selecting\nan item with the cursor keys.\nOK/Enter: Boot selected device\nR: Reboot  S: Rescan devices", logo);
 	}
 
 	if(current < firstslot)
@@ -91,16 +94,74 @@ void display_menu(FB *fb, struct bootlist *bl, int current)
 	if(current > firstslot + slots -1)
 		firstslot = current - (slots -1);
 	for(i=1, j=firstslot; i <= slots && j< bl->size; i++, j++){
-		draw_slot(fb, bl->list[j], i, slotheight, j == current);
+		draw_slot(fb, bl->list[j], i, slotheight, j == current, icons_array[j]);
 	}
 	fb_render(fb);
 }
 
 /* Display custom text near logo */
-void display_text(FB *fb, const char *text) {
-	draw_background(fb, text);
+void display_text(FB *fb, const char *text, struct xpm_parsed_t *logo) {
+	draw_background(fb, text, logo);
 	fb_render(fb);
 }
+
+
+/* Iterate through bootlist and associate icons with items */
+int associate_icons(struct bootlist *bl, int bpp, struct xpm_parsed_t ***icons_array)
+{
+	int i, rows;
+	char *tmp, **xpm_data;
+	menu_item **pmi;
+	struct xpm_parsed_t **icons, **pi, *icon;
+
+	/* Allocate array of bl->size num icons */
+	icons = malloc(sizeof(icons) * bl->size);
+	if (NULL == icons) {
+		DPRINTF("Can't allocate memory for icons array\n");
+		*icons_array = NULL;
+		return -1;
+	}
+
+	pmi = bl->list;
+	pi = icons;
+	for (i = 0; i < bl->size; i++) {
+
+		icon = NULL;
+
+		tmp = (*pmi)->iconpath;
+		if (NULL != tmp) {	/* Load and parse image */
+			rows = xpm_load_image(&xpm_data, tmp);
+			if (rows > 0) {
+				icon = xpm_parse_image(xpm_data, rows, bpp);
+				/* destroy loaded data - not needed anymore */
+				xpm_destroy_image(xpm_data, rows);
+			}
+		}
+
+		/* Store and go to next item */
+		*pi = icon;
+		++pmi;
+		++pi;
+	}
+	*icons_array = icons;
+
+	return i;
+}
+
+
+void free_associated_icons(struct xpm_parsed_t **icons_array, int ia_size)
+{
+	if (NULL == icons_array) return;
+
+	int i;
+	struct xpm_parsed_t **p = icons_array;
+
+	for (i = 0; i < ia_size; i++) {
+		if (NULL != *p) xpm_destroy_parsed(*p);
+		++p;
+	}
+}
+
 
 /*
  * Function: get_extra_cmdline()
@@ -355,6 +416,11 @@ int main(int argc, char **argv)
 	struct bootlist *bl;
 	struct input_event evt;
 	struct termios old, new;
+	global_settings settings;
+	char **xpm_data;
+	struct xpm_parsed_t *custom_logo;
+	struct xpm_parsed_t **icons;
+	int nicons = 0;
 
 	/* When our pid is 1 we are init-process */
 	if ( 1 == getpid() ) {
@@ -429,8 +495,28 @@ int main(int argc, char **argv)
 	    exit(3);
 	}
 
-	/* Switch cursor off. NOTE: works only when master-console is tty */
-	printf("\033[?25l\n");
+	/* Parse compiled images.
+	 * We don't care about result because drawing code is aware
+	 * FIXME: it should be done for GUI only */
+	icon_logo	= xpm_parse_image(logo_xpm, XPM_ROWS(logo_xpm), fb->bpp);
+	icon_cf		= xpm_parse_image(cf_xpm, XPM_ROWS(cf_xpm), fb->bpp);
+	icon_mmc	= xpm_parse_image(mmc_xpm, XPM_ROWS(mmc_xpm), fb->bpp);
+	icon_memory	= xpm_parse_image(memory_xpm, XPM_ROWS(memory_xpm), fb->bpp);
+
+	/* Load and parse custom logo */
+	custom_logo = NULL;
+	if (NULL != settings.logopath) {
+		/* Load and parse custom logo */
+		nicons = xpm_load_image(&xpm_data, settings.logopath);
+		if (nicons > 0) {
+			custom_logo = xpm_parse_image(xpm_data, nicons, fb->bpp);
+			/* destroy loaded image data - not needed anymore */
+			xpm_destroy_image(xpm_data, nicons);
+		}
+	}
+
+	/* Switch cursor off. FIXME: works only when master-console is tty */
+	//printf("\033[?25l\n");
 
 	// deactivate terminal input
 	tcgetattr(fileno(stdin), &old);
@@ -442,8 +528,13 @@ int main(int argc, char **argv)
 	bl = scan_devices(&settings);
 	sort_bootlist(bl, 0, bl->size-1);
 
+	nicons = associate_icons(bl, fb->bpp, &icons);
+	if (-1 == nicons) {
+		DPRINTF("Can't associate icons\n");
+	}
+
 	do {
-		display_menu(fb, bl, choice);
+		display_menu(fb, bl, choice, icons, custom_logo);
 		do
 			fread(&evt, sizeof(struct input_event), 1, f);
 		while(evt.type != EV_KEY || evt.value != 0);
@@ -456,7 +547,7 @@ int main(int argc, char **argv)
 			if ( choice < (bl->size - 1) ) choice++;
 			break;
 		case KEY_R:
-			display_text(fb, "Rebooting...");
+			display_text(fb, "Rebooting...", custom_logo);
 			sync();
 			/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
 			if ( -1 == reboot(RB_AUTOBOOT) ) {
@@ -464,10 +555,14 @@ int main(int argc, char **argv)
 			}
 			break;
 		case KEY_S:	/* reScan */
-			display_text(fb, "Rescanning devices.\nPlease wait...");
+			display_text(fb, "Rescanning devices.\nPlease wait...", custom_logo);
 			free_bootlist(bl);
+			free_associated_icons(icons, nicons);
+
 			bl = scan_devices(&settings);
 			sort_bootlist(bl, 0, bl->size-1);
+			nicons = associate_icons(bl, fb->bpp, &icons);
+			/* FIXME: Add logo reloading */
 			break;
 		}
 
@@ -477,8 +572,12 @@ int main(int argc, char **argv)
 	fclose(f);
 	// reset terminal
 	tcsetattr(fileno(stdin), TCSANOW, &old);
+
 	fb_destroy(fb);
+	free_associated_icons(icons, nicons);
+	xpm_destroy_parsed(custom_logo);
 	free_global_settings(&settings);
+
 	start_kernel(bl->list[choice]);
 	/* When we reach this point then some error has occured */
 	DPRINTF("We should not reach this point!");

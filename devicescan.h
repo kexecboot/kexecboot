@@ -29,6 +29,7 @@
 #include <errno.h>
 #include "fstype/fstype.h"
 #include "util.h"
+#include "configparser.h"
 
 struct fslist {
 	char **list;

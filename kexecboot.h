@@ -17,8 +17,8 @@
  *
  */
 
-#ifndef _HAVE_TZBL_H
-#define _HAVE_TZBL_H
+#ifndef _HAVE_KEXECBOOT_H
+#define _HAVE_KEXECBOOT_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,12 +33,14 @@
 #include "fb.h"
 #include "devicescan.h"
 #include "configparser.h"
-#include "res/logo-img.h"
-#include "res/cf-img.h"
-#include "res/mmc-img.h"
-#include "res/logo-img.h"
-#include "res/memory-img.h"
+#include "xpm.h"
+
 #include "res/radeon-font.h"
+#include "res/logo.xpm"
+/* Default images data for CF, SD/MMC and NAND */
+#include "res/cf.xpm"
+#include "res/mmc.xpm"
+#include "res/memory.xpm"
 
 /* Default event interface. Can be redefined */
 #ifndef KXB_EVENTIF
@@ -56,4 +58,4 @@ char *wanted_tags[] = {
 	NULL
 };
 
-#endif
+#endif	/* _HAVE_KEXECBOOT_H */
