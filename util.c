@@ -39,8 +39,7 @@ char *strtolower(const char *src, char *dst) {
 }
 
 
-int get_word(char *str, char **word)
-{
+char *get_word(char *str, char **endptr) {
 	char *p = str;
 	char *wstart;
 
@@ -51,15 +50,15 @@ int get_word(char *str, char **word)
 		wstart = p;
 
 		/* Search end of word */
-		while (!isspace(*p) && '\0' != *p) ++p;
-		*word = wstart;
-		return (p - wstart);
+		while ( !isspace(*p) && ('\0' != *p) ) ++p;
+		if (NULL != endptr) *endptr = p;
+		return wstart;
 	} else {
-		*word = NULL;
-		return 0;
+		if (NULL != endptr) *endptr = str;
+		return NULL;
 	}
-
 }
+
 
 /* Get non-negative integer */
 int get_nni(const char *str, char **endptr)
@@ -72,22 +71,22 @@ int get_nni(const char *str, char **endptr)
 	/* Check for various possible errors */
 	if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN))
 		|| (errno != 0 && val == 0)) {
-		perror("get_pui");
+		perror("get_nni");
 		return -1;
 	}
 
 	if (val > INT_MAX) {
-		DPRINTF("get_pui: Value too big for unsigned int\n");
+		DPRINTF("get_nni: Value too big for unsigned int\n");
 		return -1;
 	}
 
 	if (*endptr == str) {
-		DPRINTF("get_pui: No digits were found\n");
+		DPRINTF("get_nni: No digits were found\n");
 		return -1;
 	}
 
 	/* If we got here, strtol() successfully parsed a number */
-	return (unsigned int)val;
+	return (int)val;
 }
 
 /*

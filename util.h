@@ -91,7 +91,8 @@ struct hw_model_info {
 char *strtolower(const char *src, char *dst);
 
 /* Get word from string */
-int get_word(char *str, char **word);
+//int get_word(char *str, char **word);
+char *get_word(char *str, char **endptr);
 
 /* Get non-negative integer */
 int get_nni(const char *str, char **endptr);

@@ -18,10 +18,15 @@
  *
  */
 
-/* NOTE: Sorry, but we don't support ATM:
- * - hotspot coordinates;
- * - 's' color context;
- * - XPM 1 and XPM 2 notation.
+/* NOTE:
+ * 1. Sorry, but we don't support ATM:
+ *    - hotspot coordinates;
+ *    - 's' color context;
+ *    - XPM 1 and XPM 2 notation.
+ * 2. We replace all unknown named colors with red color (like libXpm does).
+ * 3. We consider all unknown pixels in image data as transparent.
+ * 4. We allow only ASCII chars with codes inclusive from 32 to 127
+ *    as pixel chars (for 1 or 2 char per pixel case only).
  */
 
 
@@ -35,14 +40,23 @@
 #include <fcntl.h>
 
 #include "util.h"
-#include "hash.h"
 
 /* Limit maximum xpm file size to 64Kb */
 #ifndef MAX_XPM_FILE_SIZE
 #define MAX_XPM_FILE_SIZE 65535
 #endif
 
-#define MAX_COLORNAME_LEN 32
+/* We can use only 95 ASCII chars when coding colors [32-127]
+ * but use 96 to speed up ariphmetic ((x << 6) + (x << 5))
+ * Returns x * 96
+ */
+#define XPM_ASCII_RANGE(x) ((x << 6) + (x << 5))
+
+/* Macro to find number of lines in compiled-in XPM image array
+ * NOTE: Use it only with compiled-in arrays!
+ */
+#define XPM_ROWS(array) (sizeof(array)/sizeof(*array))
+
 
 /* Color keys */
 enum xpm_ckey_t {
@@ -52,7 +66,8 @@ enum xpm_ckey_t {
 	XPM_KEY_GREY	= 2,
 	XPM_KEY_GRAY	= 2,
 	XPM_KEY_COLOR	= 3,
-	XPM_KEY_UNKNOWN = 4,
+	XPM_KEY_SYMBOL	= 4,
+	XPM_KEY_UNKNOWN = 5,
 };
 
 /* Colors triplet structure */
@@ -62,18 +77,13 @@ struct xpm_color_t {
 	uint8 b;
 };
 
+/* XPM main structure. That's only data needed for drawing */
 struct xpm_parsed_t {
-    unsigned int width;		/* image width */
-    unsigned int height;	/* image height */
-    unsigned int chpp;		/* number of characters per pixel */
-    unsigned int ncolors;	/* number of colors */
-    struct xpm_color_t *colors;	/* colors array */
-    struct xpm_color_t **pixels;/* pixels array (pointers to colors) */
+	unsigned int width;		/* image width */
+	unsigned int height;	/* image height */
+	struct xpm_color_t *colors;	/* colors array */
+	struct xpm_color_t **pixels;/* pixels array (pointers to colors) */
 };
-
-/* Macro to find number of lines in compiled-in XPM image array
- * NOTE: Use it only with compiled-in arrays! */
-#define XPM_ROWS(array)	(sizeof(array)/sizeof(*array))
 
 
 /*

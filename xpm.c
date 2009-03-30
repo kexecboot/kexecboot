@@ -19,6 +19,22 @@
 #include "xpm.h"
 #include "rgbtab.h"
 
+/* XPM pixel structure (internal) */
+struct xpm_pixel_t {
+	char *pixel;
+	struct xpm_color_t *rgb;
+};
+
+/* XPM metadata (internal, not needed for drawing code) */
+struct xpm_meta_t {
+	struct xpm_parsed_t *xpm_parsed;
+	unsigned int chpp;		/* number of characters per pixel */
+	unsigned int ncolors;	/* number of colors */
+	char *pixnames;		/* place for pixel names */
+	struct xpm_pixel_t *pixdata;	/* array of named pixels */
+};
+
+
 /* Free XPM image array allocated by xpm_load_image() */
 void xpm_destroy_image(char **xpm_data, const int rows)
 {
@@ -31,6 +47,18 @@ void xpm_destroy_image(char **xpm_data, const int rows)
 		free(xpm_data);
 	}
 }
+
+
+/* Free XPM image data allocated by xpm_parse_image() */
+void xpm_destroy_parsed(struct xpm_parsed_t *xpm)
+{
+	if (NULL == xpm) return;
+
+	if (NULL != xpm->colors) free(xpm->colors);
+	if (NULL != xpm->pixels) free(xpm->pixels);
+	free(xpm);
+}
+
 
 /* Load XPM image into array of strings */
 int xpm_load_image(char ***xpm_data, const char *filename)
@@ -52,7 +80,7 @@ int xpm_load_image(char ***xpm_data, const char *filename)
 	int len, nr;
 	int f;
 	char **data = NULL, *p, *e, *tmp;
-	char *qstart, *qs;	/* Start and end of quoted string */
+	char *qstart = NULL, *qs;	/* Start and end of quoted string */
 	struct stat sb;
 	char buf[1500];	/* read() buffer */
 	/* Quoted string storage buffer */
@@ -152,7 +180,6 @@ int xpm_load_image(char ***xpm_data, const char *filename)
 								++n;
 
 								in_block = XPM_COLORS;
-								DPRINTF("Values: %d, %d, %d, %d\n", width, height, ncolors, chpp);
 								break;
 
 							case XPM_COLORS:
@@ -274,50 +301,416 @@ static int hchar2int(unsigned char c)
 
 int hex2rgb(char *hex, struct xpm_color_t *rgb)
 {
-	int len;
-
-	len = strlen(hex);
-	if (len == 3 + 1) {			/* #abc */
+	switch (strlen(hex)) {
+	case 3 + 1:		/* #abc */
 		rgb->r = hchar2int(hex[1]);
 		rgb->g = hchar2int(hex[2]);
 		rgb->b = hchar2int(hex[3]);
-	} else if (len == 6 + 1) {	/* abcdef */
+		break;
+	case 6 + 1:		/* abcdef */
 		rgb->r = hchar2int(hex[1]) << 4 | hchar2int(hex[2]);
 		rgb->g = hchar2int(hex[3]) << 4 | hchar2int(hex[4]);
 		rgb->b = hchar2int(hex[5]) << 4 | hchar2int(hex[6]);
-	} else if (len == 12 + 1) {	/* #32329999CCCC */
+		break;
+	case 12 + 1:	/* #32329999CCCC */
 		/* so for now only take two digits */
 		rgb->r = hchar2int(hex[1]) << 4 | hchar2int(hex[2]);
 		rgb->g = hchar2int(hex[5]) << 4 | hchar2int(hex[6]);
 		rgb->b = hchar2int(hex[9]) << 4 | hchar2int(hex[10]);
-	} else {
+		break;
+	default:
 		return -1;
 	}
+	return 0;
+}
 
+/* Local function to convert color name to rgb structure */
+int cname2rgb(char *cname, struct xpm_color_t *rgb)
+{
+	char *tmp, *color;
+	int len, half, rest;
+	unsigned char c;
+	/* Named color structure */
+	struct xpm_named_color_t *cn;
+
+	color = strdup(cname);
+	if (NULL == color) {
+		DPRINTF("Can't allocate memory for color name copy (%s)\n", cname);
+		return -1;
+	}
+	len = strlen(cname);
+
+	/* Strip spaces and lowercase */
+	tmp = color;
+	while('\0' != *tmp) {
+		c = *tmp;
+		if (' ' == c) {
+			memmove(tmp, tmp+1, color + len - tmp);
+			continue;
+		} else {
+			*tmp = tolower(c);
+		}
+		++tmp;
+	}
+
+	/* Check for transparent color */
+	if( 0 == strcmp(color, "none") ) {
+		free(color);
+		rgb->r = 0;
+		rgb->g = 0;
+		rgb->b = 0;
+		return 1;
+	}
+
+	/* check for "grey" */
+	tmp = strstr(color, "grey");
+	if (NULL != tmp) {
+		tmp[2] = 'a';	/* Convert to "gray" */
+	}
+
+	/* Binary search in color names array */
+	len = XPM_ROWS(xpm_color_names);
+
+	half = len >> 1;
+	rest = len - half;
+
+	cn = xpm_color_names + half;
+	len = 1; /* Used as flag */
+
+	while (half > 0) {
+		half = rest >> 1;
+		len = strcmp(tmp, cn->name);
+		if (len < 0) {
+			cn -= half;
+		} else if (len > 0) {
+			cn += half;
+		} else {
+			/* len will be 0 here */
+			break;
+		}
+		rest -= half;
+	}
+
+	if (0 == len) {	/* Found */
+		rgb->r = cn->r;
+		rgb->g = cn->g;
+		rgb->b = cn->b;
+	} else {		/* Not found */
+		DPRINTF("Color name '%s' not in colors database, returning red\n", color);
+		/* Return 'red' color like libXpm does */
+		rgb->r = 0xFF;
+		rgb->g = 0;
+		rgb->b = 0;
+	}
+	free(color);
 	return 0;
 }
 
 
-/* Create hash key from color key of XPM image */
-hkey_t hkey_char(char *pixel)
+/* Local function to parse color line
+ * NOTE: It will modify 'data'.
+ */
+void parse_cline(char *data, char **colors)
 {
-	unsigned int len;
-	hkey_t key = 0;
-	char *p;
+	int len = 0;
+	enum xpm_ckey_t key, newkey = XPM_KEY_UNKNOWN;
+	char *p, *e, *tmp, *color;
 
-	if (NULL == pixel) return 0;
+	/* Clear colors */
+	colors[XPM_KEY_MONO] = NULL;
+	colors[XPM_KEY_GRAY4] = NULL;
+	colors[XPM_KEY_GRAY] = NULL;
+	colors[XPM_KEY_COLOR] = NULL;
 
-	len = strlen(pixel);
-	if ( len > sizeof(hkey_t)/sizeof(unsigned char) ) {
-		/* We can't use pixel as key directly */
-		return hkey_crc32(pixel, len);
-	} else {
-		for(p = pixel; p < pixel + len; p++) {
-			key = key << (sizeof(unsigned char) << 3) | (unsigned char)*p;
+	e = data + strlen(data);
+	color = NULL;
+	key = XPM_KEY_UNKNOWN;
+	p = data;
+	/* Iterate over (<ckey> <color>) pairs */
+	while (p < e) {
+
+		tmp = get_word(p, &p);	/* Get word */
+		if (NULL != tmp) {
+			len = p - tmp;
+
+			/* If there is no color data and there is no key found.. */
+			if ( (NULL == color) && (XPM_KEY_UNKNOWN != key) ) {
+				color = tmp;	/* ..then it's start of color data */
+			}
+
+			newkey = XPM_KEY_UNKNOWN;
+
+			if (1 == len) {
+				switch (tmp[0]) {
+				case 'c':	/* color */
+					newkey = XPM_KEY_COLOR;
+					break;
+				case 'm':	/* mono */
+					newkey = XPM_KEY_MONO;
+					break;
+				case 'g':	/* gray */
+					newkey = XPM_KEY_GRAY;
+					break;
+				case 's':	/* symbol */
+					newkey = XPM_KEY_SYMBOL;
+					break;
+				default:
+					break;
+				}
+			} else if ( (2 == len) && ('g' == tmp[0]) && ('4' == tmp[1]) ) {
+				/* gray4 */
+				newkey = XPM_KEY_GRAY4;
+			}
 		}
-		return key;
-	}
+
+		/* Do we have found new key or end of string? */
+		if ( (XPM_KEY_UNKNOWN != newkey) || (NULL == tmp) || ('\0' == *p) ) {
+
+			/* If we have color and this is not symbolic key store it */
+			if ((XPM_KEY_SYMBOL != key) && (NULL != color)) {
+				/* skip back key and zero-terminate the color name */
+				*(p-len-1) = '\0';
+				colors[key] = color;
+				color = NULL;
+			}
+
+			key = newkey;
+		}
+
+		if (NULL == tmp) return;
+
+	} /* while */
+
 }
+
+
+/* Local function that parse colors */
+int xpm_parse_colors(char **xpm_data, unsigned int bpp,
+		struct xpm_meta_t *xpm_meta)
+{
+	int rc, chpp, len;
+	/* Color structures: array and temporary pointer */
+	struct xpm_color_t *xpm_color;
+	char **data, **e, *p;
+	char *color;
+	char *pixel;
+	char *line;
+	struct xpm_pixel_t *pdata;
+	/* Array of colors in line */
+	char *colors[XPM_KEY_SYMBOL];
+
+	xpm_color = xpm_meta->xpm_parsed->colors;
+	pixel = xpm_meta->pixnames;
+	pdata = xpm_meta->pixdata;
+	chpp = xpm_meta->chpp;
+
+	/* Color line buffer. (*(xpm_data+1) - *(xpm_data)) = max length */
+	len = *(xpm_data+1) - *(xpm_data);
+	line = malloc( len * sizeof(char) );
+	if (NULL == line) {
+		DPRINTF("Can't allocate temporary buffer for color line\n");
+		goto free_nothing;
+	}
+
+	e = xpm_data + xpm_meta->ncolors;
+	for (data = xpm_data; data < e; data++) {
+
+		p = *data;
+
+		/* Split first chpp chars (pixel) */
+		strncpy(pixel, p, chpp);
+		pixel[chpp] = '\0';
+		p += chpp;
+
+		/* Create temporary copy for parsing */
+		strncpy(line, p, len);
+		line[len-1] = '\0';
+
+		/* Parse */
+		parse_cline(line, colors);
+
+		/* Select color according to supplied bpp */
+		color = NULL;
+		if ( 1 == bpp ) {		/* mono */
+			color = colors[XPM_KEY_MONO];
+		} else if ( 2 == bpp) {	/* 4 grays */
+			color = colors[XPM_KEY_GRAY4];
+		}
+
+		if (NULL == color) {
+			color = colors[XPM_KEY_COLOR];
+			if (NULL == color)
+				color = colors[XPM_KEY_GRAY];
+			if (NULL == color)
+				color = colors[XPM_KEY_GRAY4];
+			if (NULL == color)
+				color = colors[XPM_KEY_MONO];
+
+			if (NULL == color) {
+				DPRINTF("Wrong XPM format: wrong colors line '%s'\n", *data);
+				goto free_line;
+			}
+		}
+
+		/* Parse color to rgb + t */
+		rc = 0;
+		if ('#' == *color) {	/* hex */
+			rc = hex2rgb(color, xpm_color);
+		} else {				/* name */
+			rc = cname2rgb(color, xpm_color);
+		}
+
+		if ( -1 == rc ) {
+			DPRINTF("Can't parse color '%s'\n", color);
+			goto free_line;
+		}
+
+		pdata->pixel = pixel;
+		if (1 == rc) {	/* transparent pixel */
+			pdata->rgb = NULL;
+		} else {
+			pdata->rgb = xpm_color;
+		}
+
+		++xpm_color;
+		pixel += chpp + 1;	/* Go next place */
+		++pdata;
+	}
+
+	free(line);
+	return 0;
+
+free_line:
+	free(line);
+
+free_nothing:
+	return -1;
+}
+
+
+/* Local function to parse pixels data */
+int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
+{
+	int chpp, width, i;
+	struct xpm_color_t **xpm_pixel, **ctable = NULL;
+	struct xpm_pixel_t *pdata, *edata;
+	char **data, **e;
+	char *p;
+	char *pixel = NULL;
+	unsigned char pix;
+
+	chpp = xpm_meta->chpp;
+	edata = xpm_meta->pixdata + xpm_meta->ncolors;
+
+	/* Optimize some cases for speed. Prepare lookup tables */
+	if (chpp < 3) {	/* chpp should be positive integer */
+		width = XPM_ASCII_RANGE(1);		/* 96 */
+		if (2 == chpp) width *= width;	/* (96 * 96) */
+
+		ctable = malloc(width * sizeof(*ctable));
+		if (NULL == ctable) {
+			DPRINTF("Can't allocate memory for colors lookup table\n");
+			goto free_nothing;
+		}
+
+		/* Clean lookup table */
+		xpm_pixel = ctable;
+		for (i = 0; i < width; i++) {
+			*xpm_pixel = NULL;
+		}
+
+		/* Fill lookup table */
+		for(pdata = xpm_meta->pixdata; pdata < edata; pdata++) {
+			if ( ((unsigned char)pdata->pixel[0] < 32) ||
+					((unsigned char)pdata->pixel[0] > 127) ||
+					( (2 == chpp) && (
+					((unsigned char)pdata->pixel[1] < 32) ||
+					((unsigned char)pdata->pixel[1] > 127) ) ) )
+			{
+				DPRINTF("Pixel char is out of range [32-127]\n");
+				goto free_ctable;
+			}
+
+			pix = pdata->pixel[0] - ' ';
+
+			if (2 == chpp) {
+				/* (y * 96 + x) */
+				ctable[XPM_ASCII_RANGE(pix) + pdata->pixel[1] - ' '] = pdata->rgb;
+			} else {	/* 1 == chpp */
+				ctable[pix] = pdata->rgb;
+			}
+		}
+	} else {
+		pixel = malloc((chpp + 1) * sizeof(char));
+		if (NULL == pixel) {
+			DPRINTF("Can't allocate pixel\n");
+			goto free_nothing;	/* ctable is not allocated here */
+		}
+	}
+
+	width = xpm_meta->xpm_parsed->width;
+	xpm_pixel = xpm_meta->xpm_parsed->pixels;
+	e = xpm_data + xpm_meta->xpm_parsed->height;
+	for (data = xpm_data; data < e; data++) {
+
+		if (strlen(*data) != (width * chpp)) {
+			DPRINTF("Wrong XPM format: pixel data length is not equal to width (%d != %d)\n",
+			strlen(*data), width);
+			goto free_ctable;
+		}
+
+		/* Iterate over pixels (every chpp chars) */
+		for(p = *data; p < *data + width; p += chpp) {
+
+			/* Optimize some cases for speed */
+			switch (chpp) {
+			case 1:
+				*xpm_pixel = ctable[(unsigned char)*p - ' '];
+				break;
+
+			case 2:
+				pix = *p - ' ';
+				*xpm_pixel = ctable[XPM_ASCII_RANGE(pix) + *(p+1) - ' '];
+				break;
+
+			default:
+				strncpy(pixel, p, chpp);
+				pixel[chpp] = '\0';
+
+				/* Search pixel */
+				i = 0;	/* Used as flag */
+				for(pdata = xpm_meta->pixdata; pdata < edata; pdata++) {
+					if ( 0 != strcmp(pdata->pixel, pixel) ) continue;
+					*xpm_pixel = pdata->rgb;
+					i = 1;
+				}
+				if (0 == i) *xpm_pixel = NULL;	/* Consider this pixel as transparent */
+
+				break;
+			}
+
+			++xpm_pixel;
+		}
+
+	}
+
+	if (chpp < 3)
+		free(ctable);
+	else
+		free(pixel);
+
+	return 0;
+
+free_ctable:
+	if (chpp < 3)
+		free(ctable);
+	else
+		free(pixel);
+
+free_nothing:
+	return -1;
+}
+
 
 
 /* Process XPM image data and make it 'drawable' */
@@ -325,35 +718,20 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 		unsigned int bpp)
 {
 	int width = 0, height = 0, ncolors = 0, chpp = 0;	/* XPM image values */
-	int len, i, half, rest;
-	int is_transparent;
 	struct xpm_parsed_t *xpm_parsed;	/* return value */
-	/* Associative arrays: misc, color table */
-	struct htable_t *ht_ctable;
-	struct hdata_t *hdata;
-	/* Named color structure */
-	struct xpm_named_color_t *cname;
-	/* Color structures: array and temporary pointer */
-	struct xpm_color_t *xpm_colors, *xpm_color;
-	struct xpm_color_t **xpm_pixels, **xpm_pixel;
-	char **cline;	/* XPM line colors array */
-	enum xpm_ckey_t key;
-	char **data = NULL, *p, *tmp;
-	char *pixel;
-	char ckey[3];	/* One of 'm', 'g', 'g4', 'c', 's' */
-	char *color;
-	unsigned char c;
+	struct xpm_meta_t xpm_meta;	/* XPM metadata */
+	char *p;
 
 	if (rows < 3) {
 		DPRINTF("XPM image array should have at least 3 rows!\n");
 		return NULL;
 	}
 
-	/** PARSE IMAGE VALUES **/
+	/* Parse image values */
 	width = get_nni(xpm_data[0], &p);
-	height = get_nni(p, &tmp);
-	ncolors = get_nni(tmp, &p);
-	chpp = get_nni(p, &tmp);
+	height = get_nni(p, &p);
+	ncolors = get_nni(p, &p);
+	chpp = get_nni(p, &p);
 
 	if (width < 0 || height < 0 || ncolors < 0 || chpp < 0) {
 		DPRINTF("Wrong XPM format: wrong values (%d, %d, %d, %d)\n",
@@ -367,331 +745,85 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 		goto free_nothing;
 	}
 
-	/* Allocate array of colors */
-	xpm_colors = malloc(sizeof(*xpm_colors) * ncolors);
-	if (NULL == xpm_colors) {
-		DPRINTF("Can't allocate memory for xpm colors array\n");
+	if ( ncolors > (1 << (8 * chpp)) ) {
+		DPRINTF("Wrong XPM format: there are more colors than char_per_pixel can serve (%d > %d)\n",
+			ncolors, 1 << (8 * chpp) );
 		goto free_nothing;
 	}
-	xpm_color = xpm_colors;
-
-	/* Allocate pixel */
-	pixel = malloc((chpp + 1) * sizeof(char));
-	if (NULL == pixel) {
-		DPRINTF("Can't allocate memory for color key\n");
-		goto free_xpm_colors;
-	}
-
-	/* pixel->color array */
-	ht_ctable = htable_create(ncolors, 5);
-	if (NULL == ht_ctable) {
-		DPRINTF("Can't allocate memory for pixel->color table\n");
-		goto free_pixel;
-	}
-
-	/* Allocate colors line array */
-	cline = malloc((XPM_KEY_UNKNOWN) * sizeof(char *));
-	if (NULL == cline) {
-		DPRINTF("Can't allocate memory for colors line array\n");
-		goto free_ht_ctable;
-	}
-
-	/* Allocate colors line array items */
-	*cline = malloc((XPM_KEY_UNKNOWN) * MAX_COLORNAME_LEN);
-	color = *cline;
-	if (NULL == color) {
-		DPRINTF("Can't allocate memory for colors line array\n");
-		goto free_cline;
-	}
-	for(i = 1; i < (XPM_KEY_UNKNOWN); i++) {
-		cline[i] = color + i * MAX_COLORNAME_LEN;
-	}
-
-	/** PARSE COLORS **/
-	for (data = xpm_data + 1; data < xpm_data + ncolors + 1; data++) {
-
-		DPRINTF("%s\n", *data);
-		p = *data;
-
-		/* Split first chpp chars (pixel) */
-		strncpy(pixel, p, chpp);
-		pixel[chpp] = '\0';
-		p += chpp;
-
-		/* Clear colors */
-		*cline[XPM_KEY_MONO] = '\0';
-		*cline[XPM_KEY_GRAY4] = '\0';
-		*cline[XPM_KEY_GRAY] = '\0';
-		*cline[XPM_KEY_COLOR] = '\0';
-
-		/* Iterate over <ckey> <color> pairs */
-		/* FIXME: <color> can have spaces in name */
-		while (p < *(data+1)) {
-			/* Get ckey */
-			len = get_word(p, &tmp);
-			if (0 == len) break;
-			p = tmp + len;
-			if ( len > sizeof(ckey) ) len = sizeof(ckey) - 1;
-			strncpy(ckey, tmp, len);
-			ckey[len] = '\0';
-
-			/* Get color */
-			len = get_word(p, &tmp);
-			if (0 == len) break;
-
-			switch (ckey[0]) {
-			case 'c':	/* color */
-				key = XPM_KEY_COLOR;
-				break;
-			case 'm':	/* mono */
-				key = XPM_KEY_MONO;
-				break;
-			case 'g':	/* grey/grey4 */
-				if ('4' == ckey[1]) {	/* grey4 */
-					key = XPM_KEY_GRAY4;
-				} else {	/* grey */
-					key = XPM_KEY_GRAY;
-				}
-				break;
-			default:	/* We are not using this ckey ('s') */
-				continue;
-			}
-
-			/* Store color */
-			p = tmp + len;
-			if (len > MAX_COLORNAME_LEN) len = MAX_COLORNAME_LEN - 1;
-			strncpy(cline[key], tmp, len);
-			cline[key][len] = '\0';
-		}
-
-		/* Select color according to supplied bpp */
-		color = NULL;
-		if ( 1 == bpp ) {		/* mono */
-			color = cline[XPM_KEY_MONO];
-		} else if ( 2 == bpp) {	/* 4 grays */
-			color = cline[XPM_KEY_GRAY4];
-		}
-
-		if ((NULL == color) || ('\0' == color[0])) {
-			color = cline[XPM_KEY_COLOR];
-			if ('\0' == color)
-				color = cline[XPM_KEY_GRAY];
-			if ('\0' == color)
-				color = cline[XPM_KEY_GRAY4];
-			if ('\0' == color)
-				color = cline[XPM_KEY_MONO];
-
-			if ('\0' == color) {
-				DPRINTF("Wrong XPM format: wrong colors line '%s'\n", *data);
-				goto free_cline;
-			}
-		}
-
-		is_transparent = 0;
-
-		/* Parse color to rgb */
-		if ('#' == color[0]) {	/* hex */
-			if ( -1 == hex2rgb(color, xpm_color) ) {
-				DPRINTF("Can't parse hex color code '%s'\n", color);
-				goto free_cline;
-			}
-
-		} else {	/* name */
-			/* Strip spaces and lowercase */
-			tmp = color;
-			while('\0' != *tmp) {
-				c = *tmp;
-				if (' ' == c) {
-					memmove(tmp, tmp+1, color + strlen(color) - tmp);
-					continue;
-				} else {
-					*tmp = tolower(c);
-				}
-				++tmp;
-			}
-
-			/* Check for transparent color */
-			if( 0 == strcmp(color, "none") ) {
-				is_transparent = 1;
-			} else {
-
-				/* check for "grey" */
-				tmp = strstr(color, "grey");
-				if (NULL != tmp) {
-					tmp[2] = 'a';	/* Convert to "gray" */
-				}
-
-				/* Binary search in color names array */
-				len = XPM_ROWS(xpm_color_names);
-
-				half = len >> 1;
-				rest = len - half;
-
-				cname = xpm_color_names + half;
-				len = 0; /* Used as flag */
-
-				while (half > 0) {
-					half = rest >> 1;
-					i = strcmp(tmp, cname->name);
-					if (i < 0) {
-						cname -= half;
-					} else if (i > 0) {
-						cname += half;
-					} else {
-						len = 1;
-						break;
-					}
-					rest -= half;
-				}
-
-				if (0 == len) {	/* Not found */
-					DPRINTF("Color name '%s' not in colors database, returning red\n", color);
-					/* Return 'red' color like libXpm does */
-					xpm_color->b = 0;
-					xpm_color->g = 0;
-					xpm_color->r = 0xFF;
-				} else {
-					xpm_color->r = cname->r;
-					xpm_color->g = cname->g;
-					xpm_color->b = cname->b;
-				}
-
-			}
-		}
-
-		if (chpp < 3) { /* Optimise for pixels key of 1-2 char length */
-
-		} else {
-
-		}
-
-		/* Store color key and pointer to color to ht_ctable */
-		tmp = NULL;
-
-		if (-1 == htable_bin_insert(ht_ctable, hkey_char(pixel),
-				(is_transparent ? (struct xpm_color_t **)&tmp : &xpm_color), sizeof(xpm_color)))
-		{
-			DPRINTF("Can't store pixel->cpointer pair\n");
-			goto free_cline;
-		}
-
-		++xpm_color;
-	}
-
-	/* Destroy colors line array */
-	free(cline[0]);
-	free(cline);
-
-	/* Allocate memory for pixels data */
-	xpm_pixels = malloc(width * chpp * height * sizeof(*xpm_pixels));
-	if (NULL == xpm_pixels) {
-		DPRINTF("Can't allocate memory for xpm pixels data\n");
-		goto free_ht_ctable;
-	}
-
-	xpm_pixel = xpm_pixels;
-
-	/** PARSE PIXELS DATA **/
-	/* data should be in right position already */
-	for ( ; data < xpm_data + 1 + ncolors + height; data++) {
-
-		DPRINTF("%s\n", *data);
-
-		if (strlen(*data) != (width * chpp)) {
-			DPRINTF("Wrong XPM format: pixel data length is not equal to width (%d != %d)\n",
-			strlen(*data), width);
-			goto free_xpm_pixels;
-		}
-
-		/* Iterate over pixels (every chpp chars) */
-		for(p = *data; p < *data + width; p += chpp) {
-
-			/* Get pixel color key  and search it in colors table */
-			strncpy(pixel, p, chpp);
-			pixel[chpp] = '\0';
-
-			hdata = htable_bin_search(ht_ctable, hkey_char(pixel));
-			if (NULL == hdata) {
-				DPRINTF("Wrong XPM format: pixel %s not found\n", pixel);
-				goto free_xpm_pixels;
-			}
-
-			*xpm_pixel = *(struct xpm_color_t **)hdata->data;
-			++xpm_pixel;
-		}
-
-	}
-
-	/* Destroy colors table */
-	htable_destroy(ht_ctable);
-	free(pixel);
-
-/*
-	xpm_pixel = xpm_pixels;
-	for(i = 0; i < height; i++) {
-		for(len = 0; len < width; len++) {
-			xpm_color = *xpm_pixel;
-			if (NULL == xpm_color) {
-				DPRINTF("...... ");
-			} else {
-				DPRINTF("%.2x%.2x%.2x ", xpm_color->r, xpm_color->g, xpm_color->b);
-			}
-			++xpm_pixel;
-		}
-		DPRINTF("\n");
-	}
-*/
 
 	/* Prepare return values */
 	xpm_parsed = malloc(sizeof(*xpm_parsed));
 	if (NULL == xpm_parsed) {
 		DPRINTF("Can't allocate memory for return values\n");
-		goto free_xpm_pixels_colors;
+		goto free_nothing;
 	}
 
+	/* Store values */
 	xpm_parsed->width = width;
 	xpm_parsed->height = height;
-	xpm_parsed->ncolors = ncolors;
-	xpm_parsed->chpp = chpp;
-	xpm_parsed->colors = xpm_colors;
-	xpm_parsed->pixels = xpm_pixels;
 
+	xpm_meta.ncolors = ncolors;
+	xpm_meta.chpp = chpp;
+	xpm_meta.xpm_parsed = xpm_parsed;
+
+	/* Allocate array of colors */
+	xpm_parsed->colors = malloc(sizeof(*(xpm_parsed->colors)) * ncolors);
+	if (NULL == xpm_parsed->colors) {
+		DPRINTF("Can't allocate memory for xpm colors array\n");
+		goto free_xpm_parsed;
+	}
+
+	/* Allocate place for pixel data */
+	xpm_meta.pixdata = malloc(ncolors * sizeof(*(xpm_meta.pixdata)));
+	if (NULL == xpm_meta.pixdata) {
+		DPRINTF("Can't allocate memory for pixel data array\n");
+		goto free_xpm_parsed;	/* Colors are freed by same function */
+	}
+
+	/* Allocate place for pixel names */
+	xpm_meta.pixnames = malloc(ncolors * (chpp + 1) * sizeof(char));
+	if (NULL == xpm_meta.pixnames) {
+		DPRINTF("Can't allocate memory for pixel names array\n");
+		goto free_pixdata;
+	}
+
+	/* Parse colors data */
+	if ( -1 == xpm_parse_colors(xpm_data + 1, bpp, &xpm_meta) )
+	{
+		DPRINTF("Can't parse xpm colors\n");
+		goto free_pixnames;
+	}
+
+	/* Allocate memory for pixels data */
+	xpm_parsed->pixels = malloc(width * chpp * height * sizeof(*(xpm_parsed->pixels)));
+	if (NULL == xpm_parsed->pixels) {
+		DPRINTF("Can't allocate memory for xpm pixels data\n");
+		goto free_pixnames;
+	}
+
+	/* Parse pixels data */
+	if ( -1 == xpm_parse_pixels(xpm_data + 1 + ncolors, &xpm_meta) )
+	{
+		DPRINTF("Can't parse xpm pixels\n");
+		goto free_pixnames;
+	}
+
+	free(xpm_meta.pixnames);
+	free(xpm_meta.pixdata);
 	return xpm_parsed;
 
-free_cline:
-	if (NULL != cline[0]) free(cline[0]);
-	free(cline);
+free_pixnames:
+	free(xpm_meta.pixnames);
 
-free_ht_ctable:
-	htable_destroy(ht_ctable);
+free_pixdata:
+	free(xpm_meta.pixdata);
 
-free_pixel:
-	free(pixel);
-
-free_xpm_colors:
-	free(xpm_colors);
+free_xpm_parsed:
+	xpm_destroy_parsed(xpm_parsed);
 
 free_nothing:
 	return NULL;
 
-free_xpm_pixels:
-	htable_destroy(ht_ctable);
-	free(pixel);
-
-free_xpm_pixels_colors:
-	free(xpm_pixels);
-	free(xpm_colors);
-	return NULL;
-
 }
 
 
-/* Free XPM image data allocated by xpm_parse_image() */
-void xpm_destroy_parsed(struct xpm_parsed_t *xpm)
-{
-	if (NULL == xpm) return;
-
-	free(xpm->colors);
-	free(xpm->pixels);
-	free(xpm);
-}
