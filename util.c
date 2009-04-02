@@ -18,6 +18,45 @@
 
 #include "util.h"
 
+struct charlist *create_charlist(int size)
+{
+	struct charlist *cl;
+
+	cl = malloc(sizeof(*cl));
+	cl->list = malloc(size * sizeof(char *));
+	cl->size = size;
+	cl->fill = 0;
+	return cl;
+}
+
+void free_charlist(struct charlist *cl)
+{
+	int i;
+	for (i = 0; i < cl->size; i++)
+		free(cl->list[i]);
+	free(cl);
+}
+
+void addto_charlist(char *str, struct charlist *cl)
+{
+	cl->list[cl->fill] = str;
+	++cl->fill;
+	if (cl->fill == cl->size) {
+		cl->size <<= 1;	/* size *= 2; */
+		cl->list = realloc(cl->list, cl->size * sizeof(char *));
+	}
+}
+
+int in_charlist(const char *str, struct charlist *cl)
+{
+	int i;
+	for (i = 0; i < cl->size; i++)
+		if (!strcmp(str, cl->list[i]))
+			return i;
+	return -1;
+}
+
+
 void trim(char *s)
 {
     // Trim leading spaces and tabs

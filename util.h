@@ -79,9 +79,29 @@ struct hw_model_info {
 	int angle;
 };
 
+/* Charlist structure */
+struct charlist {
+	char **list;
+	unsigned int size;
+	unsigned int fill;
+};
+
+
 /*
  * FUNCTIONS
  */
+
+/* Allocate charlist structure of 'size' items initial */
+struct charlist *create_charlist(int size);
+
+/* Destroy specified charlist structure 'cl' */
+void free_charlist(struct charlist *cl);
+
+/* Append string 'str' to end of charlist 'cl' */
+void addto_charlist(char *str, struct charlist *cl);
+
+/* Return position of string 'str' in charlist 'cl' or (-1) when not found */
+int in_charlist(const char *str, struct charlist *cl);
 
 void trim(char *s);
 char *upcase(char *s);
