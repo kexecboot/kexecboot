@@ -46,6 +46,9 @@
 #define MAX_XPM_FILE_SIZE 65535
 #endif
 
+/* Maximum length of color line */
+#define MAX_XPM_CLINE_SIZE 128
+
 /* We can use only 95 ASCII chars when coding colors [32-127]
  * but use 96 to speed up ariphmetic ((x << 6) + (x << 5))
  * Returns x * 96

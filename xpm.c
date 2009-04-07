@@ -488,29 +488,22 @@ void parse_cline(char *data, char **colors)
 int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 		struct xpm_meta_t *xpm_meta)
 {
-	int rc, chpp, len;
+	int rc, chpp;
 	/* Color structures: array and temporary pointer */
 	struct xpm_color_t *xpm_color;
 	char **data, **e, *p;
 	char *color;
 	char *pixel;
-	char *line;
 	struct xpm_pixel_t *pdata;
 	/* Array of colors in line */
 	char *colors[XPM_KEY_SYMBOL];
+	/* Color line buffer */
+	char line[MAX_XPM_CLINE_SIZE];
 
 	xpm_color = xpm_meta->xpm_parsed->colors;
 	pixel = xpm_meta->pixnames;
 	pdata = xpm_meta->pixdata;
 	chpp = xpm_meta->chpp;
-
-	/* Color line buffer. (*(xpm_data+1) - *(xpm_data)) = max length */
-	len = *(xpm_data+1) - *(xpm_data);
-	line = malloc( len * sizeof(char) );
-	if (NULL == line) {
-		DPRINTF("Can't allocate temporary buffer for color line\n");
-		goto free_nothing;
-	}
 
 	e = xpm_data + xpm_meta->ncolors;
 	for (data = xpm_data; data < e; data++) {
@@ -523,8 +516,8 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 		p += chpp;
 
 		/* Create temporary copy for parsing */
-		strncpy(line, p, len);
-		line[len-1] = '\0';
+		strncpy(line, p, sizeof(line)-1);
+		line[sizeof(line)-1] = '\0';
 
 		/* Parse */
 		parse_cline(line, colors);
@@ -548,7 +541,7 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 
 			if (NULL == color) {
 				DPRINTF("Wrong XPM format: wrong colors line '%s'\n", *data);
-				goto free_line;
+				return -1;
 			}
 		}
 
@@ -562,7 +555,7 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 
 		if ( -1 == rc ) {
 			DPRINTF("Can't parse color '%s'\n", color);
-			goto free_line;
+			return -1;
 		}
 
 		pdata->pixel = pixel;
@@ -577,14 +570,7 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 		++pdata;
 	}
 
-	free(line);
 	return 0;
-
-free_line:
-	free(line);
-
-free_nothing:
-	return -1;
 }
 
 
