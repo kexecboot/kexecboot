@@ -33,12 +33,6 @@
 #ifndef _HAVE_XPM_H
 #define _HAVE_XPM_H
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
 #include "util.h"
 
 /* Limit maximum xpm file size to 64Kb */
