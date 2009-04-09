@@ -16,8 +16,20 @@
  *
  */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>		/* LONG_MAX, INT_MAX */
 #include "util.h"
 
+
+/* Create charlist structure */
 struct charlist *create_charlist(int size)
 {
 	struct charlist *cl;
@@ -29,14 +41,18 @@ struct charlist *create_charlist(int size)
 	return cl;
 }
 
+
+/* Free charlist structure */
 void free_charlist(struct charlist *cl)
 {
 	int i;
-	for (i = 0; i < cl->size; i++)
+	for (i = 0; i < cl->fill; i++)
 		free(cl->list[i]);
 	free(cl);
 }
 
+
+/* Add item to charlist structure */
 void addto_charlist(char *str, struct charlist *cl)
 {
 	cl->list[cl->fill] = str;
@@ -47,84 +63,39 @@ void addto_charlist(char *str, struct charlist *cl)
 	}
 }
 
+
+/* Search item in charlist structure */
 int in_charlist(const char *str, struct charlist *cl)
 {
 	int i;
-	for (i = 0; i < cl->size; i++)
-		if (!strcmp(str, cl->list[i]))
-			return i;
+	char **p = cl->list;
+
+	for (i = 0; i < cl->fill; i++) {
+		if (!strcmp(str, *p)) return i;
+		++p;
+	}
 	return -1;
 }
 
 
-void trim(char *s)
+/* Change string case. 'u' - uppercase, 'l'/'d' - lowercase */
+char *chcase(char ul, const char *src, char *dst)
 {
-    // Trim leading spaces and tabs
-    int i=0, j;
-
-    while ( (s[i]==' ') || (s[i]== '\t') )
-        i++;
-
-    if (i > 0) {
-        for (j=0; j < strlen(s); j++)
-            s[j]=s[j+i];
-
-       s[j]='\0';
-    }
-
-    // Trim trailing spaces, tabs and newlines
-    i = strlen(s)-1;
-    while ( (s[i] == ' ') || (s[i] == '\t') || (s[i] == '\n') )
-        i--;
-
-    if (i < (strlen(s)-1))
-        s[i+1]='\0';
-}
-
-enum casetype {upper, lower};
-
-char *docase(char *s, enum casetype c)
-{
-  char* dest;
-  int i;
-
-  if (!s)
-  	return NULL;
-
-  dest = malloc(strlen(s)+1);
-
-  for (i = 0; i < (int)strlen(s); i++)
-  	dest[i] = ( c==upper ? toupper(s[i]) : tolower(s[i]) );
-
-  dest[i] = '\0';
-
-  return dest;
-}
-
-char *upcase(char *s)
-{
-	return docase(s, upper);
-}
-
-char *locase(char *s)
-{
-	return docase(s, lower);
-}
-
-
-/*
- * Function: strtolower()
- * Lowercase the string
- * Look in util.h for description
- */
-char *strtolower(const char *src, char *dst) {
 	unsigned char *c1 = (unsigned char *)src;
 	unsigned char *c2 = (unsigned char *)dst;
 
 	while ('\0' != *c1) {
-		/* toupper() expects an unsigned char (implicitly cast to int)
-			as input, and returns an int, which is exactly what we want. */
-		*c2 = tolower(*c1);
+		switch (ul) {
+		case 'u':
+			*c2 = toupper(*c1);
+			break;
+		case 'l':
+		case 'd':
+			*c2 = tolower(*c1);
+			break;
+		default:
+			break;
+		}
 		++c1;
 		++c2;
 	}
@@ -134,12 +105,14 @@ char *strtolower(const char *src, char *dst) {
 }
 
 
-char *get_word(char *str, char **endptr) {
+/* Return pointer to word in string 'str' with end of word in 'endptr' */
+char *get_word(char *str, char **endptr)
+{
 	char *p = str;
 	char *wstart;
 
 	/* Skip space before word */
-	while( isspace(*p) && ('\0' != *p) ) ++p;
+	p = ltrim(str);
 
 	if ('\0' != *p) {
 		wstart = p;
@@ -152,6 +125,42 @@ char *get_word(char *str, char **endptr) {
 		if (NULL != endptr) *endptr = str;
 		return NULL;
 	}
+}
+
+
+/* Strip leading and trailing spaces, tabs and newlines
+ * NOTE: this will modify str */
+char *trim(char *str)
+{
+	char *s, *e;
+
+	s = ltrim(str);
+	e = rtrim(str);
+
+	if (s <= e) {
+		*(e+1) = '\0';
+		return s;
+	}
+
+	return NULL;
+}
+
+
+/* Skip trailing white-space */
+char *rtrim(char *str)
+{
+	char *p = str + strlen(str) - 1;
+	while( isspace(*p) && (p > str) ) --p;
+	return p;
+}
+
+
+/* Skip leading white-space */
+char *ltrim(char *str)
+{
+	char *p = str;
+	while( isspace(*p) && ('\0' != *p) ) ++p;
+	return p;
 }
 
 
@@ -175,7 +184,7 @@ int get_nni(const char *str, char **endptr)
 		return -1;
 	}
 
-	if (*endptr == str) {
+	if ((NULL != endptr) && (*endptr == str)) {
 		DPRINTF("get_nni: No digits were found\n");
 		return -1;
 	}
@@ -183,6 +192,7 @@ int get_nni(const char *str, char **endptr)
 	/* If we got here, strtol() successfully parsed a number */
 	return (int)val;
 }
+
 
 /*
  * Function: fexecw()
@@ -238,51 +248,4 @@ int fexecw(const char *path, char *const argv[], char *const envp[])
 
 	return status;
 }
-
-/*
- * Function: detect_hw_model()
- * Detect hardware model.
- * Look in util.h for description
- */
-struct hw_model_info *detect_hw_model(struct hw_model_info model_info[]) {
-	int i;
-	char *tmp, line[80];
-	FILE *f;
-
-	f = fopen("/proc/cpuinfo", "r");
-	if (!f) {
-		perror("/proc/cpuinfo");
-		exit(-1);
-	}
-
-	while (fgets(line, 80, f)) {
-		line[strlen(line) - 1] = '\0';
-		DPRINTF("Line: %s\n", line);
-		/* Search string 'Hardware' */
-		tmp = strstr(line, "Hardware");
-		if (NULL != tmp) break;
-	}
-	fclose(f);
-
-	if ( NULL != tmp) {
-		/* Search colon and skip it and space after */
-		tmp = strchr(tmp, ':');
-		tmp += 2;
-		DPRINTF("+ model is: %s\n", tmp);
-	}
-
-	/* Check against array of models */
-	for (i = 0; model_info[i].hw_model_id != HW_MODEL_UNKNOWN; i++) {
-		DPRINTF("+ comparing with %s\n", model_info[i].name);
-		if (NULL == tmp) continue;	/* Fastforwarding to unknown model */
-		if ( NULL != strstr(tmp, model_info[i].name) ) {
-			/* match found */
-			DPRINTF("+ match found!\n");
-			break;
-		}
-	}
-
-	return &model_info[i];
-}
-
 

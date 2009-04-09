@@ -18,24 +18,52 @@
 #ifndef _HAVE_DEVICESCAN_H_
 #define _HAVE_DEVICESCAN_H_
 
-#include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <stdlib.h>
-#include <sys/mount.h>
-#include <asm/setup.h> // for COMMAND_LINE_SIZE
-#include <errno.h>
-#include "fstype/fstype.h"
-#include "util.h"
-#include "configparser.h"
 
-struct fslist {
-	char **list;
-	unsigned int size;
+#include "cfgparser.h"
+
+/* Device structure */
+struct device_t {
+	char *device;		/* Device path (/dev/mmcblk0p1) */
+	const char *fstype;	/* Filesystem (ext2) */
+	int blocks;			/* Device size in 1K blocks */
 };
 
-struct bootlist *scan_devices(global_settings *settings);
-void free_bootlist(struct bootlist* bl);
+/* Boot item structure */
+struct boot_item_t {
+	char *device;		/* Device path (/dev/mmcblk0p1) */
+	const char *fstype;	/* Filesystem (ext2) */
+	unsigned long blocks;	/* Device size in 1K blocks */
+	char *label;		/* Partition label (name) */
+	char *kernelpath;	/* Found kernel (/boot/zImage) */
+	char *cmdline;		/* Kernel cmdline (logo.nologo debug) */
+	char *iconpath;		/* Custom partition icon path */
+	int priority;		/* Priority of item in menu */
+};
+
+/* Boot configuration structure */
+struct bootconf_t {
+	int timeout;				/* Seconds before default item autobooting (0 - disabled) */
+	struct boot_item_t *default_item;	/* Default menu item (NULL - none) */
+	enum ui_type_t ui;			/* UI (graphics/text) */
+	int debug;					/* Use debugging */
+
+	struct boot_item_t **list;	/* Boot items list */
+	unsigned int size;			/* Count of boot items in list */
+	unsigned int fill;			/* Filled items count */
+};
+
+extern char *machine_kernel;
+extern char *default_kernels[];
+
+/* Collect list of available devices with supported filesystems */
+struct bootconf_t *scan_devices();
+
+/* Free bootconf structure */
+void free_bootcfg(struct bootconf_t *bc);
+
+#ifdef DEBUG
+/* Print bootconf structure */
+void print_bootcfg(struct bootconf_t *bc);
+#endif
+
 #endif

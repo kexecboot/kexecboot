@@ -20,28 +20,6 @@
 #ifndef _HAVE_KEXECBOOT_H
 #define _HAVE_KEXECBOOT_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <linux/input.h>
-#include <termios.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <errno.h>
-#include <sys/reboot.h>
-#include "util.h"
-#include "fb.h"
-#include "devicescan.h"
-#include "configparser.h"
-#include "xpm.h"
-
-#include "res/radeon-font.h"
-#include "res/logo.xpm"
-/* Default images data for CF, SD/MMC and NAND */
-#include "res/cf.xpm"
-#include "res/mmc.xpm"
-#include "res/memory.xpm"
-
 /* Default event interface. Can be redefined */
 #ifndef KXB_EVENTIF
 #define KXB_EVENTIF "/dev/event0"
@@ -51,11 +29,5 @@
 #ifndef KXB_FBANGLE
 #define KXB_FBANGLE 0
 #endif
-
-/* Tags we want from /proc/cmdline */
-char *wanted_tags[] = {
-	"mtdparts",
-	NULL
-};
 
 #endif	/* _HAVE_KEXECBOOT_H */

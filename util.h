@@ -19,17 +19,7 @@
 #ifndef _HAVE_UTIL_H_
 #define _HAVE_UTIL_H_
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <string.h>
-#include <ctype.h>
 #include <stdint.h>     /* uint's below */
-#include <errno.h>
-#include <limits.h>		/* LONG_MAX, INT_MAX */
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -48,36 +38,6 @@ typedef uint32_t uint32;
 #define DPRINTF(fmt, args...)	do { } while (0)
 #endif
 
-#define dispose(ptr) do { \
-		if (ptr) free(ptr); \
-	} while (0)
-
-/* Known hardware models */
-enum hw_model_ids {
-	HW_MODEL_UNKNOWN,
-
-	HW_SHARP_POODLE,
-	HW_SHARP_COLLIE,
-	HW_SHARP_CORGI,
-	HW_SHARP_SHEPHERD,
-	HW_SHARP_HUSKY,
-	HW_SHARP_TOSA,
-	HW_SHARP_AKITA,
-	HW_SHARP_SPITZ,
-	HW_SHARP_BORZOI,
-	HW_SHARP_TERRIER
-};
-
-/*
- * Hardware models info (id, name, parameters...)
- * Name is searched in 'Hardware' line of /proc/cpuinfo to detect model.
- */
-struct hw_model_info {
-	enum hw_model_ids hw_model_id;
-	char *name;
-	// parameters
-	int angle;
-};
 
 /* Charlist structure */
 struct charlist {
@@ -103,27 +63,34 @@ void addto_charlist(char *str, struct charlist *cl);
 /* Return position of string 'str' in charlist 'cl' or (-1) when not found */
 int in_charlist(const char *str, struct charlist *cl);
 
-void trim(char *s);
-char *upcase(char *s);
-char *locase(char *s);
+/* Strip leading and trailing white-space */
+/* NOTE: this will modify str */
+char *trim(char *str);
 
-/*
- * Function: strtolower()
- * Lowercase the string.
- * Takes 2 arg:
- * - source string;
- * - destination buffer to store lowercased string.
- * Return value:
- * - pointer to destination string.
- */
-char *strtolower(const char *src, char *dst);
+/* Skip trailing white-space */
+char *rtrim(char *str);
 
-/* Get word from string */
-//int get_word(char *str, char **word);
+/* Skip leading white-space */
+char *ltrim(char *str);
+
+/* Uppercase the string 'src' and place result into 'dst' */
+#define strtoupper(src, dst) do { chcase('u', src, dst); } while (0)
+
+/* Lowercase the string 'src' and place result into 'dst' */
+#define strtolower(src, dst) do { chcase('l', src, dst); } while (0)
+
+/* Change case of 'str' and place result into 'dst' */
+/* ul value can be: 'u' for uppercase, 'l'/'d' for lowercase */
+char *chcase(char ul, const char *src, char *dst);
+
+/* Return pointer to word in string 'str' and end of word in 'endptr' */
 char *get_word(char *str, char **endptr);
 
-/* Get non-negative integer */
+/* Return non-negative integer from string 'str' and end of number in 'endptr' */
 int get_nni(const char *str, char **endptr);
+
+/* Check pointer for NULL value and free() if not */
+#define dispose(ptr) do { if (NULL != ptr) free(ptr); } while (0)
 
 /*
  * Function: fexecw()
@@ -140,14 +107,5 @@ int get_nni(const char *str, char **endptr);
  * - -1 on error (e.g. fork() failed)
  */
 int fexecw(const char *path, char *const argv[], char *const envp[]);
-
-/*
- * Function: detect_hw_model()
- * Detect hardware model.
- * Return value:
- * - pointer to hw_model_info structure from model_info array
- */
-struct hw_model_info *detect_hw_model(struct hw_model_info model_info[]);
-
 
 #endif //_HAVE_UTIL_H_
