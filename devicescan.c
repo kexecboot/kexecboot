@@ -51,7 +51,7 @@ struct charlist *scan_filesystems()
 		line[strlen(line) - 1] = '\0';	/* kill last '\n' */
 		split = strchr(line, '\t');
 		split++;
-		addto_charlist(strdup(split), fl);	/* NOTE: strdup() may return NULL */
+		addto_charlist(fl, strdup(split));	/* NOTE: strdup() may return NULL */
 	}
 	fclose(f);
 	return fl;
@@ -195,7 +195,7 @@ const char *detect_fstype(char *device, struct charlist *fl)
 	DPRINTF("+ FS on device is %s\n", fstype);
 
 	/* Check that FS is known */
-	if (in_charlist(fstype, fl) < 0) {
+	if (in_charlist(fl, fstype) < 0) {
 		DPRINTF("FS is not supported by kernel\n");
 		return NULL;
 	}

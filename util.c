@@ -53,7 +53,7 @@ void free_charlist(struct charlist *cl)
 
 
 /* Add item to charlist structure */
-void addto_charlist(char *str, struct charlist *cl)
+void addto_charlist(struct charlist *cl, char *str)
 {
 	cl->list[cl->fill] = str;
 	++cl->fill;
@@ -65,7 +65,7 @@ void addto_charlist(char *str, struct charlist *cl)
 
 
 /* Search item in charlist structure */
-int in_charlist(const char *str, struct charlist *cl)
+int in_charlist(struct charlist *cl, const char *str)
 {
 	int i;
 	char **p = cl->list;
