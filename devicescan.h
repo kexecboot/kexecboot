@@ -66,4 +66,13 @@ void free_bootcfg(struct bootconf_t *bc);
 void print_bootcfg(struct bootconf_t *bc);
 #endif
 
+/* Return list of found event devices */
+struct charlist *scan_event_devices();
+
+/* Open event devices and return array of descriptors */
+int *open_event_devices(struct charlist *evlist);
+
+/* Close opened devices */
+void close_event_devices(int *ev_fds, int size);
+
 #endif

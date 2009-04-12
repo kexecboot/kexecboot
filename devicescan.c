@@ -25,6 +25,14 @@
 #include <unistd.h>
 #include <sys/mount.h>
 #include <errno.h>
+
+#include <sys/ioctl.h>
+#include <asm/types.h>
+#include <stdint.h>
+#include <linux/input.h>
+
+#include <dirent.h>
+
 #include "fstype/fstype.h"
 #include "util.h"
 #include "devicescan.h"
@@ -404,4 +412,194 @@ free_fl:
 
 free_nothing:
 	return NULL;
+}
+
+
+/* this macro is used to tell if "bit" is set in "array"
+ * it selects a byte from the array, and does a boolean AND
+ * operation with a byte that only has the relevant bit set.
+ * eg. to check for the 12th bit, we do (array[1] & 1<<4)
+ */
+#define test_bit(bit, array)    (array[bit>>3] & (1<<(bit%8)))
+
+int is_suitable_evdev(char *path)
+{
+	int fd;
+	uint8_t evtype_bitmask[(EV_MAX>>3) + 1];
+
+	if ((fd = open(path, O_RDONLY)) < 0) {
+		DPRINTF("Can't open evdev device '%s'", path);
+		perror("");
+		return 0;
+	}
+
+	/* Clean evtype_bitmask structure */
+	memset(evtype_bitmask, 0, sizeof(evtype_bitmask));
+
+	/* Ask device features */
+	if (ioctl(fd, EVIOCGBIT(0, EV_MAX), evtype_bitmask) < 0) {
+		DPRINTF("Can't get evdev features");
+		perror("");
+		return 0;
+	}
+
+	close(fd);
+
+#ifdef DEBUG
+	int yalv;
+	DPRINTF("Supported event types:\n");
+	for (yalv = 0; yalv < EV_MAX; yalv++) {
+		if (test_bit(yalv, evtype_bitmask)) {
+			/* this means that the bit is set in the event types list */
+			DPRINTF("  Event type 0x%02x ", yalv);
+			switch (yalv) {
+			case EV_KEY:
+				DPRINTF(" (Keys or Buttons)\n");
+				break;
+			case EV_REL:
+				DPRINTF(" (Relative Axes)\n");
+				break;
+			case EV_ABS:
+				DPRINTF(" (Absolute Axes)\n");
+				break;
+			case EV_MSC:
+				DPRINTF(" (Something miscellaneous)\n");
+				break;
+			case EV_SW:
+				DPRINTF(" (Switch)\n");
+				break;
+			case EV_LED:
+				DPRINTF(" (LEDs)\n");
+				break;
+			case EV_SND:
+				DPRINTF(" (Sounds)\n");
+				break;
+			case EV_REP:
+				DPRINTF(" (Repeat)\n");
+				break;
+			case EV_FF:
+				DPRINTF(" (Force Feedback)\n");
+				break;
+			case EV_PWR:
+				DPRINTF(" (Power)\n");
+				break;
+			case EV_FF_STATUS:
+				DPRINTF(" (Force Feedback Status)\n");
+				break;
+			default:
+				DPRINTF(" (Unknown event type: 0x%04hx)\n", yalv);
+				break;
+			}
+		}
+	}
+#endif
+
+	/* Check that we have EV_KEY bit set */
+	if (test_bit(EV_KEY, evtype_bitmask)) return 1;
+
+	/* device is not suitable */
+	DPRINTF("Event device %s have no EV_KEY bit\n", path);
+	return 0;
+}
+
+
+/* Search all event devices in specified directory */
+struct charlist *scan_event_dir(char *path)
+{
+	int len;
+	DIR *d;
+	struct dirent *dp;
+	struct charlist *evlist;
+	char *p;
+	const char *pattern = "event";
+	char device[strlen(path) + 1 + strlen(pattern) + 3];
+
+	d = opendir(path);
+	if (NULL == d) {
+		DPRINTF("Can't open directory '%s'\n", path);
+		return NULL;
+	}
+
+	/* Prepare placeholder */
+	strcpy(device, path);
+	p = device + strlen(device) + 1;
+	*(p - 1) = '/';
+	*p = '\0';
+
+	len = strlen(pattern);
+	evlist = create_charlist(4);
+
+	/* Loop through directory and look for pattern */
+	while ((dp = readdir(d)) != NULL) {
+		if (0 == strncmp(dp->d_name, pattern, len)) {
+			DPRINTF("+ found evdev: %s\n", dp->d_name);
+			strcat(p, dp->d_name);
+			if (is_suitable_evdev(device)) {
+				addto_charlist(evlist, strdup(device));
+			}
+			*p = '\0';	/* Reset device name */
+		}
+	}
+	closedir(d);
+
+	return evlist;
+}
+
+
+/* Return list of found event devices */
+struct charlist *scan_event_devices()
+{
+	struct charlist *evlist;
+
+	/* Check /dev for event devices */
+	evlist = scan_event_dir("/dev");
+	if (NULL == evlist) return NULL;
+	if (0 != evlist->fill) return evlist;
+
+	/* We have not found any device. Search in /dev/input */
+	free_charlist(evlist);
+
+	evlist = scan_event_dir("/dev/input");
+	if (NULL == evlist) return NULL;
+	if (0 != evlist->fill) return evlist;
+
+	DPRINTF("We have not found any event device\n");
+	return NULL;
+}
+
+
+/* Open event devices and return array of descriptors */
+int *open_event_devices(struct charlist *evlist)
+{
+	int i, *ev_fds;
+
+	ev_fds = malloc(evlist->fill * sizeof(*ev_fds));
+	if (NULL == ev_fds) {
+		DPRINTF("Can't allocate memory for descriptors array\n");
+		return NULL;
+	}
+
+	for(i = 0; i < evlist->fill; i++) {
+		ev_fds[i] = open(evlist->list[i], O_RDONLY);
+		if (-1 == ev_fds[i]) {
+			DPRINTF("Can't open event device '%s'", evlist->list[i]);
+			perror("");
+		}
+		DPRINTF("+ opened event device '%s', fd: %d\n", evlist->list[i], ev_fds[i]);
+	}
+
+	return ev_fds;
+}
+
+
+/* Close opened devices */
+void close_event_devices(int *ev_fds, int size)
+{
+	int i;
+
+	for(i = 0; i < size; i++) {
+		if (ev_fds > 0) close(ev_fds[i]);
+	}
+
+	free(ev_fds);
 }

@@ -105,6 +105,7 @@ void draw_slot(FB *fb, struct boot_item_t *item, int slot, int height,
 	} else if(!strncmp(item->device, "/dev/mtdblock", strlen("/dev/mtdblock"))) {
 		fb_draw_xpm_image(fb, margin, slot * height + margin, icon_memory);
 	}
+	/* FIXME item->label can be NULL */
 	sprintf(text, "%s\n%s (%s)", item->label, item->device, item->fstype);
 	fb_draw_text (fb, 32 + margin, slot * height + 4, 0, 0, 0,
 			&radeon_font, text);
@@ -146,6 +147,7 @@ void display_text(FB *fb, const char *text)
 
 
 /* Iterate through bootlist and associate icons with items */
+/* FIXME This function is not working because of umounted devices */
 int associate_icons(struct bootconf_t *bc, int bpp, struct xpm_parsed_t ***icons_array)
 {
 	int i, rows;
@@ -516,9 +518,9 @@ int main(int argc, char **argv)
 	int angle = KXB_FBANGLE;
 	char *eventif = KXB_EVENTIF;
 	struct bootconf_t *bl;
-	struct input_event evt;
 	struct termios old, new;
 	struct xpm_parsed_t **icons;
+	struct charlist *evlist;
 	int nicons = 0;
 
 	/* When our pid is 1 we are init-process */
@@ -596,12 +598,6 @@ value 'n' accepts the following:
 	if ((fb = fb_new(angle)) == NULL)
 		exit(-1);
 
-	f = fopen(eventif,"r");
-	if(!f){
-	    perror(eventif);
-	    exit(3);
-	}
-
 	/* Parse compiled images.
 	 * We don't care about result because drawing code is aware
 	 * FIXME: it should be done for GUI only */
@@ -621,8 +617,9 @@ value 'n' accepts the following:
 		DPRINTF("Can't associate icons\n");
 	}
 
+#if 1
 	/* Switch cursor off. FIXME: works only when master-console is tty */
-	//printf("\033[?25l\n");
+	printf("\033[?25l\n");
 
 	// deactivate terminal input
 	tcgetattr(fileno(stdin), &old);
@@ -630,49 +627,143 @@ value 'n' accepts the following:
 	new.c_lflag &= ~ECHO;
 //	new.c_cflag &=~CREAD;
 	tcsetattr(fileno(stdin), TCSANOW, &new);
+#endif
 
+	/* Search for keyboard/touchscreen/mouse/joystick/etc.. */
+	/* FIXME there can be no event devices (web/serial) */
+	evlist = scan_event_devices();
+	if (NULL == evlist) {
+		DPRINTF("Can't get event devices list\n");
+		exit(-1);
+	}
+
+	int *ev_fds;
+	fd_set fds0, fds;
+	int i, nready, maxfd, nev, efd;
+
+	/* Open event devices */
+	ev_fds = open_event_devices(evlist);
+	if (NULL == ev_fds) {
+		DPRINTF("Can't open event devices\n");
+		exit(-1);
+	}
+
+	nev = evlist->fill;
+	maxfd = -1;
+
+	/* Fill FS set with descriptors and search maximum fd number */
+	FD_ZERO(&fds0);
+	for (i = 0; i < nev; i++) {
+		efd = ev_fds[i];
+		if (efd > 0) {
+			FD_SET(efd, &fds0);
+			if (efd > maxfd) maxfd = efd;	/* Find maximum fd no */
+		}
+	}
+	++maxfd;	/* Increase maxfd according to select() manual */
+
+	struct input_event evt;
+	int is_selected = 0;
+	int suitable_event = 1;
+
+	/* Event loop */
 	do {
-		display_menu(fb, bl, choice, icons);
-		do
-			fread(&evt, sizeof(struct input_event), 1, f);
-		while(evt.type != EV_KEY || evt.value != 0);
+		if (suitable_event) display_menu(fb, bl, choice, icons);
 
-		switch (evt.code) {
-		case KEY_UP:
-			if (choice > 0) choice--;
-			break;
-		case KEY_DOWN:
-			if ( choice < (bl->fill - 1) ) choice++;
-			break;
-		case KEY_R:
-			display_text(fb, "Rebooting...");
-			sync();
-			/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
-			if ( -1 == reboot(RB_AUTOBOOT) ) {
-				perror("Can't initiate reboot");
+		suitable_event = 0;
+		fds = fds0;
+
+		/* Wait for some input */
+		nready = select(maxfd, &fds, NULL, NULL, NULL);	/* Wait indefinitely */
+
+		if (-1 == nready) {
+			if (errno == EINTR) continue;
+			else {
+				perror("select");
+				exit(-1);
 			}
-			break;
-		case KEY_S:	/* reScan */
-			display_text(fb, "Rescanning devices.\nPlease wait...");
-			free_bootcfg(bl);
-			free_associated_icons(icons, nicons);
-
-			bl = scan_devices();
-			/* FIXME sort_bootlist(bl, 0, bl->size-1); */
-			nicons = associate_icons(bl, fb->bpp, &icons);
-			break;
 		}
 
-	} while( (bl->fill == 0) || (evt.code != 87 && evt.code != 63 &&
-		evt.code != KEY_SPACE && evt.code != KEY_ENTER &&
-		evt.code != KEY_HIRAGANA && evt.code != KEY_HENKAN) );
+		/* Check fds */
+		for(i = 0; i < nev; i++) {
+			efd = ev_fds[i];
+			if (FD_ISSET(efd, &fds)) {
+				read(efd, &evt, sizeof(evt));	/* Read event */
+				DPRINTF("+ event on %d, type: %d, code: %d, value: %d\n",
+						efd, evt.type, evt.code, evt.value);
+				if ((EV_KEY == evt.type) && (0 != evt.value)) {
+					/* EV_KEY event actions */
+					suitable_event = 1;
+
+					switch (evt.code) {
+					case KEY_UP:
+						if (choice > 0) choice--;
+						else choice = bl->fill - 1;
+						break;
+					case KEY_DOWN:
+					case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
+						if (choice < (bl->fill - 1)) choice++;
+						else choice = 0;
+						break;
+					case KEY_R:
+						display_text(fb, "Rebooting...");
+						sync();
+						/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
+						if ( -1 == reboot(RB_AUTOBOOT) ) {
+							perror("Can't initiate reboot");
+						}
+						break;
+					case KEY_S:	/* reScan */
+						display_text(fb, "Rescanning devices.\nPlease wait...");
+						free_bootcfg(bl);
+						free_associated_icons(icons, nicons);
+
+						bl = scan_devices();
+						/* FIXME sort_bootlist(bl, 0, bl->size-1); */
+						nicons = associate_icons(bl, fb->bpp, &icons);
+						break;
+					case KEY_ENTER:
+					case KEY_SPACE:
+					case KEY_HIRAGANA:	/* Zaurus SL-6000 */
+					case KEY_HENKAN:	/* Zaurus SL-6000 */
+					case 87:			/* Zaurus: OK (remove?) */
+					case 63:			/* Zaurus: Enter (remove?) */
+					case KEY_POWER:		/* GTA02: Power (116) */
+					case KEY_PHONE:		/* GTA02: AUX (169) */
+						if (bl->fill > 0) is_selected = 1;
+						break;
+					default:
+						suitable_event = 0;
+					}
+#if 0
+				} else if ((EV_ABS == evt.type) && (0 != evt.value)) {
+					/* EV_KEY event actions */
+					suitable_event = 1;
+					switch (evt.code) {
+					case ABS_PRESSURE:	/* Touchscreen touch */
+						if (choice < (bl->fill - 1)) choice++;
+						else choice = 0;
+						break;
+					default:
+						suitable_event = 0;
+					}
+#endif
+				}
+			}
+		}
+
+	} while (!is_selected);
+
 	fclose(f);
+
 	// reset terminal
 	tcsetattr(fileno(stdin), TCSANOW, &old);
 
 	fb_destroy(fb);
 	free_associated_icons(icons, nicons);
 	xpm_destroy_parsed(icon_logo);
+	close_event_devices(ev_fds, evlist->fill);
+	free_charlist(evlist);
 
 	start_kernel(bl->list[choice]);
 	/* When we reach this point then some error has occured */
