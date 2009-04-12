@@ -19,6 +19,14 @@
  *
  */
 
+/*
+ * TODO Show kexecboot version somewhere
+ * TODO Create WARN/ERR/INFO functions in addition to DPRINTF
+ * TODO Show debug info in special dialog
+ * TODO Cleanup debug info
+ * TODO Split GUI code to separate source file
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

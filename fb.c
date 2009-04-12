@@ -16,6 +16,12 @@
  *  GNU General Public License for more details.
  *
  */
+
+/*
+ * TODO Replace one pixel drawing function with bpp checking with multiple
+ * functions (one for each bpp).
+ */
+
 #include "fb.h"
 
 void fb_render(FB * fb)
