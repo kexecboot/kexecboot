@@ -429,7 +429,7 @@ int is_suitable_evdev(char *path)
 
 	if ((fd = open(path, O_RDONLY)) < 0) {
 		DPRINTF("Can't open evdev device '%s'", path);
-		perror("");
+/*		perror("");*/
 		return 0;
 	}
 
@@ -439,7 +439,7 @@ int is_suitable_evdev(char *path)
 	/* Ask device features */
 	if (ioctl(fd, EVIOCGBIT(0, EV_MAX), evtype_bitmask) < 0) {
 		DPRINTF("Can't get evdev features");
-		perror("");
+/*		perror("");*/
 		return 0;
 	}
 
@@ -583,7 +583,7 @@ int *open_event_devices(struct charlist *evlist)
 		ev_fds[i] = open(evlist->list[i], O_RDONLY);
 		if (-1 == ev_fds[i]) {
 			DPRINTF("Can't open event device '%s'", evlist->list[i]);
-			perror("");
+/*			perror("");*/
 		}
 		DPRINTF("+ opened event device '%s', fd: %d\n", evlist->list[i], ev_fds[i]);
 	}
