@@ -8,7 +8,7 @@ AM_MAINTAINER_MODE
 AC_ARG_WITH([fbmenu],[AS_HELP_STRING([--with-fbmenu],[support framebuffer menu @<:@default=yes@:>@])],[],[with_fbmenu=yes])
 AC_ARG_WITH([cfgfiles],[AS_HELP_STRING([--with-cfgfiles],[support config files (depends on fbmenu) @<:@default=yes@:>@])],[],[with_cfgfiles=yes])
 AC_ARG_WITH([icons],[AS_HELP_STRING([--with-icons],[support custom icons (depends on cfgfiles) @<:@default=yes@:>@])],[],[with_icons=yes])
-AC_ARG_WITH([font],[AS_HELP_STRING([--with-font],[select font (depends on fbmenu) @<:@default=radeon@:>@])],[],[with_font="radeon"])
+AC_ARG_WITH([font],[AS_HELP_STRING([--with-font],[select font (depends on fbmenu) @<:@default=radeon@:>@])],[],[with_font=\"radeon\"])
 
 AS_IF([test "x$with_fbmenu" != xno],
 		[

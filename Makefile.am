@@ -3,7 +3,7 @@ bin_PROGRAMS=kexecboot
 AM_CFLAGS = $(GCC_FLAGS)
 
 kexecboot_SOURCES = xpm.c util.c devicescan.c fb.c kexecboot.c \
-	cfgparser.c fstype/fstype.c
+	cfgparser.c fstype/fstype.c gui.c
 
 EXTRA_DIST = res/make-image-header.sh
 

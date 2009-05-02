@@ -38,22 +38,17 @@
 #include <errno.h>
 #include <sys/reboot.h>
 #include <asm/setup.h> // for COMMAND_LINE_SIZE
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include "config.h"
 #include "util.h"
-#include "fb.h"
 #include "devicescan.h"
-#include "xpm.h"
-
-#include "res/radeon-font.h"
-#include "res/logo.xpm"
-/* Default images data for CF, SD/MMC and NAND */
-#include "res/cf.xpm"
-#include "res/mmc.xpm"
-#include "res/memory.xpm"
-
 #include "kexecboot.h"
 
-/* Global images like before */
-struct xpm_parsed_t *icon_logo, *icon_cf, *icon_mmc, *icon_memory;
+#ifdef USE_FBMENU
+#include "gui.h"
+#endif
 
 /* Machine-dependent kernel patch */
 char *machine_kernel = NULL;
@@ -74,151 +69,11 @@ char *wanted_tags[] = {
 };
 
 
-/* Draw background with logo and text */
-void draw_background(FB *fb, const char *text)
-{
-	int margin = fb->width/40;
-
-	/* Clear the background with #ecece1 */
-	fb_draw_rect(fb, 0, 0, fb->width, fb->height,0xec, 0xec, 0xe1);
-
-	fb_draw_xpm_image(fb, 0, 0, icon_logo);
-
-	fb_draw_text (fb, 32 + margin, margin, 0, 0, 0,
-		&radeon_font, text);
-}
-
-/* Draw one slot in menu */
-void draw_slot(FB *fb, struct boot_item_t *item, int slot, int height,
-		int iscurrent, struct xpm_parsed_t *icon)
-{
-	int margin = (height - 32)/2;
-	char text[100];
-	if(!iscurrent)
-		fb_draw_rect(fb, 0, slot*height, fb->width, height,
-			0xec, 0xec, 0xe1);
-	else { //draw red border
-		fb_draw_rect(fb, 0, slot*height, fb->width, height,
-			0xff, 0x00, 0x00);
-		fb_draw_rect(fb, margin, slot*height+margin, fb->width-2*margin,
-			height-2*margin, 0xec, 0xec, 0xe1);
-	}
-
-	if (NULL != icon) {
-		fb_draw_xpm_image(fb, 0, 0, icon);
-	} else if(!strncmp(item->device, "/dev/hd", strlen("/dev/hd"))) {
-		fb_draw_xpm_image(fb, margin, slot * height + margin, icon_cf);
-	} else if(!strncmp(item->device, "/dev/mmcblk", strlen("/dev/mmcblk"))) {
-		fb_draw_xpm_image(fb, margin, slot * height + margin, icon_mmc);
-	} else if(!strncmp(item->device, "/dev/mtdblock", strlen("/dev/mtdblock"))) {
-		fb_draw_xpm_image(fb, margin, slot * height + margin, icon_memory);
-	}
-	/* FIXME item->label can be NULL */
-	sprintf(text, "%s\n%s (%s)", item->label, item->device, item->fstype);
-	fb_draw_text (fb, 32 + margin, slot * height + 4, 0, 0, 0,
-			&radeon_font, text);
-
-}
-
-/* Display bootlist menu with selection */
-void display_menu(FB *fb, struct bootconf_t *bc, int current,
-		struct xpm_parsed_t **icons_array)
-{
-	int i,j;
-	int slotheight = 40;
-	int slots = fb->height/slotheight -1;
-	// struct boot that is in fist slot
-	static int firstslot=0;
-
-	if (0 == bc->fill) {
-		draw_background(fb, "No bootable devices found.\nInsert bootable device!\nR: Reboot  S: Rescan devices");
-	} else {
-		draw_background(fb, "Make your choice by selecting\nan item with the cursor keys.\nOK/Enter: Boot selected device\nR: Reboot  S: Rescan devices");
-	}
-
-	if(current < firstslot)
-		firstslot=current;
-	if(current > firstslot + slots -1)
-		firstslot = current - (slots -1);
-	for(i=1, j=firstslot; i <= slots && j< bc->fill; i++, j++){
-		draw_slot(fb, bc->list[j], i, slotheight, j == current, icons_array[j]);
-	}
-	fb_render(fb);
-}
-
-/* Display custom text near logo */
-void display_text(FB *fb, const char *text)
-{
-	draw_background(fb, text);
-	fb_render(fb);
-}
-
-
-/* Iterate through bootlist and associate icons with items */
-/* FIXME This function is not working because of umounted devices */
-int associate_icons(struct bootconf_t *bc, int bpp, struct xpm_parsed_t ***icons_array)
-{
-	int i, rows;
-	char *tmp, **xpm_data;
-	struct boot_item_t **pbi;
-	struct xpm_parsed_t **icons, **pi, *icon;
-
-	if (0 == bc->fill) return 0;	/* may be (-1)? */
-
-	/* Allocate array of bl->fill num icons */
-	icons = malloc(sizeof(icons) * bc->fill);
-	if (NULL == icons) {
-		DPRINTF("Can't allocate memory for icons array\n");
-		*icons_array = NULL;
-		return -1;
-	}
-
-	pbi = bc->list;
-	pi = icons;
-	for (i = 0; i < bc->fill; i++) {
-
-		icon = NULL;
-
-		tmp = (*pbi)->iconpath;
-		if (NULL != tmp) {	/* Load and parse image */
-			rows = xpm_load_image(&xpm_data, tmp);
-			if (rows > 0) {
-				icon = xpm_parse_image(xpm_data, rows, bpp);
-				/* destroy loaded data - not needed anymore */
-				xpm_destroy_image(xpm_data, rows);
-			}
-		}
-
-		/* Store and go to next item */
-		*pi = icon;
-		++pbi;
-		++pi;
-	}
-	*icons_array = icons;
-
-	return i;
-}
-
-
-void free_associated_icons(struct xpm_parsed_t **icons_array, int ia_size)
-{
-	if ( (NULL == icons_array) || (0 == ia_size) ) return;
-
-	int i;
-	struct xpm_parsed_t **p = icons_array;
-
-	for (i = 0; i < ia_size; i++) {
-		if (NULL != *p) xpm_destroy_parsed(*p);
-		++p;
-	}
-}
-
-
 /* Return lowercased and stripped machine-specific kernel path */
 /* Return value should be free()'d */
 char *get_machine_kernelpath() {
 	FILE *f;
-	char *tmp, *hw, c;
+	char *tmp, *hw = NULL, c;
 	char line[80];
 
 	f = fopen("/proc/cpuinfo", "r");
@@ -521,15 +376,19 @@ int main(int argc, char **argv)
 {
 	int choice = 0;
 	int initmode = 0;
-	FB *fb;
-	FILE *f;
 	int angle = KXB_FBANGLE;
 	char *eventif = KXB_EVENTIF;
 	struct bootconf_t *bl;
 	struct termios old, new;
-	struct xpm_parsed_t **icons;
 	struct charlist *evlist;
-	int nicons = 0;
+
+#ifdef USE_FBMENU
+	struct gui_t *gui;
+// 	int nicons = 0;
+	struct xpm_parsed_t **icons = NULL;
+#endif
+
+	DPRINTF("%s starting\n", PACKAGE_STRING);
 
 	/* When our pid is 1 we are init-process */
 	if ( 1 == getpid() ) {
@@ -549,6 +408,7 @@ int main(int argc, char **argv)
 
 		DPRINTF("Procfs mounted\n");
 
+		FILE *f;
 		/* Set up console loglevel */
 		f = fopen("/proc/sys/kernel/printk", "w");
 		if (NULL == f) {
@@ -603,27 +463,23 @@ value 'n' accepts the following:
 	DPRINTF("FB angle is %d, input device is %s\n", angle, eventif);
 	DPRINTF("Going to fb mode\n");
 
-	if ((fb = fb_new(angle)) == NULL)
-		exit(-1);
-
-	/* Parse compiled images.
-	 * We don't care about result because drawing code is aware
-	 * FIXME: it should be done for GUI only */
-	icon_logo	= xpm_parse_image(logo_xpm, XPM_ROWS(logo_xpm), fb->bpp);
-	icon_cf		= xpm_parse_image(cf_xpm, XPM_ROWS(cf_xpm), fb->bpp);
-	icon_mmc	= xpm_parse_image(mmc_xpm, XPM_ROWS(mmc_xpm), fb->bpp);
-	icon_memory	= xpm_parse_image(memory_xpm, XPM_ROWS(memory_xpm), fb->bpp);
-
 	machine_kernel = get_machine_kernelpath();
 
 	bl = scan_devices();
 
+#ifdef USE_FBMENU
 	/* FIXME: sort_bootlist(bl, 0, bl->size-1); */
 
-	nicons = associate_icons(bl, fb->bpp, &icons);
+/*	nicons = associate_icons(bl, fb->bpp, &icons);
 	if (-1 == nicons) {
 		DPRINTF("Can't associate icons\n");
+	}*/
+	gui = gui_init(angle);
+	if (NULL == gui) {
+		DPRINTF("Can't initialize GUI\n");
+		exit(-1);	/* FIXME dont exit while other UI exists */
 	}
+#endif
 
 #if 1
 	/* Switch cursor off. FIXME: works only when master-console is tty */
@@ -676,8 +532,9 @@ value 'n' accepts the following:
 
 	/* Event loop */
 	do {
-		if (suitable_event) display_menu(fb, bl, choice, icons);
-
+#ifdef USE_FBMENU
+		if (suitable_event) gui_show_menu(gui, bl, choice, icons);
+#endif
 		suitable_event = 0;
 		fds = fds0;
 
@@ -714,7 +571,7 @@ value 'n' accepts the following:
 						else choice = 0;
 						break;
 					case KEY_R:
-						display_text(fb, "Rebooting...");
+						gui_show_text(gui, "Rebooting...");
 						sync();
 						/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
 						if ( -1 == reboot(RB_AUTOBOOT) ) {
@@ -722,13 +579,13 @@ value 'n' accepts the following:
 						}
 						break;
 					case KEY_S:	/* reScan */
-						display_text(fb, "Rescanning devices.\nPlease wait...");
+						gui_show_text(gui, "Rescanning devices.\nPlease wait...");
 						free_bootcfg(bl);
-						free_associated_icons(icons, nicons);
+// 						free_associated_icons(icons, nicons);
 
 						bl = scan_devices();
 						/* FIXME sort_bootlist(bl, 0, bl->size-1); */
-						nicons = associate_icons(bl, fb->bpp, &icons);
+// 						nicons = associate_icons(bl, fb->bpp, &icons);
 						break;
 					case KEY_ENTER:
 					case KEY_SPACE:
@@ -762,14 +619,11 @@ value 'n' accepts the following:
 
 	} while (!is_selected);
 
-	fclose(f);
-
 	// reset terminal
 	tcsetattr(fileno(stdin), TCSANOW, &old);
 
-	fb_destroy(fb);
-	free_associated_icons(icons, nicons);
-	xpm_destroy_parsed(icon_logo);
+	gui_destroy(gui);
+// 	free_associated_icons(icons, nicons);
 	close_event_devices(ev_fds, evlist->fill);
 	free_charlist(evlist);
 
