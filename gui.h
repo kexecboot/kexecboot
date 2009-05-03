@@ -16,6 +16,9 @@
  *
  */
 
+#ifndef _HAVE_GUI_H_
+#define _HAVE_GUI_H_
+
 #include "fb.h"
 #include "xpm.h"
 #include "devicescan.h"	// FIXME should be replaced by menu.h
@@ -35,3 +38,5 @@ void gui_show_menu(struct gui_t *gui, struct bootconf_t *bc, int current,
 void gui_show_text(struct gui_t *gui, const char *text);
 
 void gui_destroy(struct gui_t *gui);
+
+#endif /* _HAVE_GUI_H_*/
