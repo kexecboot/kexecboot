@@ -95,13 +95,12 @@ void draw_background(struct gui_t *gui, const char *text)
 
 
 /* Draw one slot in menu */
-void draw_slot(struct gui_t *gui, struct boot_item_t *item, int slot, int height,
+void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height,
 		int iscurrent, struct xpm_parsed_t *icon)
 {
 	FB *fb = gui->fb;
 
 	int margin = (height - 32)/2;
-	char text[100];
 	if(!iscurrent)
 		fb_draw_rect(fb, 0, slot*height, fb->width, height,
 			0xec, 0xec, 0xe1);
@@ -112,6 +111,7 @@ void draw_slot(struct gui_t *gui, struct boot_item_t *item, int slot, int height
 			height-2*margin, 0xec, 0xec, 0xe1);
 	}
 
+/* FIXME Disabled at moment of menu migration
 	if (NULL != icon) {
 		fb_draw_xpm_image(fb, 0, 0, icon);
 	} else if(!strncmp(item->device, "/dev/hd", strlen("/dev/hd"))) {
@@ -121,16 +121,19 @@ void draw_slot(struct gui_t *gui, struct boot_item_t *item, int slot, int height
 	} else if(!strncmp(item->device, "/dev/mtdblock", strlen("/dev/mtdblock"))) {
 		fb_draw_xpm_image(fb, margin, slot * height + margin, gui->icon_memory);
 	}
-	/* FIXME item->label can be NULL */
-	sprintf(text, "%s\n%s (%s)", item->label, item->device, item->fstype);
-	fb_draw_text (fb, 32 + margin, slot * height + 4, 0, 0, 0,
-			&radeon_font, text);
+*/
 
+	fb_draw_text (fb, 32 + margin, slot * height + 4, 0, 0, 0,
+			&radeon_font, item->label);
+
+	if (NULL != item->submenu) {
+		/* Draw something to show that here is submenu available */
+	}
 }
 
 
 /* Display bootlist menu with selection */
-void gui_show_menu(struct gui_t *gui, struct bootconf_t *bc, int current,
+void gui_show_menu(struct gui_t *gui, struct menu_t *menu, int current,
 		struct xpm_parsed_t **icons_array)
 {
 	int i,j;
@@ -139,7 +142,7 @@ void gui_show_menu(struct gui_t *gui, struct bootconf_t *bc, int current,
 	// struct boot that is in fist slot
 	static int firstslot=0;
 
-	if (0 == bc->fill) {
+	if (1 == menu->fill) {
 		draw_background(gui, "No bootable devices found.\nInsert bootable device!\nR: Reboot  S: Rescan devices");
 	} else {
 		draw_background(gui, "Make your choice by selecting\nan item with the cursor keys.\nOK/Enter: Boot selected device\nR: Reboot  S: Rescan devices");
@@ -149,10 +152,10 @@ void gui_show_menu(struct gui_t *gui, struct bootconf_t *bc, int current,
 		firstslot=current;
 	if(current > firstslot + slots -1)
 		firstslot = current - (slots -1);
-	if (NULL == icons_array) for(i=1, j=firstslot; i <= slots && j< bc->fill; i++, j++) {
-			draw_slot(gui, bc->list[j], i, slotheight, j == current, NULL);
-	} else for(i=1, j=firstslot; i <= slots && j< bc->fill; i++, j++) {
-		draw_slot(gui, bc->list[j], i, slotheight, j == current, icons_array[j]);
+	if (NULL == icons_array) for(i=1, j=firstslot; i <= slots && j< menu->fill; i++, j++) {
+		draw_slot(gui, menu->list[j], i, slotheight, j == current, NULL);
+	} else for(i=1, j=firstslot; i <= slots && j< menu->fill; i++, j++) {
+		draw_slot(gui, menu->list[j], i, slotheight, j == current, icons_array[j]);
 	}
 	fb_render(gui->fb);
 }
@@ -165,7 +168,7 @@ void gui_show_text(struct gui_t *gui, const char *text)
 	fb_render(gui->fb);
 }
 
-
+#if 0
 /* Iterate through bootlist and associate icons with items */
 /* FIXME This function is not working because of umounted devices */
 int associate_icons(struct bootconf_t *bc, int bpp, struct xpm_parsed_t ***icons_array)
@@ -224,4 +227,4 @@ void free_associated_icons(struct xpm_parsed_t **icons_array, int ia_size)
 		++p;
 	}
 }
-
+#endif

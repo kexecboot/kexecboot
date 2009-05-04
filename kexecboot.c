@@ -24,7 +24,6 @@
  * TODO Create WARN/ERR/INFO functions in addition to DPRINTF
  * TODO Show debug info in special dialog
  * TODO Cleanup debug info
- * TODO Split GUI code to separate source file
  */
 
 #include <stdio.h>
@@ -44,6 +43,7 @@
 #include "config.h"
 #include "util.h"
 #include "devicescan.h"
+#include "menu.h"
 #include "kexecboot.h"
 
 #ifdef USE_FBMENU
@@ -379,8 +379,24 @@ int main(int argc, char **argv)
 	int angle = KXB_FBANGLE;
 	char *eventif = KXB_EVENTIF;
 	struct bootconf_t *bl;
+	int b_items;
+	int i;
 	struct termios old, new;
 	struct charlist *evlist;
+
+	struct menu_t *menu, *main_menu, *sys_menu;
+	enum actions {
+		A_NONE,
+		A_UP,
+		A_DOWN,
+		A_REFRESH,
+		A_MAINMENU,
+		A_SYSMENU,
+		A_REBOOT,
+		A_RESCAN,
+		A_DEBUG,
+		A_DEVICES
+	};
 
 #ifdef USE_FBMENU
 	struct gui_t *gui;
@@ -466,10 +482,38 @@ value 'n' accepts the following:
 	machine_kernel = get_machine_kernelpath();
 
 	bl = scan_devices();
+	if ((NULL != bl) && (bl->fill > 0)) b_items = bl->fill;
+	else b_items = 0;
+
+	/* Initialize menu */
+	sys_menu = menu_init(5);
+	if (NULL == sys_menu) {
+		exit(-1);
+	}
+
+	menu_add_item(sys_menu, "Back", A_MAINMENU,  NULL);
+	menu_add_item(sys_menu, "Reboot", A_REBOOT, NULL);
+	menu_add_item(sys_menu, "Rescan", A_RESCAN, NULL);
+	menu_add_item(sys_menu, "Show debug info", A_DEBUG, NULL);
+
+	main_menu = menu_init(b_items + 2);
+	if (NULL == main_menu) {
+		exit(-1);
+	}
+
+	menu_add_item(main_menu, "System menu", A_SYSMENU, sys_menu);
+
+	for (i = 0; i < b_items; i++) {
+		/* FIXME insert full text of label with device name, fstype and size */
+		/* FIXME insert items sorted by 'priority' field */
+		menu_add_item(main_menu, bl->list[i]->label, A_DEVICES + i, NULL);
+	}
+
+	menu = main_menu;
+
+	DPRINTF("Main menu have %d items\n", menu->fill);
 
 #ifdef USE_FBMENU
-	/* FIXME: sort_bootlist(bl, 0, bl->size-1); */
-
 /*	nicons = associate_icons(bl, fb->bpp, &icons);
 	if (-1 == nicons) {
 		DPRINTF("Can't associate icons\n");
@@ -503,7 +547,7 @@ value 'n' accepts the following:
 
 	int *ev_fds;
 	fd_set fds0, fds;
-	int i, nready, maxfd, nev, efd;
+	int nready, maxfd, nev, efd;
 
 	/* Open event devices */
 	ev_fds = open_event_devices(evlist);
@@ -528,14 +572,14 @@ value 'n' accepts the following:
 
 	struct input_event evt;
 	int is_selected = 0;
-	int suitable_event = 1;
+	int action = A_REFRESH;
 
 	/* Event loop */
 	do {
 #ifdef USE_FBMENU
-		if (suitable_event) gui_show_menu(gui, bl, choice, icons);
+		if (action != A_NONE) gui_show_menu(gui, menu, choice, icons);
 #endif
-		suitable_event = 0;
+		action = A_NONE;
 		fds = fds0;
 
 		/* Wait for some input */
@@ -558,34 +602,20 @@ value 'n' accepts the following:
 						efd, evt.type, evt.code, evt.value);
 				if ((EV_KEY == evt.type) && (0 != evt.value)) {
 					/* EV_KEY event actions */
-					suitable_event = 1;
 
 					switch (evt.code) {
 					case KEY_UP:
-						if (choice > 0) choice--;
-						else choice = bl->fill - 1;
+						action = A_UP;
 						break;
 					case KEY_DOWN:
 					case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
-						if (choice < (bl->fill - 1)) choice++;
-						else choice = 0;
+						action = A_DOWN;
 						break;
 					case KEY_R:
-						gui_show_text(gui, "Rebooting...");
-						sync();
-						/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
-						if ( -1 == reboot(RB_AUTOBOOT) ) {
-							perror("Can't initiate reboot");
-						}
+						action = A_REBOOT;
 						break;
 					case KEY_S:	/* reScan */
-						gui_show_text(gui, "Rescanning devices.\nPlease wait...");
-						free_bootcfg(bl);
-// 						free_associated_icons(icons, nicons);
-
-						bl = scan_devices();
-						/* FIXME sort_bootlist(bl, 0, bl->size-1); */
-// 						nicons = associate_icons(bl, fb->bpp, &icons);
+						action = A_RESCAN;
 						break;
 					case KEY_ENTER:
 					case KEY_SPACE:
@@ -595,10 +625,10 @@ value 'n' accepts the following:
 					case 63:			/* Zaurus: Enter (remove?) */
 					case KEY_POWER:		/* GTA02: Power (116) */
 					case KEY_PHONE:		/* GTA02: AUX (169) */
-						if (bl->fill > 0) is_selected = 1;
+						action = menu->list[choice]->tag;
 						break;
 					default:
-						suitable_event = 0;
+						break;
 					}
 #if 0
 				} else if ((EV_ABS == evt.type) && (0 != evt.value)) {
@@ -617,6 +647,49 @@ value 'n' accepts the following:
 			}
 		}
 
+		switch (action) {
+		case A_NONE:
+			break;
+		case A_UP:
+			if (choice > 0) --choice;
+			else choice = menu->fill - 1;
+// 			DPRINTF("Selected item %d\n", choice);
+			break;
+		case A_DOWN:
+			if (choice < (menu->fill - 1)) ++choice;
+			else choice = 0;
+// 			DPRINTF("Selected item %d\n", choice);
+			break;
+		case A_SYSMENU:
+			menu = sys_menu;
+			break;
+		case A_MAINMENU:
+			menu = main_menu;
+			break;
+		case A_REBOOT:
+			gui_show_text(gui, "Rebooting...");
+			sync();
+			/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
+			if ( -1 == reboot(RB_AUTOBOOT) ) {
+				perror("Can't initiate reboot");
+			}
+			break;
+		case A_RESCAN:
+			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
+// 			free_bootcfg(bl);
+// 			free_associated_icons(icons, nicons);
+// 			bl = scan_devices();
+// 			nicons = associate_icons(bl, fb->bpp, &icons);
+			break;
+		case A_DEBUG:
+			gui_show_text(gui, "Debug info dialog is not implemented yet...");
+			sleep(1);
+			break;
+		default:
+			if ( (action >= A_DEVICES) && (b_items > 0) ) is_selected = 1;
+			break;
+		}
+
 	} while (!is_selected);
 
 	// reset terminal
@@ -627,7 +700,8 @@ value 'n' accepts the following:
 	close_event_devices(ev_fds, evlist->fill);
 	free_charlist(evlist);
 
-	start_kernel(bl->list[choice]);
+// 	start_kernel(bl->list[choice]);
+	start_kernel(bl->list[action - A_DEVICES]);
 	/* When we reach this point then some error has occured */
 	DPRINTF("We should not reach this point!");
 	return -1;

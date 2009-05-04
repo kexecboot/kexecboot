@@ -21,7 +21,7 @@
 
 #include "fb.h"
 #include "xpm.h"
-#include "devicescan.h"	// FIXME should be replaced by menu.h
+#include "menu.h"
 
 struct gui_t {
 	FB *fb;
@@ -32,7 +32,7 @@ struct gui_t {
 
 struct gui_t *gui_init(int angle);
 
-void gui_show_menu(struct gui_t *gui, struct bootconf_t *bc, int current,
+void gui_show_menu(struct gui_t *gui, struct menu_t *menu, int current,
 		struct xpm_parsed_t **icons_array);
 
 void gui_show_text(struct gui_t *gui, const char *text);
