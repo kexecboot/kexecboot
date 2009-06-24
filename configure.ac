@@ -5,6 +5,7 @@ AC_CONFIG_SRCDIR(kexecboot.c)
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 
+AC_ARG_WITH([static-linking],[AS_HELP_STRING([--with-static-linking],[compiles kexecboot as a static executable @<:@default=no@:>@])],[],[with_static_linking=yes])
 AC_ARG_WITH([fbmenu],[AS_HELP_STRING([--with-fbmenu],[support framebuffer menu @<:@default=yes@:>@])],[],[with_fbmenu=yes])
 AC_ARG_WITH([cfgfiles],[AS_HELP_STRING([--with-cfgfiles],[support config files (depends on fbmenu) @<:@default=yes@:>@])],[],[with_cfgfiles=yes])
 AC_ARG_WITH([icons],[AS_HELP_STRING([--with-icons],[support custom icons (depends on cfgfiles) @<:@default=yes@:>@])],[],[with_icons=yes])
@@ -24,13 +25,17 @@ AS_IF([test "x$with_fbmenu" != xno],
 			],[])
 		],[])
 
+AS_IF([test "x$with_static_linking" != xno],
+		[
+		GCC_FLAGS="$GCC_FLAGS -static"
+		], [])
 
 AC_ISC_POSIX
 AC_PROG_CC
 AC_STDC_HEADERS
 
 if test "x$GCC" = "xyes"; then
-        GCC_FLAGS="-Wall"
+        GCC_FLAGS="$GCC_FLAGS -Wall"
 fi
 
 AC_SUBST(GCC_FLAGS)
