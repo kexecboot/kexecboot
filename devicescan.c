@@ -137,7 +137,8 @@ int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
 		bc->list = new_list;
 	}
 
-	return 0;
+	/* Return item No. */
+	return bc->fill - 1;
 }
 
 
@@ -323,29 +324,17 @@ int get_bootinfo(struct cfgfile_t *cfgdata)
 	return -1;
 }
 
-
-/*  */
-struct bootconf_t *scan_devices()
+FILE *devscan_open(struct charlist **fslist)
 {
 	FILE *f;
-	int rc;
 	struct charlist *fl;
-	struct bootconf_t *bootconf;
-	struct device_t dev;
-	struct cfgfile_t cfgdata;
 	char line[80];
 
     /* Get a list of all filesystems registered in the kernel */
 	fl = scan_filesystems();
 	if (NULL == fl) {
 		DPRINTF("Can't read filesystems\n");
-		goto free_nothing;
-	}
-
-	bootconf = create_bootcfg(4);
-	if (NULL == bootconf) {
-		DPRINTF("Can't allocate bootconf structure\n");
-		goto free_fl;
+		return NULL;
 	}
 
 	/* Get a list of available partitions on all devices
@@ -353,65 +342,87 @@ struct bootconf_t *scan_devices()
 	f = fopen("/proc/partitions", "r");
 	if (NULL == f) {
 		DPRINTF("Unable to get list of available partitions\n");
-		goto free_bootconf;
+		goto free_fl;
 	}
 
 	// First two lines are bogus.
 	fgets(line, sizeof(line), f);
 	fgets(line, sizeof(line), f);
 
-	while (fgets(line, sizeof(line), f)) {
-		/* Parse string and get device parameters */
-		if (-1 == parse_dline(line, fl, &dev)) {
-			continue;
-		}
-
-		/* Mount device */
-		if (-1 == mount(dev.device, MOUNTPOINT, dev.fstype, MS_RDONLY, NULL)) {
-			perror("mount");
-			goto free_device;
-		}
-
-		/* NOTE: Don't go out before umount'ing */
-
-		/* Search boot method and return boot info */
-		rc = get_bootinfo(&cfgdata);
-
-		/* Umount device */
-		if (-1 == umount(MOUNTPOINT)) {
-			perror("umount");
-		}
-
-		if (-1 == rc) {	/* Error */
-			DPRINTF("Can't get device boot information\n");
-			goto free_device;
-		}
-
-		/* Now we have something in cfgdata */
-		if (-1 == addto_bootcfg(bootconf, &dev, &cfgdata)) {
-			DPRINTF("Can't import config file data\n");
-			goto free_device;
-		}
-
-		continue;
-
-free_device:
-		free(dev.device);
-	}
-
-	fclose(f);
-	free_charlist(fl);
-
-	return bootconf;
-
-free_bootconf:
-	free_bootcfg(bootconf);
+	*fslist = fl;
+	return f;
 
 free_fl:
 	free_charlist(fl);
 
-free_nothing:
 	return NULL;
+}
+
+int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev)
+{
+	int major, minor, blocks, len;
+	char *tmp, *p;
+	char *device;
+	char line[80];
+
+	if (NULL == fgets(line, sizeof(line), fp)) {
+		DPRINTF("Can't read next device line\n");
+		return 0;
+	}
+
+	/* Get major, minor, blocks and device name */
+	major = get_nni(line, &p);
+	minor = get_nni(p, &p);
+	blocks = get_nni(p, &p);
+	tmp = get_word(p, &p);
+
+	if (major < 0 || minor < 0 || blocks < 0 || NULL == tmp) {
+		DPRINTF("Can't parse string: '%s'\n", line);
+		return -1;
+	}
+
+	if (blocks < 200) {
+		DPRINTF("Skipping little partition with size (%dk) < 200k\n", blocks);
+		return -1;
+	}
+
+	/* Format device name */
+	len = p - tmp;
+	device = malloc(len + 5 + 1); /* 5 = strlen("/dev/") */
+	if (NULL == device) {
+		DPRINTF("Can't allocate memory for device name\n");
+		return -1;
+	}
+	strcpy(device, "/dev/");
+	strncat(device, tmp, len);
+
+	DPRINTF("Got device '%s' (%d, %d) of size %dMb\n", device, major, minor, blocks>>10);
+
+#ifndef KX_NO_DEVICES_CREATION
+	/* Remove old device node. We don't care about unlink() result. */
+	unlink(device);
+
+	/* Re-create device node */
+	DPRINTF("Recreating device node %s (%d, %d)\n", device, major, minor);
+	if ( -1 == mknod( device,
+			(S_IFBLK | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH),
+			makedev(major, minor) ) )
+	{
+		perror("Can't create device node");
+	}
+#endif
+
+	dev->fstype = detect_fstype(device, fslist);
+	if (NULL == dev->fstype) {
+		DPRINTF("Can't detect FS type\n");
+		free(device);
+		return -1;
+	}
+
+	dev->device = device;
+	dev->blocks = blocks;
+
+	return 1;
 }
 
 

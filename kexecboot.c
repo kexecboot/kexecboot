@@ -68,6 +68,20 @@ char *wanted_tags[] = {
 	NULL
 };
 
+/* Menu/keyboard/TS actions */
+enum actions_t {
+	A_NONE,
+	A_UP,
+	A_DOWN,
+	A_REFRESH,
+	A_MAINMENU,
+	A_SYSMENU,
+	A_REBOOT,
+	A_RESCAN,
+	A_DEBUG,
+	A_DEVICES
+};
+
 
 /* Return lowercased and stripped machine-specific kernel path */
 /* Return value should be free()'d */
@@ -372,6 +386,126 @@ void start_kernel(struct boot_item_t *item)
 }
 
 
+int scan_devices(struct bootconf_t **bootcfg, unsigned int bpp)
+{
+	struct charlist *fl;
+	struct bootconf_t *bootconf;
+	struct device_t dev;
+	struct cfgfile_t cfgdata;
+	int rc;
+	FILE *f;
+#ifdef USE_FBMENU
+	int rows;
+	char **xpm_data;
+	struct xpm_parsed_t *icon;
+#endif
+
+	bootconf = create_bootcfg(4);
+	if (NULL == bootconf) {
+		DPRINTF("Can't allocate bootconf structure\n");
+		return -1;
+	}
+
+	f = devscan_open(&fl);
+	if (NULL == f) {
+		DPRINTF("Can't initiate device scan\n");
+		return -1;
+	}
+
+	for (;;) {
+		rc = devscan_next(f, fl, &dev);
+		if (rc < 0) continue;	/* Error */
+		if (0 == rc) break;		/* EOF */
+
+		/* Mount device */
+		if (-1 == mount(dev.device, MOUNTPOINT, dev.fstype, MS_RDONLY, NULL)) {
+			perror("mount");
+			goto free_device;
+		}
+
+		/* NOTE: Don't go out before umount'ing */
+
+		/* Search boot method and return boot info */
+		rc = get_bootinfo(&cfgdata);
+
+		if (-1 == rc) {	/* Error */
+			DPRINTF("Can't get device boot information\n");
+			goto umount;
+		}
+
+#ifdef USE_FBMENU
+		/* Load custom icon */
+		icon = NULL;
+		if (NULL != cfgdata.iconpath) {
+			rows = xpm_load_image(&xpm_data, cfgdata.iconpath);
+			if (-1 == rows) {
+				DPRINTF("Can't load xpm icon %s\n", cfgdata.iconpath);
+				goto umount;
+			}
+
+			icon = xpm_parse_image(xpm_data, rows, bpp);
+			if (NULL == icon) {
+				DPRINTF("Can't parse xpm icon %s\n", cfgdata.iconpath);
+				goto umount;
+			}
+		}
+#endif
+
+umount:
+		/* Umount device */
+		if (-1 == umount(MOUNTPOINT)) {
+			perror("umount");
+			goto free_device;
+		}
+
+		if (-1 == rc) {	/* Error */
+			goto free_device;
+		}
+
+		/* Now we have something in cfgdata */
+		rc = addto_bootcfg(bootconf, &dev, &cfgdata);
+		if (-1 == rc) {
+			DPRINTF("Can't import config file data\n");
+			goto free_device;
+		}
+
+#ifdef USE_FBMENU
+		if (NULL != icon) {
+			/* FIXME: associate custom icon with bootconf item */
+			// associate_icon(icons, rc, icon);
+		}
+#endif
+
+		continue;
+
+free_device:
+		free(dev.device);
+	}
+
+	*bootcfg = bootconf;
+	return 0;
+}
+
+
+/* Create system menu */
+struct menu_t *create_system_menu()
+{
+	struct menu_t *sys_menu;
+	/* Initialize menu */
+	sys_menu = menu_init(5);
+	if (NULL == sys_menu) {
+		return NULL;
+	}
+
+	menu_add_item(sys_menu, "Back", A_MAINMENU,  NULL);
+	menu_add_item(sys_menu, "Reboot", A_REBOOT, NULL);
+	menu_add_item(sys_menu, "Rescan", A_RESCAN, NULL);
+	menu_add_item(sys_menu, "Show debug info", A_DEBUG, NULL);
+
+	return sys_menu;
+}
+
+
 int main(int argc, char **argv)
 {
 	int choice = 0;
@@ -383,21 +517,9 @@ int main(int argc, char **argv)
 	int i;
 	struct termios old, new;
 	struct charlist *evlist;
+	char *label;
 
 	struct menu_t *menu, *main_menu, *sys_menu;
-	enum actions {
-		A_NONE,
-		A_UP,
-		A_DOWN,
-		A_REFRESH,
-		A_MAINMENU,
-		A_SYSMENU,
-		A_REBOOT,
-		A_RESCAN,
-		A_DEBUG,
-		A_DEVICES
-	};
-
 #ifdef USE_FBMENU
 	struct gui_t *gui;
 // 	int nicons = 0;
@@ -481,49 +603,46 @@ value 'n' accepts the following:
 
 	machine_kernel = get_machine_kernelpath();
 
-	bl = scan_devices();
-	if ((NULL != bl) && (bl->fill > 0)) b_items = bl->fill;
-	else b_items = 0;
-
-	/* Initialize menu */
-	sys_menu = menu_init(5);
-	if (NULL == sys_menu) {
-		exit(-1);
-	}
-
-	menu_add_item(sys_menu, "Back", A_MAINMENU,  NULL);
-	menu_add_item(sys_menu, "Reboot", A_REBOOT, NULL);
-	menu_add_item(sys_menu, "Rescan", A_RESCAN, NULL);
-	menu_add_item(sys_menu, "Show debug info", A_DEBUG, NULL);
-
-	main_menu = menu_init(b_items + 2);
-	if (NULL == main_menu) {
-		exit(-1);
-	}
-
-	menu_add_item(main_menu, "System menu", A_SYSMENU, sys_menu);
-
-	for (i = 0; i < b_items; i++) {
-		/* FIXME insert full text of label with device name, fstype and size */
-		/* FIXME insert items sorted by 'priority' field */
-		menu_add_item(main_menu, bl->list[i]->label, A_DEVICES + i, NULL);
-	}
-
-	menu = main_menu;
-
-	DPRINTF("Main menu have %d items\n", menu->fill);
-
 #ifdef USE_FBMENU
-/*	nicons = associate_icons(bl, fb->bpp, &icons);
-	if (-1 == nicons) {
-		DPRINTF("Can't associate icons\n");
-	}*/
 	gui = gui_init(angle);
 	if (NULL == gui) {
 		DPRINTF("Can't initialize GUI\n");
 		exit(-1);	/* FIXME dont exit while other UI exists */
 	}
+	scan_devices(&bl, gui->fb->bpp);
+#else
+	scan_devices(&bl, 0);
 #endif
+
+	if ((NULL != bl) && (bl->fill > 0)) b_items = bl->fill;
+	else b_items = 0;
+
+	/* Initialize menu */
+	main_menu = menu_init(b_items + 2);
+	if (NULL == main_menu) {
+		exit(-1);
+	}
+
+	/* Insert system menu */
+	sys_menu = create_system_menu();
+	menu_add_item(main_menu, "System menu", A_SYSMENU, sys_menu);
+
+
+	/* FIXME: sort bootconf items by priority field before inserting */
+	label = malloc(160);
+	for (i = 0; i < b_items; i++) {
+		/* FIXME insert full text of label with device name, fstype and size */
+		snprintf(label, 160, "%s\n%s %s %luMb",
+				( NULL != bl->list[i]->label ? bl->list[i]->label : bl->list[i]->kernelpath ),
+				bl->list[i]->device,
+				bl->list[i]->fstype,
+				bl->list[i]->blocks/1024);
+		DPRINTF("+ [%s]\n", label);
+		menu_add_item(main_menu, label, A_DEVICES + i, NULL);
+	}
+	free(label);
+
+	menu = main_menu;
 
 #if 1
 	/* Switch cursor off. FIXME: works only when master-console is tty */
@@ -575,6 +694,7 @@ value 'n' accepts the following:
 	int action = A_REFRESH;
 
 	/* Event loop */
+	/* FIXME: events are repeating too fast (e.g. up/down) */
 	do {
 #ifdef USE_FBMENU
 		if (action != A_NONE) gui_show_menu(gui, menu, choice, icons);

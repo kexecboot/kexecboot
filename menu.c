@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "menu.h"
 #include "util.h"
 
@@ -47,8 +48,10 @@ struct menu_t *menu_init(int size)
 void menu_destroy(struct menu_t *menu)
 {
 	int i;
-	for (i = 0; i < menu->fill; i++)
+	for (i = 0; i < menu->fill; i++) {
+		free(menu->list[i]->label);
 		free(menu->list[i]);
+	}
 	free(menu);
 }
 
@@ -65,7 +68,7 @@ int menu_add_item(struct menu_t *menu, char *label, int tag, struct menu_t *subm
 		return -1;
 	}
 
-	mi->label = label;
+	mi->label = strdup(label);
 	mi->tag = tag;
 	mi->submenu = submenu;
 

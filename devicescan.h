@@ -55,11 +55,24 @@ struct bootconf_t {
 extern char *machine_kernel;
 extern char *default_kernels[];
 
-/* Collect list of available devices with supported filesystems */
-struct bootconf_t *scan_devices();
+/* Prepare devicescan loop */
+FILE *devscan_open(struct charlist **fslist);
+
+/* Get next device (fp & fslist in, dev out) */
+int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev);
+
+/* Allocate bootconf structure */
+struct bootconf_t *create_bootcfg(unsigned int size);
 
 /* Free bootconf structure */
 void free_bootcfg(struct bootconf_t *bc);
+
+/* Import values from cfgdata and boot to bootconf */
+int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
+		struct cfgfile_t *cfgdata);
+
+/* Check and parse config file */
+int get_bootinfo(struct cfgfile_t *cfgdata);
 
 #ifdef DEBUG
 /* Print bootconf structure */
