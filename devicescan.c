@@ -310,7 +310,7 @@ int get_bootinfo(struct cfgfile_t *cfgdata)
 
 		/* Check default kernels */
 		char **kp;
-		for (kp = default_kernels; NULL != kp; kp++) {
+		for (kp = default_kernels; NULL != *kp; kp++) {
 			if (0 == stat(*kp, &sinfo)) {
 				cfgdata->kernelpath = strdup(*kp);
 				DPRINTF("+ found default kernel '%s'\n", *kp);
