@@ -50,7 +50,7 @@
  * Only ARM still defines COMMAND_LINE_SIZE. In cases where COMMAND_LINE_SIZE
  * is undefined, lets set a safe value. 255 should be safe; it was what i386
  * used until 2.6.21(?.)
- * 
+ *
  * FIXME: Find a better way to do this
  **/
 
@@ -785,12 +785,10 @@ value 'n' accepts the following:
 		case A_UP:
 			if (choice > 0) --choice;
 			else choice = menu->fill - 1;
-// 			DPRINTF("Selected item %d\n", choice);
 			break;
 		case A_DOWN:
 			if (choice < (menu->fill - 1)) ++choice;
 			else choice = 0;
-// 			DPRINTF("Selected item %d\n", choice);
 			break;
 		case A_SYSMENU:
 			menu = sys_menu;
@@ -808,10 +806,45 @@ value 'n' accepts the following:
 			break;
 		case A_RESCAN:
 			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
-// 			free_bootcfg(bl);
-// 			free_associated_icons(icons, nicons);
-// 			bl = scan_devices();
-// 			nicons = associate_icons(bl, fb->bpp, &icons);
+			free_bootcfg(bl);
+			menu_destroy(main_menu);
+
+			/* FIXME Should be separate function */
+#ifdef USE_FBMENU
+			scan_devices(&bl, gui->fb->bpp);
+#else
+			scan_devices(&bl, 0);
+#endif
+
+			if ((NULL != bl) && (bl->fill > 0)) b_items = bl->fill;
+			else b_items = 0;
+
+			/* Initialize menu */
+			main_menu = menu_init(b_items + 2);
+			if (NULL == main_menu) {
+				exit(-1);
+			}
+
+			/* Insert system menu */
+			menu_add_item(main_menu, "System menu", A_SYSMENU, sys_menu);
+
+			/* FIXME: sort bootconf items by priority field before inserting */
+			label = malloc(160);
+			for (i = 0; i < b_items; i++) {
+				/* FIXME insert full text of label with device name, fstype and size */
+				snprintf(label, 160, "%s\n%s %s %luMb",
+						( NULL != bl->list[i]->label ? bl->list[i]->label : bl->list[i]->kernelpath ),
+						bl->list[i]->device,
+						bl->list[i]->fstype,
+						bl->list[i]->blocks/1024);
+				DPRINTF("+ [%s]\n", label);
+				menu_add_item(main_menu, label, A_DEVICES + i, NULL);
+			}
+			free(label);
+
+			menu = main_menu;
+			choice = 0;
+
 			break;
 		case A_DEBUG:
 			gui_show_text(gui, "Debug info dialog is not implemented yet...");
