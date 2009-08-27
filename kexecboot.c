@@ -689,6 +689,9 @@ value 'n' accepts the following:
 
 	nev = evlist->fill;
 	maxfd = -1;
+	int rep[2];		/* Repeat rate array (milliseconds) */
+	rep[0] = 1000;	/* Delay before first repeat */
+	rep[1] = 250;	/* Repeating delay */
 
 	/* Fill FS set with descriptors and search maximum fd number */
 	FD_ZERO(&fds0);
@@ -697,6 +700,10 @@ value 'n' accepts the following:
 		if (efd > 0) {
 			FD_SET(efd, &fds0);
 			if (efd > maxfd) maxfd = efd;	/* Find maximum fd no */
+			/* Set repeat rate on device */
+			if(ioctl(efd, EVIOCSREP, rep)) {
+				perror("evdev ioctl");
+			}
 		}
 	}
 	++maxfd;	/* Increase maxfd according to select() manual */
