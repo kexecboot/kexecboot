@@ -94,7 +94,7 @@ struct bootconf_t *create_bootcfg(unsigned int size)
 
 /* Import values from cfgdata and boot to bootconf */
 int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
-		struct cfgfile_t *cfgdata)
+		struct cfgdata_t *cfgdata)
 {
 	struct boot_item_t *bi;
 
@@ -282,12 +282,12 @@ free_nothing:
 
 
 /* Check and parse config file */
-int get_bootinfo(struct cfgfile_t *cfgdata)
+int get_bootinfo(struct cfgdata_t *cfgdata)
 {
 	struct stat sinfo;
 
 	/* Clean cfgdata structure */
-	init_cfgfile(cfgdata);
+	init_cfgdata(cfgdata);
 
 	/* Parse config file */
 	if (0 == parse_cfgfile(BOOTCFG_PATH, cfgdata)) {	/* Found and parsed */

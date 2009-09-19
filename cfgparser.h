@@ -25,7 +25,7 @@
 enum ui_type_t { GUI, TEXTUI };
 
 /* Config file data structure */
-struct cfgfile_t {
+struct cfgdata_t {
 	int timeout;		/* Seconds before default item autobooting (0 - disabled) */
 	enum ui_type_t ui;	/* UI (graphics/text) */
 	int debug;			/* Use debugging */
@@ -36,13 +36,19 @@ struct cfgfile_t {
 	char *cmdline;		/* Kernel cmdline (logo.nologo debug) */
 	char *iconpath;		/* Custom partition icon path */
 	int priority;		/* Priority of item in menu */
+
+	/* cmdline parameters */
+	int angle;			/* FB angle */
+	char *mtdparts;		/* MTD partitioning */
 };
 
 /* Clean config file structure */
-void init_cfgfile(struct cfgfile_t *cfgdata);
+void init_cfgdata(struct cfgdata_t *cfgdata);
 
 /* Parse config file into specified structure */
 /* NOTE: It will not clean cfgdata before parsing, do it yourself */
-int parse_cfgfile(char *cfgpath, struct cfgfile_t *cfgdata);
+int parse_cfgfile(char *cfgpath, struct cfgdata_t *cfgdata);
+
+int parse_cmdline(struct cfgdata_t *cfgdata);
 
 #endif /* _HAVE_CONFIGPARSER_H */

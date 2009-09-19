@@ -36,27 +36,15 @@
 #include <ctype.h>
 #include <errno.h>
 #include <sys/reboot.h>
-#include <asm/setup.h> // for COMMAND_LINE_SIZE
 #include <sys/types.h>
 #include <sys/stat.h>
 
 #include "config.h"
 #include "util.h"
+#include "cfgparser.h"
 #include "devicescan.h"
 #include "menu.h"
 #include "kexecboot.h"
-
-/**
- * Only ARM still defines COMMAND_LINE_SIZE. In cases where COMMAND_LINE_SIZE
- * is undefined, lets set a safe value. 255 should be safe; it was what i386
- * used until 2.6.21(?.)
- *
- * FIXME: Find a better way to do this
- **/
-
-#ifndef COMMAND_LINE_SIZE
-#define COMMAND_LINE_SIZE 255
-#endif
 
 #ifdef USE_FBMENU
 #include "gui.h"
@@ -65,18 +53,14 @@
 /* Machine-dependent kernel patch */
 char *machine_kernel = NULL;
 
+/* mtdparts tag value */
+char *mtdparts = NULL;
+
 /* NULL-terminated array of kernel search paths
  * First item should be filled with machine-dependent path */
 char *default_kernels[] = {
 	"/mnt/boot/zImage",
 	"/mnt/zImage",
-	NULL
-};
-
-/* Tags we want from /proc/cmdline */
-char *wanted_tags[] = {
-	"mtdparts",
-	"fbcon",
 	NULL
 };
 
@@ -155,123 +139,6 @@ char *get_machine_kernelpath() {
 }
 
 
-/*
- * Function: get_extra_cmdline()
- * It gets wanted tags from original cmdline.
- * Takes 2 args:
- * - extra_cmdline - buffer to store cmdline parameters;
- * - extra_cmdline_size - size of buffer
- *   (inc. terminating '\0').
- * Return values:
- * - length of extra_cmdline on success (w/o term. zero);
- * - -1 on error;
- * - (- length of extra_cmdline - 1)  on insufficient buffer space.
- * REFACTOR: do something with wanted_tags and this function (may be move to util)
- */
-
-int get_extra_cmdline(char *const extra_cmdline, const size_t extra_cmdline_size)
-{
-	char *p, *t, *tag = NULL;
-	char line[COMMAND_LINE_SIZE];
-	int i, len, sp_size;
-	int sum_len = 0;
-	int wanted_tag_found = 0;
-	int overflow = 0;
-
-	const char proc_cmdline_path[] = "/proc/cmdline";
-
-	/* Open /proc/cmdline and read cmdline */
-	FILE *f = fopen(proc_cmdline_path, "r");
-	if (NULL == f) {
-		perror("Can't open /proc/cmdline");
-		return -1;
-	}
-
-	if ( NULL == fgets(line, sizeof(line), f) ) {
-		perror("Can't read /proc/cmdline");
-		fclose(f);
-		return -1;
-	}
-
-	fclose(f);
-
-	/* clean up buffer before parsing */
-	t = extra_cmdline;
-	*t = '\0';
-
-	p = line-1;		/* because of ++p below */
-
-	sp_size = 0;	/* size of (first) space */
-
-	do {
-		++p;
-
-		if ( (NULL == tag) && (isalnum(*p)) ) {
-			/* new tag found */
-			tag = p;
-		} else if (tag) {
-			/* we are working on some tag */
-
-			if (isspace(*p) || ('\0' == *p) || ('=' == *p) ) {
-				/* end of tag or '=' found */
-
-				if (!wanted_tag_found) {
-					/* search in wanted_tags */
-					for (i = 0; wanted_tags[i] != NULL; i++) {
-						if ( 0 == strncmp(wanted_tags[i], tag, p-tag) ) {
-							/* match found */
-							wanted_tag_found = 1;
-							break;
-						}
-					}
-				}
-
-				if ( ('=' != *p) && wanted_tag_found ) {
-					/* end of wanted tag found -> copy */
-
-					len = p - tag;
-					if ( (sum_len + len + sp_size) < extra_cmdline_size ) {
-						if (sp_size) {
-							/* prepend space when have tags already */
-							*t = ' ';
-							++t;
-							*t = '\0';
-							++sum_len;
-						} else {
-							sp_size = sizeof(char);
-						}
-
-						/* NOTE: tag is not null-terminated so copy only
-						 * len chars and terminate it directly
-						 */
-						strncpy(t, tag, len);
-						/* move pointer to position after copied tag */
-						t += len ;
-						/* null-terminate */
-						*t = '\0';
-						/* update summary length */
-						sum_len += len;
-					} else {
-						/* we have no space - skip this tag */
-						overflow = 1;
-					}
-
-					/* reset wanted_tag_found */
-					wanted_tag_found = 0;
-				}
-
-				/* reset tag */
-				if (!wanted_tag_found) tag = NULL;
-
-			}
-		}
-
-	} while ('\0' != *p);
-
-	if (overflow) return -sum_len-1;
-	return sum_len;
-}
-
 void start_kernel(struct boot_item_t *item)
 {
 	/* we use var[] instead of *var because sizeof(var) using */
@@ -282,6 +149,7 @@ void start_kernel(struct boot_item_t *item)
 	const char str_root[] = " root=";
 	const char str_rootfstype[] = " rootfstype=";
 	const char str_rootwait[] = " rootwait";
+	const char str_mtdparts[] = " mtdparts=";
 
 	/* empty environment */
 	char *const envp[] = { NULL };
@@ -289,8 +157,7 @@ void start_kernel(struct boot_item_t *item)
 	const char *kexec_load_argv[] = { NULL, "-l", NULL, NULL, NULL };
 	const char *kexec_exec_argv[] = { NULL, "-e", NULL, NULL};
 
-	char extra_cmdline_buffer[COMMAND_LINE_SIZE];
-	char *extra_cmdline, *cmdline_arg = NULL;
+	char *cmdline_arg = NULL;
 	int n, idx;
 	struct stat *sinfo = malloc(sizeof(struct stat));
 
@@ -313,24 +180,11 @@ void start_kernel(struct boot_item_t *item)
 	/* --command-line arg generation */
 	idx = 2;	/* kexec_load_argv current option index */
 
-	/* get some parts of cmdline from boot loader (e.g. mtdparts) */
-	n = get_extra_cmdline( extra_cmdline_buffer,
-			sizeof(extra_cmdline_buffer) );
-	if ( -1 == n ) {
-		/* clean up extra_cmdline on error */
-		extra_cmdline = NULL;
-/*	} else if ( n < -1 ) { */
-		/* Do something when we have no space to get all wanted tags */
-		/* Now do nothing ;) */
-	} else {
-		extra_cmdline = extra_cmdline_buffer;
-	}
-
 	/* fill '--command-line' option */
-	if (item->cmdline || extra_cmdline || item->device) {
+	if (item->cmdline || mtdparts || item->device) {
 		/* allocate space */
 		n = strlenn(str_cmdline_start) + strlenn(item->cmdline) +
-				sizeof(char) + strlenn(extra_cmdline) +
+				sizeof(char) + strlenn(str_mtdparts) + strlenn(mtdparts) +
 				strlenn(str_root) + strlenn(item->device) +
 				strlenn(str_rootfstype) + strlenn(item->fstype) +
 				strlenn(str_rootwait) + sizeof(char);
@@ -343,12 +197,16 @@ void start_kernel(struct boot_item_t *item)
 			*/
 		} else {
 			strcpy(cmdline_arg, str_cmdline_start);
-			if (extra_cmdline)
-				strcat(cmdline_arg, extra_cmdline);
-			if (item->cmdline && extra_cmdline)
+			if (mtdparts) {
+				strcat(cmdline_arg, str_mtdparts);
+				strcat(cmdline_arg, mtdparts);
+			}
+			if (item->cmdline && mtdparts) {
 				strcat(cmdline_arg, " ");
-			if (item->cmdline)
+			}
+			if (item->cmdline) {
 				strcat(cmdline_arg, item->cmdline);
+			}
 			if (item->device) {
 				strcat(cmdline_arg, str_root);
 				strcat(cmdline_arg, item->device);
@@ -403,7 +261,7 @@ int scan_devices(struct bootconf_t **bootcfg, unsigned int bpp)
 	struct charlist *fl;
 	struct bootconf_t *bootconf;
 	struct device_t dev;
-	struct cfgfile_t cfgdata;
+	struct cfgdata_t cfgdata;
 	int rc;
 	FILE *f;
 #ifdef USE_FBMENU
@@ -572,17 +430,16 @@ int main(int argc, char **argv)
 
 	}
 
-/* FIXME: Read fbcon tag from cmdline and fill angle
-4. fbcon=rotate:<n>
+	/* Get cmdline parameters */
+	struct cfgdata_t *cmdline;
+	cmdline = malloc(sizeof(*cmdline));
+	init_cfgdata(cmdline);
+	parse_cmdline(cmdline);
 
-This option changes the orientation angle of the console display. The
-value 'n' accepts the following:
+	angle = cmdline->angle;
+	mtdparts = cmdline->mtdparts;
 
-0 - normal orientation (0 degree)
-1 - clockwise orientation (90 degrees)
-2 - upside down orientation (180 degrees)
-3 - counterclockwise orientation (270 degrees)
-*/
+	free(cmdline);
 
 	/* Check command-line args when not an init-process */
 	if (!initmode) {

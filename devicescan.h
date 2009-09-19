@@ -18,7 +18,6 @@
 #ifndef _HAVE_DEVICESCAN_H_
 #define _HAVE_DEVICESCAN_H_
 
-
 #include "cfgparser.h"
 
 /* Device structure */
@@ -69,10 +68,10 @@ void free_bootcfg(struct bootconf_t *bc);
 
 /* Import values from cfgdata and boot to bootconf */
 int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
-		struct cfgfile_t *cfgdata);
+		struct cfgdata_t *cfgdata);
 
 /* Check and parse config file */
-int get_bootinfo(struct cfgfile_t *cfgdata);
+int get_bootinfo(struct cfgdata_t *cfgdata);
 
 #ifdef DEBUG
 /* Print bootconf structure */
