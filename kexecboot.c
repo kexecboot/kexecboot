@@ -448,32 +448,6 @@ int main(int argc, char **argv)
 
 	free(cmdline);
 
-	/* Check command-line args when not an init-process */
-	if (!initmode) {
-		int i = 0;
-		while (++i < argc) {
-			if (!strcmp(argv[i], "-a") || !strcmp(argv[i], "--angle")) {
-				if (++i > argc)
-					goto fail;
-				angle = atoi(argv[i]);
-				continue;
-			}
-
-			if (!strcmp(argv[i], "-i") || !strcmp(argv[i], "--input")) {
-				if (++i > argc)
-					goto fail;
-				eventif = argv[i];
-				continue;
-			}
-
-			fail:
-			fprintf(stderr,	"Usage: %s [-a|--angle <0|90|180|270>] \
-				[-i|--input </dev/input/eventX>\n",
-				argv[0]);
-			exit(-1);
-		}
-	}
-
 	DPRINTF("FB angle is %d, input device is %s\n", angle, eventif);
 	DPRINTF("Going to fb mode\n");
 
