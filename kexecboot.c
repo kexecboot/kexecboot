@@ -375,6 +375,43 @@ struct menu_t *create_system_menu()
 	return sys_menu;
 }
 
+/* Return 0 if we are ordinary app or 1 if we are init */
+int do_init(void)
+{
+	/* When our pid is 1 we are init-process */
+	if ( 1 != getpid() ) {
+		return 0;
+	}
+
+	DPRINTF("I'm the init-process!\n");
+
+	/* extra delay for initializing slow SD/CF */
+	sleep(1);
+
+	/* Mount procfs */
+	if ( -1 == mount("proc", "/proc", "proc",
+			0, NULL) ) {
+		perror("Can't mount procfs");
+		exit(-1);
+	}
+
+	DPRINTF("Procfs mounted\n");
+
+	FILE *f;
+	/* Set up console loglevel */
+	f = fopen("/proc/sys/kernel/printk", "w");
+	if (NULL == f) {
+		perror("/proc/sys/kernel/printk");
+		exit(-1);
+	}
+	fputs("0 4 1 7\n", f);
+	fclose(f);
+
+	DPRINTF("Console loglevel is set\n");
+
+	return 1;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -398,37 +435,7 @@ int main(int argc, char **argv)
 
 	DPRINTF("%s starting\n", PACKAGE_STRING);
 
-	/* When our pid is 1 we are init-process */
-	if ( 1 == getpid() ) {
-		initmode = 1;
-
-		DPRINTF("I'm the init-process!\n");
-
-		/* extra delay for initializing slow SD/CF */
-		sleep(1);
-
-		/* Mount procfs */
-		if ( -1 == mount("proc", "/proc", "proc",
-				0, NULL) ) {
-			perror("Can't mount procfs");
-			exit(-1);
-		}
-
-		DPRINTF("Procfs mounted\n");
-
-		FILE *f;
-		/* Set up console loglevel */
-		f = fopen("/proc/sys/kernel/printk", "w");
-		if (NULL == f) {
-			perror("/proc/sys/kernel/printk");
-			exit(-1);
-		}
-		fputs("0 4 1 7\n", f);
-		fclose(f);
-
-		DPRINTF("Console loglevel is set\n");
-
-	}
+	initmode = do_init();
 
 	/* Get cmdline parameters */
 	struct cfgdata_t *cmdline;
