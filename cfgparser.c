@@ -334,6 +334,10 @@ int parse_cmdline(struct cfgdata_t *cfgdata)
 			/* Skip comment or empty line */
 			continue;
 		}
+
+		*c = '\0';	/* NULL-terminate keyword-value pair */
+		++c;
+
 		/* Try to split line up to key and value */
 		value = strchr(keyword, '=');
 		if (NULL != value) {	/* '=' was found. We have value */
