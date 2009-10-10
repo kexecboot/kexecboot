@@ -54,7 +54,7 @@ static int set_kernel(struct cfgdata_t *cfgdata, char *value)
 	cfgdata->kernelpath = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
 	if (NULL == cfgdata->kernelpath) {
 		DPRINTF("Can't allocate memory to store kernelpath '%s'\n", value);
-		return 0;	/* This is not parsing error */
+		return -1;
 	}
 
 	strcpy(cfgdata->kernelpath, "/mnt");
@@ -206,26 +206,23 @@ static int set_mtdparts(struct cfgdata_t *cfgdata, char *value)
 
 static int set_ttydev(struct cfgdata_t *cfgdata, char *value)
 {
+	const char str_dev[] = "/dev/";
+
 	/* Check value for 'tty[0-9]' */
 	if ( ! ( ('t' == value[0]) && ('t' == value[1]) && ('y' == value[2]) &&
 			(value[3] > '0') && (value[3] < '9') )
 	) return 0;
 
-	const int sizeof_devname = 32;
-	const char str_dev[] = "/dev/";
-	const int maxlen = sizeof_devname - sizeof(str_dev);
-
-	if (strlen(value) > maxlen) {
-		DPRINTF("tty name '%s' is too long\n", value);
+	dispose(cfgdata->ttydev);
+	/* Prepend '/dev/' to tty name (value) */
+	cfgdata->ttydev = malloc(sizeof(str_dev)+strlen(value));
+	if (NULL == cfgdata->ttydev) {
+		DPRINTF("Can't allocate memory to store tty device name '/dev/%s'\n", value);
 		return -1;
 	}
 
-	char *devname = malloc(sizeof_devname);
-	strcpy(devname, "/dev/");
-	strncat(devname, value, maxlen);
-
-	dispose(cfgdata->ttydev);
-	cfgdata->ttydev = devname;
+	strcpy(cfgdata->ttydev, str_dev);
+	strcat(cfgdata->ttydev, value);
 
 	return 0;
 }
