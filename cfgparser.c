@@ -195,6 +195,31 @@ static int set_mtdparts(struct cfgdata_t *cfgdata, char *value)
 	return 0;
 }
 
+static int set_ttydev(struct cfgdata_t *cfgdata, char *value)
+{
+	/* Check value for 'tty[0-9]' */
+	if ( ! ( ('t' == value[0]) && ('t' == value[1]) && ('y' == value[2]) &&
+			(value[3] > '0') && (value[3] < '9') )
+	) return 0;
+
+	const int sizeof_devname = 32;
+	const char str_dev[] = "/dev/";
+	const int maxlen = sizeof_devname - sizeof(str_dev);
+
+	if (strlen(value) > maxlen) {
+		DPRINTF("tty name '%s' is too long\n", value);
+		return -1;
+	}
+
+	char *devname = malloc(sizeof_devname);
+	strcpy(devname, "/dev/");
+	strncat(devname, value, maxlen);
+
+	dispose(cfgdata->ttydev);
+	cfgdata->ttydev = devname;
+
+	return 0;
+}
 
 enum cfg_type_t { CFG_NONE, CFG_FILE, CFG_CMDLINE };
 
@@ -220,6 +245,7 @@ static struct cfg_keyfunc_t cfg_keyfunc[] = {
 	{ CFG_FILE, 1, "PRIORITY", set_priority },
 	{ CFG_CMDLINE, 1, "FBCON", set_angle },
 	{ CFG_CMDLINE, 1, "MTDPARTS", set_mtdparts },
+	{ CFG_CMDLINE, 1, "CONSOLE", set_ttydev },
 
 	{ CFG_NONE, 0, NULL, NULL }
 };

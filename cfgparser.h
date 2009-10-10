@@ -40,6 +40,7 @@ struct cfgdata_t {
 	/* cmdline parameters */
 	int angle;			/* FB angle */
 	char *mtdparts;		/* MTD partitioning */
+	char *ttydev;		/* Console tty device name */
 };
 
 /* Clean config file structure */

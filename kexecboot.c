@@ -395,8 +395,6 @@ int do_init(void)
 		exit(-1);
 	}
 
-	DPRINTF("Procfs mounted\n");
-
 	FILE *f;
 	/* Set up console loglevel */
 	f = fopen("/proc/sys/kernel/printk", "w");
@@ -407,9 +405,48 @@ int do_init(void)
 	fputs("0 4 1 7\n", f);
 	fclose(f);
 
-	DPRINTF("Console loglevel is set\n");
-
 	return 1;
+}
+
+/*
+ * Mode: 1 - change; 0 - restore.
+ */
+void setup_terminal(char *ttydev, int *echo_state, int mode)
+{
+	struct termios tc;
+
+	/* Deactivate/Activate terminal input */
+	tcgetattr(fileno(stdin), &tc);
+
+	if (0 == mode) {	/* Restore state */
+		tc.c_lflag = (tc.c_lflag & ~ECHO) | *echo_state;
+	} else {			/* reset ECHO */
+		*echo_state = tc.c_lflag & ECHO;	/* Save state (ECHO or 0) */
+		tc.c_lflag &= ~ECHO;
+	}
+
+	tcsetattr(fileno(stdin), TCSANOW, &tc);
+
+	if (NULL == ttydev) {
+		DPRINTF("We have no tty\n");
+		return;
+	}
+
+	/* Switch cursor off/on */
+	FILE *f = fopen(ttydev, "r+");
+	if (NULL == f) {
+		DPRINTF("Can't open '%s' for writing\n", ttydev);
+		return;
+	}
+
+	if (0 == mode) {	/* Show cursor */
+		fputs("\033[?25h", f);	/* Applied to *term */
+// 		fputs("\033[?0c", f);	/* Applied only to linux vga console */
+	} else {			/* Hide cursor */
+		fputs("\033[?25l", f);
+// 		fputs("\033[?1c", f);
+	}
+	fclose(f);
 }
 
 
@@ -417,14 +454,13 @@ int main(int argc, char **argv)
 {
 	int choice = 0;
 	int initmode = 0;
-	int angle = KXB_FBANGLE;
-	char *eventif = KXB_EVENTIF;
 	struct bootconf_t *bl;
 	int b_items;
 	int i;
-	struct termios old, new;
+	int echo_state;
 	struct charlist *evlist;
 	char *label;
+	struct cfgdata_t cfg;
 
 	struct menu_t *menu, *main_menu, *sys_menu;
 #ifdef USE_FBMENU
@@ -438,23 +474,20 @@ int main(int argc, char **argv)
 	initmode = do_init();
 
 	/* Get cmdline parameters */
-	struct cfgdata_t *cmdline;
-	cmdline = malloc(sizeof(*cmdline));
-	init_cfgdata(cmdline);
-	parse_cmdline(cmdline);
+	init_cfgdata(&cfg);
+	cfg.angle = KXB_FBANGLE;
+	parse_cmdline(&cfg);
 
-	angle = cmdline->angle;
-	mtdparts = cmdline->mtdparts;
+	mtdparts = cfg.mtdparts;	/* FIXME should be passed as arg to start_kernel() */
 
-	free(cmdline);
+	setup_terminal(cfg.ttydev, &echo_state, 1);
 
-	DPRINTF("FB angle is %d, input device is %s\n", angle, eventif);
-	DPRINTF("Going to fb mode\n");
+	DPRINTF("FB angle is %d, tty is %s\n", cfg.angle, cfg.ttydev);
 
-	machine_kernel = get_machine_kernelpath();
+	machine_kernel = get_machine_kernelpath();	/* FIXME should be passed as arg to get_bootinfo() */
 
 #ifdef USE_FBMENU
-	gui = gui_init(angle);
+	gui = gui_init(cfg.angle);
 	if (NULL == gui) {
 		DPRINTF("Can't initialize GUI\n");
 		exit(-1);	/* FIXME dont exit while other UI exists */
@@ -493,18 +526,6 @@ int main(int argc, char **argv)
 	free(label);
 
 	menu = main_menu;
-
-#if 1
-	/* Switch cursor off. FIXME: works only when master-console is tty */
-	printf("\033[?25l\n");
-
-	// deactivate terminal input
-	tcgetattr(fileno(stdin), &old);
-	new = old;
-	new.c_lflag &= ~ECHO;
-//	new.c_cflag &=~CREAD;
-	tcsetattr(fileno(stdin), TCSANOW, &new);
-#endif
 
 	/* Search for keyboard/touchscreen/mouse/joystick/etc.. */
 	/* FIXME there can be no event devices (web/serial) */
@@ -702,8 +723,7 @@ int main(int argc, char **argv)
 
 	} while (!is_selected);
 
-	// reset terminal
-	tcsetattr(fileno(stdin), TCSANOW, &old);
+	setup_terminal(cfg.ttydev, &echo_state, 0);
 
 	gui_destroy(gui);
 // 	free_associated_icons(icons, nicons);
