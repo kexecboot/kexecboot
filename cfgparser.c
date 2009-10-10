@@ -65,7 +65,16 @@ static int set_kernel(struct cfgdata_t *cfgdata, char *value)
 static int set_icon(struct cfgdata_t *cfgdata, char *value)
 {
 	dispose(cfgdata->iconpath);
-	cfgdata->iconpath = strdup(value);
+	/* Add our mountpoint, since the enduser won't know it */
+	cfgdata->iconpath = malloc(sizeof(MOUNTPOINT)+strlen(value));
+	if (NULL == cfgdata->iconpath) {
+		DPRINTF("Can't allocate memory to store iconpath '%s'\n", value);
+		return -1;
+	}
+
+	strcpy(cfgdata->iconpath, MOUNTPOINT);
+	strcat(cfgdata->iconpath, value);
+
 	return 0;
 }
 
