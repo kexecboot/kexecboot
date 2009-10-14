@@ -57,9 +57,19 @@ void addto_charlist(struct charlist *cl, char *str)
 {
 	cl->list[cl->fill] = str;
 	++cl->fill;
-	if (cl->fill == cl->size) {
+
+	/* Resize list when needed */
+	if (cl->fill > cl->size) {
+		char **new_list;
+
 		cl->size <<= 1;	/* size *= 2; */
-		cl->list = realloc(cl->list, cl->size * sizeof(char *));
+		new_list = realloc(cl->list, cl->size * sizeof(char *));
+		if (NULL == new_list) {
+			DPRINTF("Can't resize menu list\n");
+			return -1;
+		}
+
+		cl->list = new_list;
 	}
 }
 

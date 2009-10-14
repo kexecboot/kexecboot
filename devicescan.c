@@ -145,7 +145,7 @@ int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
 	++bc->fill;
 
 	/* Resize list when needed */
-	if (bc->fill >= bc->size) {
+	if (bc->fill > bc->size) {
 		struct boot_item_t **new_list;
 
 		bc->size <<= 1;	/* size *= 2; */

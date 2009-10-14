@@ -74,9 +74,19 @@ int menu_add_item(struct menu_t *menu, char *label, int tag, struct menu_t *subm
 
 	menu->list[menu->fill] = mi;
 	++menu->fill;
-	if (menu->fill == menu->size) {
+
+	/* Resize list when needed */
+	if (menu->fill > menu->size) {
+		struct menu_item_t **new_list;
+
 		menu->size <<= 1;	/* size *= 2; */
-		menu->list = realloc(menu->list, menu->size * sizeof(*(menu->list)));
+		new_list = realloc(menu->list, menu->size * sizeof(*(menu->list)));
+		if (NULL == new_list) {
+			DPRINTF("Can't resize menu list\n");
+			return -1;
+		}
+
+		menu->list = new_list;
 	}
 
 	return menu->fill - 1;
