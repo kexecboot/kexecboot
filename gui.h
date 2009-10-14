@@ -25,15 +25,14 @@
 
 struct gui_t {
 	FB *fb;
-	struct xpm_parsed_t *icon_logo, *icon_cf, *icon_mmc, *icon_memory;
-	struct xpm_parsed_t **icons;	/* Custom menu icons array */
-	unsigned int icons_count;
+	struct xpm_parsed_t *icon_logo, *icon_system, *icon_cf, *icon_mmc, *icon_memory;
+	struct xpmlist_t *loaded_icons;	/* Custom icons */
+	struct xpmlist_t *menu_icons;	/* Custom menu associated icons */
 };
 
 struct gui_t *gui_init(int angle);
 
-void gui_show_menu(struct gui_t *gui, struct menu_t *menu, int current,
-		struct xpm_parsed_t **icons_array);
+void gui_show_menu(struct gui_t *gui, struct menu_t *menu, int current);
 
 void gui_show_text(struct gui_t *gui, const char *text);
 

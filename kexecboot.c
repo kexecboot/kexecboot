@@ -78,6 +78,14 @@ enum actions_t {
 	A_DEVICES
 };
 
+/* Common parameters */
+struct params_t {
+	struct bootconf_t *bootcfg;
+	struct menu_t *menu;
+#ifdef USE_FBMENU
+	struct gui_t *gui;
+#endif
+};
 
 /* Return lowercased and stripped machine-specific kernel path */
 /* Return value should be free()'d */
@@ -256,7 +264,7 @@ void start_kernel(struct boot_item_t *item)
 }
 
 
-int scan_devices(struct bootconf_t **bootcfg, unsigned int bpp)
+int scan_devices(struct params_t *params)
 {
 	struct charlist *fl;
 	struct bootconf_t *bootconf;
@@ -265,9 +273,10 @@ int scan_devices(struct bootconf_t **bootcfg, unsigned int bpp)
 	int rc;
 	FILE *f;
 #ifdef USE_FBMENU
-	int rows;
+	int rows, bpp;
 	char **xpm_data;
-	struct xpm_parsed_t *icon;
+	struct xpm_parsed_t *icon = NULL;
+	struct xpmlist_t *xl;
 #endif
 
 	bootconf = create_bootcfg(4);
@@ -281,6 +290,16 @@ int scan_devices(struct bootconf_t **bootcfg, unsigned int bpp)
 		DPRINTF("Can't initiate device scan\n");
 		return -1;
 	}
+
+#if USE_FBMENU
+	xl = create_xpmlist(4);
+	if (NULL == xl) {
+		DPRINTF("Can't allocate xpm list structure\n");
+		/* We will continue but check it later */
+	}
+
+	bpp = params->gui->fb->bpp;
+#endif
 
 	for (;;) {
 		rc = devscan_next(f, fl, &dev);
@@ -304,8 +323,12 @@ int scan_devices(struct bootconf_t **bootcfg, unsigned int bpp)
 		}
 
 #ifdef USE_FBMENU
-		/* Load custom icon */
 		icon = NULL;
+
+		/* Skip icons processing if have no xpm list */
+		if (NULL == xl) goto umount;
+
+		/* Load custom icon */
 		if (NULL != cfgdata.iconpath) {
 			rows = xpm_load_image(&xpm_data, cfgdata.iconpath);
 			if (-1 == rows) {
@@ -340,9 +363,11 @@ umount:
 		}
 
 #ifdef USE_FBMENU
-		if (NULL != icon) {
-			/* FIXME: associate custom icon with bootconf item */
-			// associate_icon(icons, rc, icon);
+		if ((NULL != xl) && (NULL != icon)) {
+			/* associate custom icon with bootconf item */
+			icon->tag = rc;	/* rc is No. of current bootconf item */
+			addto_xpmlist(xl, icon);
+			DPRINTF("Added %d icon '%s' to %s\n",rc, cfgdata.iconpath, dev.device);
 		}
 #endif
 
@@ -352,13 +377,16 @@ free_device:
 		free(dev.device);
 	}
 
-	*bootcfg = bootconf;
+	params->bootcfg = bootconf;
+#ifdef USE_FBMENU
+	params->gui->loaded_icons = xl;
+#endif
 	return 0;
 }
 
 
 /* Create system menu */
-struct menu_t *create_system_menu()
+struct menu_t *build_system_menu()
 {
 	struct menu_t *sys_menu;
 	/* Initialize menu */
@@ -374,6 +402,141 @@ struct menu_t *create_system_menu()
 
 	return sys_menu;
 }
+
+
+/* Build menu. Return pointers to menu and icons list */
+/* iconlist initially should point to loaded_icons, menu to sys_menu */
+int build_menu(struct params_t *params)
+{
+	struct menu_t *main_menu, *sys_menu;
+	int i, b_items, max_pri, max_i, *a;
+	struct boot_item_t *tbi;
+	struct bootconf_t *bl;
+	const int sizeof_label = 160;
+	char *label;
+#ifdef USE_FBMENU
+	struct xpm_parsed_t *icon;
+	struct xpmlist_t *icons;
+	struct gui_t *gui;
+#endif
+
+	sys_menu = params->menu;
+	bl = params->bootcfg;
+
+	if ( (NULL != bl) && (bl->fill > 0) ) b_items = bl->fill;
+	else b_items = 0;
+
+	DPRINTF("Found %d items\n", b_items);
+
+	/* Initialize menu */
+	main_menu = menu_init(b_items + 2);
+	if (NULL == main_menu) {
+		DPRINTF("Can't create main menu\n");
+		return -1;
+	}
+
+	/* Insert system menu */
+	menu_add_item(main_menu, "System menu", A_SYSMENU, sys_menu);
+#ifdef USE_FBMENU
+	icons = create_xpmlist(b_items + 2);
+	if (NULL == icons) {
+		DPRINTF("Can't allocate memory for icons list\n");
+		/* Just continue without icons */
+	}
+
+	gui = params->gui;
+
+	addto_xpmlist(icons, gui->icon_system);
+#endif
+
+	label = malloc(sizeof_label);
+	if (NULL == label) {
+		DPRINTF("Can't allocate place for item label\n");
+		goto free_icons;
+	}
+
+	a = malloc(b_items * sizeof(*a));	/* Markers array */
+	if (NULL == a) {
+		DPRINTF("Can't allocate markers array\n");
+		goto free_label;
+	}
+
+	for (i = 0; i < b_items; i++) a[i] = 0;	/* Clean markers array */
+
+	/* Create menu of sorted by priority boot items */
+	max_i = -1;
+	for(;;) {
+		max_pri = -1;
+		/* Search item with maximum priority */
+		for (i = 0; i < b_items; i++) {
+			if (0 == a[i]) {	/* Check that item is not processed yet */
+				tbi = bl->list[i];
+				DPRINTF("+ processing %d: %s\n", i, tbi->label);
+				if (tbi->priority > max_pri) {
+					max_pri = tbi->priority;	/* Max priority */
+					max_i = i;					/* Max priority item index */
+				}
+			}
+		}
+
+		if (max_pri >= 0) {
+			a[max_i] = 1;	/* Mark item as processed */
+			DPRINTF("* maximum priority %d found at %d\n", max_pri, max_i);
+			/* We have found new max priority - insert into menu */
+			tbi = bl->list[max_i];
+			snprintf(label, sizeof_label, "%s\n%s %s %luMb",
+					( NULL != tbi->label ? tbi->label : tbi->kernelpath ),
+					tbi->device, tbi->fstype, tbi->blocks/1024);
+			DPRINTF("+ [%s]\n", label);
+
+			menu_add_item(main_menu, label, A_DEVICES + max_i, NULL);
+
+#ifdef USE_FBMENU
+			/* Search associated with boot item icon if any */
+			icon = xpm_by_tag(gui->loaded_icons, max_i);
+			if (NULL == icon) {
+				/* We have no custom icon - use default */
+				switch (tbi->dtype) {
+				case DVT_HD:
+					icon = gui->icon_cf;
+					break;
+				case DVT_MMC:
+					icon = gui->icon_mmc;
+					break;
+				case DVT_MTD:
+					icon = gui->icon_memory;
+					break;
+				case DVT_UNKNOWN:
+				default:
+					break;
+				}
+			}
+			/* Add icon to list */
+			addto_xpmlist(icons, icon);
+#endif
+
+		}
+
+		if (-1 == max_pri) break;	/* We have no items to process */
+	};
+
+	free(a);
+
+free_label:
+	free(label);
+
+	params->menu = main_menu;
+#ifdef USE_FBMENU
+	gui->menu_icons = icons;
+#endif
+	return 0;
+
+free_icons:
+	free(icons);
+	menu_destroy(main_menu);
+	return -1;
+}
+
 
 /* Return 0 if we are ordinary app or 1 if we are init */
 int do_init(void)
@@ -454,20 +617,16 @@ int main(int argc, char **argv)
 {
 	int choice = 0;
 	int initmode = 0;
-	struct bootconf_t *bl;
-	int b_items;
 	int i;
 	int echo_state;
 	struct charlist *evlist;
-	char *label;
 	struct cfgdata_t cfg;
-
-	struct menu_t *menu, *main_menu, *sys_menu;
+	struct menu_t *menu, *sys_menu;
 #ifdef USE_FBMENU
 	struct gui_t *gui;
-// 	int nicons = 0;
-	struct xpm_parsed_t **icons = NULL;
+	struct xpmlist_t *icons;
 #endif
+	struct params_t params;
 
 	DPRINTF("%s starting\n", PACKAGE_STRING);
 
@@ -486,46 +645,30 @@ int main(int argc, char **argv)
 
 	machine_kernel = get_machine_kernelpath();	/* FIXME should be passed as arg to get_bootinfo() */
 
+	sys_menu = build_system_menu();
+
 #ifdef USE_FBMENU
 	gui = gui_init(cfg.angle);
 	if (NULL == gui) {
 		DPRINTF("Can't initialize GUI\n");
 		exit(-1);	/* FIXME dont exit while other UI exists */
 	}
-	scan_devices(&bl, gui->fb->bpp);
-#else
-	scan_devices(&bl, 0);
+	params.gui = gui;
 #endif
+	params.bootcfg = NULL;
 
-	if ((NULL != bl) && (bl->fill > 0)) b_items = bl->fill;
-	else b_items = 0;
+	/* In: gui.bpp */
+	/* Out: bootcfg, gui.loaded_icons */
+	scan_devices(&params);
 
-	/* Initialize menu */
-	main_menu = menu_init(b_items + 2);
-	if (NULL == main_menu) {
+	params.menu = sys_menu;
+	/* In: bootcfg, menu=sys_menu, gui.loaded_icons */
+	/* Out: menu, gui.menu_icons */
+	if (-1 == build_menu(&params)) {
 		exit(-1);
 	}
-
-	/* Insert system menu */
-	sys_menu = create_system_menu();
-	menu_add_item(main_menu, "System menu", A_SYSMENU, sys_menu);
-
-
-	/* FIXME: sort bootconf items by priority field before inserting */
-	label = malloc(160);
-	for (i = 0; i < b_items; i++) {
-		/* FIXME insert full text of label with device name, fstype and size */
-		snprintf(label, 160, "%s\n%s %s %luMb",
-				( NULL != bl->list[i]->label ? bl->list[i]->label : bl->list[i]->kernelpath ),
-				bl->list[i]->device,
-				bl->list[i]->fstype,
-				bl->list[i]->blocks/1024);
-		DPRINTF("+ [%s]\n", label);
-		menu_add_item(main_menu, label, A_DEVICES + i, NULL);
-	}
-	free(label);
-
-	menu = main_menu;
+	menu = params.menu;
+	icons = gui->menu_icons;	/* HACK remember menu icons now */
 
 	/* Search for keyboard/touchscreen/mouse/joystick/etc.. */
 	/* FIXME there can be no event devices (web/serial) */
@@ -575,7 +718,7 @@ int main(int argc, char **argv)
 	/* FIXME: events are repeating too fast (e.g. up/down) */
 	do {
 #ifdef USE_FBMENU
-		if (action != A_NONE) gui_show_menu(gui, menu, choice, icons);
+		if (action != A_NONE) gui_show_menu(gui, menu, choice);
 #endif
 		action = A_NONE;
 		fds = fds0;
@@ -658,12 +801,16 @@ int main(int argc, char **argv)
 			break;
 		case A_SYSMENU:
 			menu = sys_menu;
+			gui->menu_icons = NULL;	/* HACK reset menu_icons */
 			break;
 		case A_MAINMENU:
-			menu = main_menu;
+			menu = params.menu;
+			gui->menu_icons = icons;	/* HACK restore menu_icons */
 			break;
 		case A_REBOOT:
+#ifdef USE_FBMENU
 			gui_show_text(gui, "Rebooting...");
+#endif
 			sync();
 			/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
 			if ( -1 == reboot(RB_AUTOBOOT) ) {
@@ -671,67 +818,49 @@ int main(int argc, char **argv)
 			}
 			break;
 		case A_RESCAN:
-			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
-			free_bootcfg(bl);
-			menu_destroy(main_menu);
-
-			/* FIXME Should be separate function */
 #ifdef USE_FBMENU
-			scan_devices(&bl, gui->fb->bpp);
-#else
-			scan_devices(&bl, 0);
+			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
+			free(gui->menu_icons);	/* Free xpmlist structure only */
+			free_xpmlist(gui->loaded_icons);
 #endif
+			free_bootcfg(params.bootcfg);
+			menu_destroy(params.menu);
 
-			if ((NULL != bl) && (bl->fill > 0)) b_items = bl->fill;
-			else b_items = 0;
+			params.bootcfg = NULL;
+			scan_devices(&params);
 
-			/* Initialize menu */
-			main_menu = menu_init(b_items + 2);
-			if (NULL == main_menu) {
+			params.menu = sys_menu;
+			if (-1 == build_menu(&params)) {
 				exit(-1);
 			}
-
-			/* Insert system menu */
-			menu_add_item(main_menu, "System menu", A_SYSMENU, sys_menu);
-
-			/* FIXME: sort bootconf items by priority field before inserting */
-			label = malloc(160);
-			for (i = 0; i < b_items; i++) {
-				/* FIXME insert full text of label with device name, fstype and size */
-				snprintf(label, 160, "%s\n%s %s %luMb",
-						( NULL != bl->list[i]->label ? bl->list[i]->label : bl->list[i]->kernelpath ),
-						bl->list[i]->device,
-						bl->list[i]->fstype,
-						bl->list[i]->blocks/1024);
-				DPRINTF("+ [%s]\n", label);
-				menu_add_item(main_menu, label, A_DEVICES + i, NULL);
-			}
-			free(label);
-
-			menu = main_menu;
+			menu = params.menu;
+			icons = gui->menu_icons;
 			choice = 0;
 
 			break;
 		case A_DEBUG:
+#ifdef USE_FBMENU
 			gui_show_text(gui, "Debug info dialog is not implemented yet...");
+#endif
 			sleep(1);
 			break;
 		default:
-			if ( (action >= A_DEVICES) && (b_items > 0) ) is_selected = 1;
+			if ( (action >= A_DEVICES) && (NULL != params.bootcfg) && (params.bootcfg->fill > 0) ) is_selected = 1;
 			break;
 		}
 
 	} while (!is_selected);
 
-	setup_terminal(cfg.ttydev, &echo_state, 0);
-
+#ifdef USE_FBMENU
 	gui_destroy(gui);
-// 	free_associated_icons(icons, nicons);
+#endif
+	menu_destroy(params.menu);
 	close_event_devices(ev_fds, evlist->fill);
 	free_charlist(evlist);
 
-// 	start_kernel(bl->list[choice]);
-	start_kernel(bl->list[action - A_DEVICES]);
+	setup_terminal(cfg.ttydev, &echo_state, 0);
+
+	start_kernel(params.bootcfg->list[action - A_DEVICES]);
 	/* When we reach this point then some error has occured */
 	DPRINTF("We should not reach this point!");
 	return -1;

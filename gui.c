@@ -55,9 +55,13 @@ struct gui_t *gui_init(int angle)
 	 */
 	bpp = gui->fb->bpp;
 	gui->icon_logo = xpm_parse_image(logo_xpm, XPM_ROWS(logo_xpm), bpp);
+// 	gui->icon_system = xpm_parse_image(logo_system, XPM_ROWS(logo_system), bpp);
+	gui->icon_system = NULL;
 	gui->icon_cf = xpm_parse_image(cf_xpm, XPM_ROWS(cf_xpm), bpp);
 	gui->icon_mmc = xpm_parse_image(mmc_xpm, XPM_ROWS(mmc_xpm), bpp);
 	gui->icon_memory = xpm_parse_image(memory_xpm, XPM_ROWS(memory_xpm), bpp);
+	gui->loaded_icons = NULL;
+	gui->menu_icons = NULL;
 
 	return gui;
 }
@@ -68,7 +72,10 @@ void gui_destroy(struct gui_t *gui)
 {
 	if (NULL == gui) return;
 
+	free(gui->menu_icons);
+	free_xpmlist(gui->loaded_icons);
 	xpm_destroy_parsed(gui->icon_logo);
+	xpm_destroy_parsed(gui->icon_system);
 	xpm_destroy_parsed(gui->icon_cf);
 	xpm_destroy_parsed(gui->icon_mmc);
 	xpm_destroy_parsed(gui->icon_memory);
@@ -111,19 +118,11 @@ void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height
 			height-2*margin, 0xec, 0xec, 0xe1);
 	}
 
-/* FIXME Disabled at moment of menu migration
 	if (NULL != icon) {
-		fb_draw_xpm_image(fb, 0, 0, icon);
-	} else if(!strncmp(item->device, "/dev/hd", strlen("/dev/hd"))) {
-		fb_draw_xpm_image(fb, margin, slot * height + margin, gui->icon_cf);
-	} else if(!strncmp(item->device, "/dev/mmcblk", strlen("/dev/mmcblk"))) {
-		fb_draw_xpm_image(fb, margin, slot * height + margin, gui->icon_mmc);
-	} else if(!strncmp(item->device, "/dev/mtdblock", strlen("/dev/mtdblock"))) {
-		fb_draw_xpm_image(fb, margin, slot * height + margin, gui->icon_memory);
+		fb_draw_xpm_image(fb, margin, slot * height + margin, icon);
 	}
-*/
 
-	fb_draw_text (fb, 32 + margin, slot * height + 4, 0, 0, 0,
+	fb_draw_text (fb, 32 + 8 + margin, slot * height + 4, 0, 0, 0,
 			&radeon_font, item->label);
 
 	if (NULL != item->submenu) {
@@ -133,8 +132,7 @@ void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height
 
 
 /* Display bootlist menu with selection */
-void gui_show_menu(struct gui_t *gui, struct menu_t *menu, int current,
-		struct xpm_parsed_t **icons_array)
+void gui_show_menu(struct gui_t *gui, struct menu_t *menu, int current)
 {
 	int i,j;
 	int slotheight = 40;	/* FIXME Fix hardcoded height */
@@ -152,11 +150,18 @@ void gui_show_menu(struct gui_t *gui, struct menu_t *menu, int current,
 		firstslot=current;
 	if(current > firstslot + slots -1)
 		firstslot = current - (slots -1);
-	if (NULL == icons_array) for(i=1, j=firstslot; i <= slots && j< menu->fill; i++, j++) {
-		draw_slot(gui, menu->list[j], i, slotheight, j == current, NULL);
-	} else for(i=1, j=firstslot; i <= slots && j< menu->fill; i++, j++) {
-		draw_slot(gui, menu->list[j], i, slotheight, j == current, icons_array[j]);
+
+	if (NULL == gui->menu_icons) {
+		for(i=1, j=firstslot; i <= slots && j< menu->fill; i++, j++) {
+			draw_slot(gui, menu->list[j], i, slotheight, j == current, NULL);
+		}
+	} else {
+		for(i=1, j=firstslot; i <= slots && j< menu->fill; i++, j++) {
+			draw_slot(gui, menu->list[j], i, slotheight, j == current,
+					gui->menu_icons->list[j]);
+		}
 	}
+
 	fb_render(gui->fb);
 }
 
@@ -168,63 +173,3 @@ void gui_show_text(struct gui_t *gui, const char *text)
 	fb_render(gui->fb);
 }
 
-#if 0
-/* Iterate through bootlist and associate icons with items */
-/* FIXME This function is not working because of umounted devices */
-int associate_icons(struct bootconf_t *bc, int bpp, struct xpm_parsed_t ***icons_array)
-{
-	int i, rows;
-	char *tmp, **xpm_data;
-	struct boot_item_t **pbi;
-	struct xpm_parsed_t **icons, **pi, *icon;
-
-	if (0 == bc->fill) return 0;	/* may be (-1)? */
-
-	/* Allocate array of bl->fill num icons */
-	icons = malloc(sizeof(icons) * bc->fill);
-	if (NULL == icons) {
-		DPRINTF("Can't allocate memory for icons array\n");
-		*icons_array = NULL;
-		return -1;
-	}
-
-	pbi = bc->list;
-	pi = icons;
-	for (i = 0; i < bc->fill; i++) {
-
-		icon = NULL;
-
-		tmp = (*pbi)->iconpath;
-		if (NULL != tmp) {	/* Load and parse image */
-			rows = xpm_load_image(&xpm_data, tmp);
-			if (rows > 0) {
-				icon = xpm_parse_image(xpm_data, rows, bpp);
-				/* destroy loaded data - not needed anymore */
-				xpm_destroy_image(xpm_data, rows);
-			}
-		}
-
-		/* Store and go to next item */
-		*pi = icon;
-		++pbi;
-		++pi;
-	}
-	*icons_array = icons;
-
-	return i;
-}
-
-
-void free_associated_icons(struct xpm_parsed_t **icons_array, int ia_size)
-{
-	if ( (NULL == icons_array) || (0 == ia_size) ) return;
-
-	int i;
-	struct xpm_parsed_t **p = icons_array;
-
-	for (i = 0; i < ia_size; i++) {
-		if (NULL != *p) xpm_destroy_parsed(*p);
-		++p;
-	}
-}
-#endif

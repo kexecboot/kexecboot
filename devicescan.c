@@ -91,12 +91,26 @@ struct bootconf_t *create_bootcfg(unsigned int size)
 	return bc;
 }
 
+/* Device types */
+struct dtypes_t {
+	enum dtype_t dtype;
+	int device_len;
+	char *device;
+};
+
+static struct dtypes_t dtypes[] = {
+	{ DVT_HD, sizeof("/dev/hd")-1, "/dev/hd" },
+	{ DVT_MMC, sizeof("/dev/mmcblk")-1, "/dev/mmcblk" },
+	{ DVT_MTD, sizeof("/dev/mtdblock")-1, "/dev/mtdblock" },
+	{ DVT_UNKNOWN, 0, NULL }
+};
 
 /* Import values from cfgdata and boot to bootconf */
 int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
 		struct cfgdata_t *cfgdata)
 {
 	struct boot_item_t *bi;
+	struct dtypes_t *dt;
 
 	bi = malloc(sizeof(*bi));
 	if (NULL == bi) {
@@ -107,6 +121,13 @@ int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
 	bi->device = dev->device;
 	bi->fstype = dev->fstype;
 	bi->blocks = dev->blocks;
+
+	bi->dtype = DVT_UNKNOWN;
+	for (dt = dtypes; dt->dtype != DVT_UNKNOWN; dt++) {
+		if ( !strncmp(bi->device, dt->device, dt->device_len) ) {
+			bi->dtype = dt->dtype;
+		}
+	}
 
 	bi->label = cfgdata->label;
 	bi->kernelpath = cfgdata->kernelpath;

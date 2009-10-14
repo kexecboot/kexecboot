@@ -27,6 +27,13 @@ struct device_t {
 	int blocks;			/* Device size in 1K blocks */
 };
 
+enum dtype_t {
+	DVT_UNKNOWN,
+	DVT_HD,
+	DVT_MMC,
+	DVT_MTD
+};
+
 /* Boot item structure */
 struct boot_item_t {
 	char *device;		/* Device path (/dev/mmcblk0p1) */
@@ -37,6 +44,7 @@ struct boot_item_t {
 	char *cmdline;		/* Kernel cmdline (logo.nologo debug) */
 	char *iconpath;		/* Custom partition icon path */
 	int priority;		/* Priority of item in menu */
+	enum dtype_t dtype;	/* Device type */
 };
 
 /* Boot configuration structure */

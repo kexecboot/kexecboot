@@ -716,6 +716,8 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 	struct xpm_meta_t xpm_meta;	/* XPM metadata */
 	char *p;
 
+	if (NULL == xpm_data) return NULL;
+
 	if (rows < 3) {
 		DPRINTF("XPM image array should have at least 3 rows!\n");
 		return NULL;
@@ -820,4 +822,76 @@ free_nothing:
 
 }
 
+
+/* Allocate bootconf structure */
+struct xpmlist_t *create_xpmlist(unsigned int size)
+{
+	struct xpmlist_t *xl;
+
+	xl = malloc(sizeof(*xl));
+	if (NULL == xl) return NULL;
+
+	xl->list = malloc( size * sizeof(*(xl->list)) );
+	if (NULL == xl->list) {
+		free(xl);
+		return NULL;
+	}
+
+	xl->size = size;
+	xl->fill = 0;
+
+	return xl;
+}
+
+
+int addto_xpmlist(struct xpmlist_t *xl, struct xpm_parsed_t *xpm)
+{
+	if (NULL == xl) return -1;
+
+	xl->list[xl->fill] = xpm;
+	++xl->fill;
+
+	/* Resize list when needed */
+	if (xl->fill >= xl->size) {
+		struct xpm_parsed_t **new_list;
+
+		xl->size <<= 1;	/* size *= 2; */
+		new_list = realloc( xl->list, xl->size * sizeof(*(xl->list)) );
+		if (NULL == new_list) {
+			DPRINTF("Can't resize xpm list\n");
+			return -1;
+		}
+
+		xl->list = new_list;
+	}
+
+	/* Return item No. */
+	return xl->fill - 1;
+}
+
+
+struct xpm_parsed_t *xpm_by_tag(struct xpmlist_t *xl, int tag)
+{
+	int i;
+
+	if (NULL == xl) return NULL;
+
+	for (i = 0; i < xl->fill; i++)
+		if ((NULL != xl->list[i]) && (xl->list[i]->tag == tag))
+			return xl->list[i];
+	return NULL;
+}
+
+
+/* Free bootconf structure */
+void free_xpmlist(struct xpmlist_t *xl)
+{
+	int i;
+
+	if (NULL == xl) return;
+
+	for (i = 0; i < xl->fill; i++)
+		xpm_destroy_parsed(xl->list[i]);
+	free(xl);
+}
 

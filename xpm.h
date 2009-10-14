@@ -76,12 +76,19 @@ struct xpm_color_t {
 
 /* XPM main structure. That's only data needed for drawing */
 struct xpm_parsed_t {
+	int tag;				/* user driven tag */
 	unsigned int width;		/* image width */
 	unsigned int height;	/* image height */
 	struct xpm_color_t *colors;	/* colors array */
 	struct xpm_color_t **pixels;/* pixels array (pointers to colors) */
 };
 
+/* List of xpm icons */
+struct xpmlist_t {
+	struct xpm_parsed_t **list;	/* Boot items list */
+	unsigned int size;			/* Count of boot items in list */
+	unsigned int fill;			/* Filled items count */
+};
 
 /*
  * Function: xpm_destroy_image()
@@ -131,5 +138,11 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
  * Return value: None
  */
 void xpm_destroy_parsed(struct xpm_parsed_t *xpm);
+
+/* Functions to deal with xpm icons list */
+struct xpmlist_t *create_xpmlist(unsigned int size);
+int addto_xpmlist(struct xpmlist_t *xl, struct xpm_parsed_t *xpm);
+struct xpm_parsed_t *xpm_by_tag(struct xpmlist_t *xl, int tag);
+void free_xpmlist(struct xpmlist_t *xl);
 
 #endif // _HAVE_XPM_H
