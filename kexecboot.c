@@ -64,6 +64,9 @@ char *default_kernels[] = {
 	NULL
 };
 
+/* Init mode flag */
+int initmode = 0;
+
 /* Menu/keyboard/TS actions */
 enum actions_t {
 	A_NONE,
@@ -73,6 +76,7 @@ enum actions_t {
 	A_MAINMENU,
 	A_SYSMENU,
 	A_REBOOT,
+	A_EXIT,
 	A_RESCAN,
 	A_DEBUG,
 	A_DEVICES
@@ -390,12 +394,15 @@ struct menu_t *build_system_menu()
 {
 	struct menu_t *sys_menu;
 	/* Initialize menu */
-	sys_menu = menu_init(5);
+	sys_menu = menu_init((0 == initmode ? 5 : 4));
 	if (NULL == sys_menu) {
 		return NULL;
 	}
 
 	menu_add_item(sys_menu, "Back", A_MAINMENU,  NULL);
+	if (!initmode) {
+		menu_add_item(sys_menu, "Exit", A_EXIT,  NULL);
+	}
 	menu_add_item(sys_menu, "Reboot", A_REBOOT, NULL);
 	menu_add_item(sys_menu, "Rescan", A_RESCAN, NULL);
 	menu_add_item(sys_menu, "Show debug info", A_DEBUG, NULL);
@@ -429,7 +436,7 @@ int build_menu(struct params_t *params)
 	DPRINTF("Found %d items\n", b_items);
 
 	/* Initialize menu */
-	main_menu = menu_init(b_items + 2);
+	main_menu = menu_init(b_items + 1);
 	if (NULL == main_menu) {
 		DPRINTF("Can't create main menu\n");
 		return -1;
@@ -438,7 +445,7 @@ int build_menu(struct params_t *params)
 	/* Insert system menu */
 	menu_add_item(main_menu, "System menu", A_SYSMENU, sys_menu);
 #ifdef USE_FBMENU
-	icons = create_xpmlist(b_items + 2);
+	icons = create_xpmlist(b_items + 1);
 	if (NULL == icons) {
 		DPRINTF("Can't allocate memory for icons list\n");
 		/* Just continue without icons */
@@ -616,7 +623,6 @@ void setup_terminal(char *ttydev, int *echo_state, int mode)
 int main(int argc, char **argv)
 {
 	int choice = 0;
-	int initmode = 0;
 	int i;
 	int echo_state;
 	struct charlist *evlist;
@@ -845,7 +851,10 @@ int main(int argc, char **argv)
 			sleep(1);
 			break;
 		default:
-			if ( (action >= A_DEVICES) && (NULL != params.bootcfg) && (params.bootcfg->fill > 0) ) is_selected = 1;
+			if ( (A_EXIT == action) ||
+					( (action >= A_DEVICES) && (NULL != params.bootcfg) &&
+					(params.bootcfg->fill > 0) )
+			) is_selected = 1;
 			break;
 		}
 
@@ -860,7 +869,10 @@ int main(int argc, char **argv)
 
 	setup_terminal(cfg.ttydev, &echo_state, 0);
 
+	if (A_EXIT == action) exit(0);
+
 	start_kernel(params.bootcfg->list[action - A_DEVICES]);
+
 	/* When we reach this point then some error has occured */
 	DPRINTF("We should not reach this point!");
 	return -1;
