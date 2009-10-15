@@ -218,7 +218,7 @@ const char *detect_fstype(char *device, struct charlist *fl)
 
 	if ( 0 != identify_fs(fd, &fstype, NULL, 0) ) {
 		close(fd);
-		DPRINTF("FS cound not be identified\n");
+		DPRINTF("FS could not be identified\n");
 		return NULL;
 	}
 	close(fd);

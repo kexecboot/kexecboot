@@ -295,7 +295,7 @@ int scan_devices(struct params_t *params)
 		return -1;
 	}
 
-#if USE_FBMENU
+#ifdef USE_FBMENU
 	xl = create_xpmlist(4);
 	if (NULL == xl) {
 		DPRINTF("Can't allocate xpm list structure\n");
