@@ -25,6 +25,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <termios.h>
 #include <limits.h>		/* LONG_MAX, INT_MAX */
 #include "util.h"
 
@@ -201,6 +202,54 @@ int get_nni(const char *str, char **endptr)
 
 	/* If we got here, strtol() successfully parsed a number */
 	return (int)val;
+}
+
+
+
+/*
+ * Change terminal settings.
+ * Mode: 1 - change; 0 - restore.
+ */
+void setup_terminal(char *ttydev, int *echo_state, int mode)
+{
+	struct termios tc;
+	FILE *f;
+
+	/* Deactivate/Activate terminal input */
+	tcgetattr(fileno(stdin), &tc);
+
+	if (0 == mode) {	/* Restore state */
+		tc.c_lflag = (tc.c_lflag & ~ECHO) | *echo_state;
+	} else {			/* reset ECHO */
+		*echo_state = tc.c_lflag & ECHO;	/* Save state (ECHO or 0) */
+		tc.c_lflag &= ~ECHO;
+	}
+
+	tcsetattr(fileno(stdin), TCSANOW, &tc);
+
+	if (NULL == ttydev) {
+		DPRINTF("We have no tty\n");
+		return;
+	}
+
+	/* Switch cursor off/on */
+	if (NULL != ttydev) {
+		f = fopen(ttydev, "r+");
+		if (NULL == f) {
+			DPRINTF("Can't open '%s' for writing\n", ttydev);
+			return;
+		}
+	} else {
+		f = stdout;
+	}
+
+	if (0 == mode) {	/* Show cursor */
+		fputs("\033[?25h", f);	/* Applied to *term */
+	} else {			/* Hide cursor */
+		fputs("\033[?25l", f);
+	}
+
+	if (NULL != ttydev) fclose(f);
 }
 
 

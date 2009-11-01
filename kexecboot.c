@@ -30,7 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <linux/input.h>
-#include <termios.h>
 #include <unistd.h>
 #include <sys/mount.h>
 #include <ctype.h>
@@ -69,16 +68,17 @@ int initmode = 0;
 
 /* Menu/keyboard/TS actions */
 enum actions_t {
+	A_ERROR = -1,
+	A_EXIT = 0,
 	A_NONE,
 	A_UP,
 	A_DOWN,
-	A_REFRESH,
 	A_MAINMENU,
 	A_SYSMENU,
 	A_REBOOT,
-	A_EXIT,
 	A_RESCAN,
 	A_DEBUG,
+	A_SELECT,
 	A_DEVICES
 };
 
@@ -578,58 +578,95 @@ int do_init(void)
 	return 1;
 }
 
-/*
- * Mode: 1 - change; 0 - restore.
- */
-void setup_terminal(char *ttydev, int *echo_state, int mode)
+
+/* Read and process events */
+enum actions_t process_events(struct ev_params_t *ev)
 {
-	struct termios tc;
-	FILE *f;
+	fd_set fds;
+	int i, nready, efd;
+	struct input_event evt;
+	enum actions_t action = A_NONE;
 
-	/* Deactivate/Activate terminal input */
-	tcgetattr(fileno(stdin), &tc);
+	if (0 == ev->count) return A_ERROR;		/* A_EXIT ? */
 
-	if (0 == mode) {	/* Restore state */
-		tc.c_lflag = (tc.c_lflag & ~ECHO) | *echo_state;
-	} else {			/* reset ECHO */
-		*echo_state = tc.c_lflag & ECHO;	/* Save state (ECHO or 0) */
-		tc.c_lflag &= ~ECHO;
-	}
+	fds = ev->fds;
 
-	tcsetattr(fileno(stdin), TCSANOW, &tc);
+	/* Wait for some input */
+	nready = select(ev->maxfd, &fds, NULL, NULL, NULL);	/* Wait indefinitely */
 
-	if (NULL == ttydev) {
-		DPRINTF("We have no tty\n");
-		return;
-	}
-
-	/* Switch cursor off/on */
-	if (NULL != ttydev) {
-		f = fopen(ttydev, "r+");
-		if (NULL == f) {
-			DPRINTF("Can't open '%s' for writing\n", ttydev);
-			return;
+	if (-1 == nready) {
+		if (errno == EINTR) return A_NONE;
+		else {
+			DPRINTF("Error %d occured in select() call\n", errno);
+			return A_ERROR;
 		}
-	} else {
-		f = stdout;
 	}
 
-	if (0 == mode) {	/* Show cursor */
-		fputs("\033[?25h", f);	/* Applied to *term */
-	} else {			/* Hide cursor */
-		fputs("\033[?25l", f);
+	/* Check fds */
+	for (i = 0; i < ev->count; i++) {
+		efd = ev->fd[i];
+		if (FD_ISSET(efd, &fds)) {
+			read(efd, &evt, sizeof(evt));	/* Read event */
+			DPRINTF("+ event on %d, type: %d, code: %d, value: %d\n",
+					efd, evt.type, evt.code, evt.value);
+			if ((EV_KEY == evt.type) && (0 != evt.value)) {
+				/* EV_KEY event actions */
+
+				switch (evt.code) {
+				case KEY_UP:
+					action = A_UP;
+					break;
+				case KEY_DOWN:
+				case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
+					action = A_DOWN;
+					break;
+				case KEY_R:
+					action = A_REBOOT;
+					break;
+				case KEY_S:	/* reScan */
+					action = A_RESCAN;
+					break;
+				case KEY_ENTER:
+				case KEY_SPACE:
+				case KEY_HIRAGANA:	/* Zaurus SL-6000 */
+				case KEY_HENKAN:	/* Zaurus SL-6000 */
+				case 87:			/* Zaurus: OK (remove?) */
+				case 63:			/* Zaurus: Enter (remove?) */
+				case KEY_POWER:		/* GTA02: Power (116) */
+				case KEY_PHONE:		/* GTA02: AUX (169) */
+					action = A_SELECT;
+					break;
+				default:
+					action = A_NONE;
+					break;
+				}
+#if 0
+			} else if ((EV_ABS == evt.type) && (0 != evt.value)) {
+				/* EV_KEY event actions */
+				suitable_event = 1;
+				switch (evt.code) {
+				case ABS_PRESSURE:	/* Touchscreen touch */
+					if (choice < (bl->fill - 1)) choice++;
+					else choice = 0;
+					break;
+				default:
+					suitable_event = 0;
+				}
+#endif
+			}
+		}
 	}
 
-	if (NULL != ttydev) fclose(f);
+	return action;
 }
 
 
 int main(int argc, char **argv)
 {
 	int choice = 0;
-	int i;
-	int echo_state;
-	struct charlist *evlist;
+	int echo_state = 0;
+	int is_selected = 0;
+	int action = A_MAINMENU;
 	struct cfgdata_t cfg;
 	struct menu_t *menu, *sys_menu;
 #ifdef USE_FBMENU
@@ -637,6 +674,7 @@ int main(int argc, char **argv)
 	struct xpmlist_t *icons;
 #endif
 	struct params_t params;
+	struct ev_params_t ev;
 
 	DPRINTF("%s starting\n", PACKAGE_STRING);
 
@@ -680,123 +718,17 @@ int main(int argc, char **argv)
 	menu = params.menu;
 	icons = gui->menu_icons;	/* HACK remember menu icons now */
 
-	/* Search for keyboard/touchscreen/mouse/joystick/etc.. */
-	/* FIXME there can be no event devices (web/serial) */
-	evlist = scan_event_devices();
-	if (NULL == evlist) {
-		DPRINTF("Can't get event devices list\n");
-		exit(-1);
-	}
 
-	int *ev_fds;
-	fd_set fds0, fds;
-	int nready, maxfd, nev, efd;
-
-	/* Open event devices */
-	ev_fds = open_event_devices(evlist);
-	if (NULL == ev_fds) {
-		DPRINTF("Can't open event devices\n");
-		exit(-1);
-	}
-
-	nev = evlist->fill;
-	maxfd = -1;
-	int rep[2];		/* Repeat rate array (milliseconds) */
-	rep[0] = 1000;	/* Delay before first repeat */
-	rep[1] = 250;	/* Repeating delay */
-
-	/* Fill FS set with descriptors and search maximum fd number */
-	FD_ZERO(&fds0);
-	for (i = 0; i < nev; i++) {
-		efd = ev_fds[i];
-		if (efd > 0) {
-			FD_SET(efd, &fds0);
-			if (efd > maxfd) maxfd = efd;	/* Find maximum fd no */
-			/* Set repeat rate on device */
-			if(ioctl(efd, EVIOCSREP, rep)) {
-				perror("evdev ioctl");
-			}
-		}
-	}
-	++maxfd;	/* Increase maxfd according to select() manual */
-
-	struct input_event evt;
-	int is_selected = 0;
-	int action = A_REFRESH;
+	scan_evdevs(&ev);	/* Look for event devices */
 
 	/* Event loop */
-	/* FIXME: events are repeating too fast (e.g. up/down) */
 	do {
 #ifdef USE_FBMENU
 		if (action != A_NONE) gui_show_menu(gui, menu, choice);
 #endif
-		action = A_NONE;
-		fds = fds0;
+		action = process_events(&ev);
 
-		/* Wait for some input */
-		nready = select(maxfd, &fds, NULL, NULL, NULL);	/* Wait indefinitely */
-
-		if (-1 == nready) {
-			if (errno == EINTR) continue;
-			else {
-				perror("select");
-				exit(-1);
-			}
-		}
-
-		/* Check fds */
-		for(i = 0; i < nev; i++) {
-			efd = ev_fds[i];
-			if (FD_ISSET(efd, &fds)) {
-				read(efd, &evt, sizeof(evt));	/* Read event */
-				DPRINTF("+ event on %d, type: %d, code: %d, value: %d\n",
-						efd, evt.type, evt.code, evt.value);
-				if ((EV_KEY == evt.type) && (0 != evt.value)) {
-					/* EV_KEY event actions */
-
-					switch (evt.code) {
-					case KEY_UP:
-						action = A_UP;
-						break;
-					case KEY_DOWN:
-					case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
-						action = A_DOWN;
-						break;
-					case KEY_R:
-						action = A_REBOOT;
-						break;
-					case KEY_S:	/* reScan */
-						action = A_RESCAN;
-						break;
-					case KEY_ENTER:
-					case KEY_SPACE:
-					case KEY_HIRAGANA:	/* Zaurus SL-6000 */
-					case KEY_HENKAN:	/* Zaurus SL-6000 */
-					case 87:			/* Zaurus: OK (remove?) */
-					case 63:			/* Zaurus: Enter (remove?) */
-					case KEY_POWER:		/* GTA02: Power (116) */
-					case KEY_PHONE:		/* GTA02: AUX (169) */
-						action = menu->list[choice]->tag;
-						break;
-					default:
-						break;
-					}
-#if 0
-				} else if ((EV_ABS == evt.type) && (0 != evt.value)) {
-					/* EV_KEY event actions */
-					suitable_event = 1;
-					switch (evt.code) {
-					case ABS_PRESSURE:	/* Touchscreen touch */
-						if (choice < (bl->fill - 1)) choice++;
-						else choice = 0;
-						break;
-					default:
-						suitable_event = 0;
-					}
-#endif
-				}
-			}
-		}
+		if (A_SELECT == action) action = menu->list[choice]->tag;
 
 		switch (action) {
 		case A_NONE:
@@ -854,10 +786,13 @@ int main(int argc, char **argv)
 #endif
 			sleep(1);
 			break;
+		case A_ERROR:
+		case A_EXIT:
+			is_selected = 1;
+			break;
 		default:
-			if ( (A_EXIT == action) ||
-					( (action >= A_DEVICES) && (NULL != params.bootcfg) &&
-					(params.bootcfg->fill > 0) )
+			if ( (action >= A_DEVICES) &&
+					(NULL != params.bootcfg) && (params.bootcfg->fill > 0)
 			) is_selected = 1;
 			break;
 		}
@@ -867,17 +802,23 @@ int main(int argc, char **argv)
 #ifdef USE_FBMENU
 	gui_destroy(gui);
 #endif
+	close_event_devices(ev.fd, ev.count);
+
+	if ( (A_EXIT == action) || (A_ERROR == action) ) {
+		setup_terminal(cfg.ttydev, &echo_state, 0);
+		exit(action);
+	}
+
+	action = menu->list[choice]->tag;	/* action is used as temporary variable */
+
 	menu_destroy(params.menu);
-	close_event_devices(ev_fds, evlist->fill);
-	free_charlist(evlist);
 
-	setup_terminal(cfg.ttydev, &echo_state, 0);
-
-	if (A_EXIT == action) exit(0);
-
-	start_kernel(params.bootcfg->list[action - A_DEVICES]);
+	if (action >= A_DEVICES) {
+		start_kernel(params.bootcfg->list[action - A_DEVICES]);
+	}
 
 	/* When we reach this point then some error has occured */
+	setup_terminal(cfg.ttydev, &echo_state, 0);
 	DPRINTF("We should not reach this point!");
 	return -1;
 }

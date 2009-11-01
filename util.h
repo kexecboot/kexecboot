@@ -101,6 +101,9 @@ char *get_word(char *str, char **endptr);
 /* Return non-negative integer from string 'str' and end of number in 'endptr' */
 int get_nni(const char *str, char **endptr);
 
+/* Change terminal settings */
+void setup_terminal(char *ttydev, int *echo_state, int mode);
+
 /* Check pointer for NULL value and free() if not */
 #define dispose(ptr) do { if (NULL != ptr) free(ptr); } while (0)
 

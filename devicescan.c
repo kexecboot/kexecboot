@@ -625,6 +625,60 @@ int *open_event_devices(struct charlist *evlist)
 }
 
 
+/* Scan for event devices */
+int scan_evdevs(struct ev_params_t *ev)
+{
+	struct charlist *evlist;
+	int *ev_fds;
+	fd_set fds0;
+	int i, maxfd, nev, efd;
+
+	int rep[2];		/* Repeat rate array (milliseconds) */
+	rep[0] = 1000;	/* Delay before first repeat */
+	rep[1] = 250;	/* Repeating delay */
+
+	ev->count = 0;
+
+	/* Search for keyboard/touchscreen/mouse/joystick/etc.. */
+	evlist = scan_event_devices();
+	if (NULL == evlist) {
+		DPRINTF("Can't get event devices list\n");
+		return -1;
+	}
+
+	/* Open event devices */
+	ev_fds = open_event_devices(evlist);
+	if (NULL == ev_fds) {
+		DPRINTF("Can't open event devices\n");
+		exit(-1);
+	}
+
+	free_charlist(evlist);	/* Move this part to scan_event_devices ? */
+
+	nev = evlist->fill;
+	maxfd = -1;
+
+	/* Fill FS set with descriptors and search maximum fd number */
+	FD_ZERO(&fds0);
+	for (i = 0; i < nev; i++) {
+		efd = ev_fds[i];
+		if (efd > 0) {
+			FD_SET(efd, &fds0);
+			if (efd > maxfd) maxfd = efd;	/* Find maximum fd no */
+			/* Set repeat rate on device */
+			ioctl(efd, EVIOCSREP, rep);	/* We don't care about result */
+		}
+	}
+	++maxfd;	/* Increase maxfd according to select() manual */
+
+	ev->count = nev;
+	ev->fd = ev_fds;
+	ev->fds = fds0;
+	ev->maxfd = maxfd;
+	return 0;
+}
+
+
 /* Close opened devices */
 void close_event_devices(int *ev_fds, int size)
 {
