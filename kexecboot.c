@@ -584,6 +584,7 @@ int do_init(void)
 void setup_terminal(char *ttydev, int *echo_state, int mode)
 {
 	struct termios tc;
+	FILE *f;
 
 	/* Deactivate/Activate terminal input */
 	tcgetattr(fileno(stdin), &tc);
@@ -603,20 +604,23 @@ void setup_terminal(char *ttydev, int *echo_state, int mode)
 	}
 
 	/* Switch cursor off/on */
-	FILE *f = fopen(ttydev, "r+");
-	if (NULL == f) {
-		DPRINTF("Can't open '%s' for writing\n", ttydev);
-		return;
+	if (NULL != ttydev) {
+		f = fopen(ttydev, "r+");
+		if (NULL == f) {
+			DPRINTF("Can't open '%s' for writing\n", ttydev);
+			return;
+		}
+	} else {
+		f = stdout;
 	}
 
 	if (0 == mode) {	/* Show cursor */
 		fputs("\033[?25h", f);	/* Applied to *term */
-// 		fputs("\033[?0c", f);	/* Applied only to linux vga console */
 	} else {			/* Hide cursor */
 		fputs("\033[?25l", f);
-// 		fputs("\033[?1c", f);
 	}
-	fclose(f);
+
+	if (NULL != ttydev) fclose(f);
 }
 
 

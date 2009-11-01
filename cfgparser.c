@@ -207,20 +207,22 @@ static int set_mtdparts(struct cfgdata_t *cfgdata, char *value)
 static int set_ttydev(struct cfgdata_t *cfgdata, char *value)
 {
 	const char str_dev[] = "/dev/";
+	char *p;
 
 	/* Check value for 'tty[0-9]' */
 	if ( ! ( ('t' == value[0]) && ('t' == value[1]) && ('y' == value[2]) &&
 			(value[3] > '0') && (value[3] < '9') )
 	) return 0;
 
-	dispose(cfgdata->ttydev);
 	/* Prepend '/dev/' to tty name (value) */
-	cfgdata->ttydev = malloc(sizeof(str_dev)+strlen(value));
-	if (NULL == cfgdata->ttydev) {
+	p = malloc(sizeof(str_dev)+strlen(value));
+	if (NULL == p) {
 		DPRINTF("Can't allocate memory to store tty device name '/dev/%s'\n", value);
 		return -1;
 	}
 
+	dispose(cfgdata->ttydev);
+	cfgdata->ttydev = p;
 	strcpy(cfgdata->ttydev, str_dev);
 	strcat(cfgdata->ttydev, value);
 
@@ -402,4 +404,5 @@ void init_cfgdata(struct cfgdata_t *cfgdata)
 
 	cfgdata->angle = 0;
 	cfgdata->mtdparts = NULL;
+	cfgdata->ttydev = NULL;
 }
