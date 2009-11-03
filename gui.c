@@ -72,8 +72,8 @@ void gui_destroy(struct gui_t *gui)
 {
 	if (NULL == gui) return;
 
-	free(gui->menu_icons);
-	free_xpmlist(gui->loaded_icons);
+	free_xpmlist(gui->menu_icons, 0);
+	free_xpmlist(gui->loaded_icons, 1);
 	xpm_destroy_parsed(gui->icon_logo);
 	xpm_destroy_parsed(gui->icon_system);
 	xpm_destroy_parsed(gui->icon_cf);

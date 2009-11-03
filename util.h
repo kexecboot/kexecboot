@@ -70,7 +70,7 @@ struct charlist *create_charlist(int size);
 void free_charlist(struct charlist *cl);
 
 /* Append string 'str' to end of charlist 'cl' */
-void addto_charlist(struct charlist *cl, char *str);
+void addto_charlist(struct charlist *cl, const char *str);
 
 /* Return position of string 'str' in charlist 'cl' or (-1) when not found */
 int in_charlist(struct charlist *cl, const char *str);

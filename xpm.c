@@ -884,14 +884,16 @@ struct xpm_parsed_t *xpm_by_tag(struct xpmlist_t *xl, int tag)
 
 
 /* Free bootconf structure */
-void free_xpmlist(struct xpmlist_t *xl)
+void free_xpmlist(struct xpmlist_t *xl, int free_data)
 {
 	int i;
 
 	if (NULL == xl) return;
 
-	for (i = 0; i < xl->fill; i++)
-		xpm_destroy_parsed(xl->list[i]);
+	if (free_data)
+		for (i = 0; i < xl->fill; i++)
+			xpm_destroy_parsed(xl->list[i]);
+	free(xl->list);
 	free(xl);
 }
 

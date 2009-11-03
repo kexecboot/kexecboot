@@ -59,7 +59,7 @@ struct charlist *scan_filesystems()
 		line[strlen(line) - 1] = '\0';	/* kill last '\n' */
 		split = strchr(line, '\t');
 		split++;
-		addto_charlist(fl, strdup(split));	/* NOTE: strdup() may return NULL */
+		addto_charlist(fl, split);	/* NOTE: strdup() may return NULL */
 	}
 	fclose(f);
 	return fl;
@@ -176,6 +176,7 @@ void free_bootcfg(struct bootconf_t *bc)
 		dispose(bc->list[i]->iconpath);
 		free(bc->list[i]);
 	}
+	free(bc->list);
 	free(bc);
 }
 
@@ -500,7 +501,7 @@ struct charlist *scan_event_dir(char *path)
 			DPRINTF("+ found evdev: %s\n", dp->d_name);
 			strcat(p, dp->d_name);
 			if (is_suitable_evdev(device)) {
-				addto_charlist(evlist, strdup(device));
+				addto_charlist(evlist, device);
 			}
 			*p = '\0';	/* Reset device name */
 		}
@@ -585,11 +586,10 @@ int scan_evdevs(struct ev_params_t *ev)
 		exit(-1);
 	}
 
+	nev = evlist->fill;
 	free_charlist(evlist);	/* Move this part to scan_event_devices ? */
 
-	nev = evlist->fill;
 	maxfd = -1;
-
 	/* Fill FS set with descriptors and search maximum fd number */
 	FD_ZERO(&fds0);
 	for (i = 0; i < nev; i++) {

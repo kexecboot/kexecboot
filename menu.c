@@ -52,6 +52,7 @@ void menu_destroy(struct menu_t *menu)
 		free(menu->list[i]->label);
 		free(menu->list[i]);
 	}
+	free(menu->list);
 	free(menu);
 }
 

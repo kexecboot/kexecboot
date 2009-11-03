@@ -390,6 +390,7 @@ free_device:
 		free(dev.device);
 	}
 
+	free_charlist(fl);
 	params->bootcfg = bootconf;
 #ifdef USE_FBMENU
 	params->gui->loaded_icons = xl;
@@ -776,8 +777,8 @@ int main(int argc, char **argv)
 		case A_RESCAN:
 #ifdef USE_FBMENU
 			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
-			free(gui->menu_icons);	/* Free xpmlist structure only */
-			free_xpmlist(gui->loaded_icons);
+			free_xpmlist(gui->menu_icons, 0);	/* Free xpmlist structure only */
+			free_xpmlist(gui->loaded_icons, 1);
 #endif
 			free_bootcfg(params.bootcfg);
 			menu_destroy(params.menu);

@@ -143,6 +143,6 @@ void xpm_destroy_parsed(struct xpm_parsed_t *xpm);
 struct xpmlist_t *create_xpmlist(unsigned int size);
 int addto_xpmlist(struct xpmlist_t *xl, struct xpm_parsed_t *xpm);
 struct xpm_parsed_t *xpm_by_tag(struct xpmlist_t *xl, int tag);
-void free_xpmlist(struct xpmlist_t *xl);
+void free_xpmlist(struct xpmlist_t *xl, int free_data);
 
 #endif // _HAVE_XPM_H

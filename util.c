@@ -49,14 +49,15 @@ void free_charlist(struct charlist *cl)
 	int i;
 	for (i = 0; i < cl->fill; i++)
 		free(cl->list[i]);
+	free(cl->list);
 	free(cl);
 }
 
 
 /* Add item to charlist structure */
-void addto_charlist(struct charlist *cl, char *str)
+void addto_charlist(struct charlist *cl, const char *str)
 {
-	cl->list[cl->fill] = str;
+	cl->list[cl->fill] = strdup(str);
 	++cl->fill;
 
 	/* Resize list when needed */
