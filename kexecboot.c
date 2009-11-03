@@ -595,8 +595,9 @@ int do_init(void)
 enum actions_t process_events(struct ev_params_t *ev)
 {
 	fd_set fds;
-	int i, nready, efd;
-	struct input_event evt;
+	int i, e, nready, efd;
+	const int evt_size = 4;
+	struct input_event evt[evt_size];
 	enum actions_t action = A_NONE;
 
 	if (0 == ev->count) return A_ERROR;		/* A_EXIT ? */
@@ -618,58 +619,73 @@ enum actions_t process_events(struct ev_params_t *ev)
 	for (i = 0; i < ev->count; i++) {
 		efd = ev->fd[i];
 		if (FD_ISSET(efd, &fds)) {
-			read(efd, &evt, sizeof(evt));	/* Read event */
-			DPRINTF("+ event on %d, type: %d, code: %d, value: %d\n",
-					efd, evt.type, evt.code, evt.value);
-			if ((EV_KEY == evt.type) && (0 != evt.value)) {
-				/* EV_KEY event actions */
+			nready = read(efd, evt, sizeof(struct input_event) * evt_size);	/* Read events */
+			if ( nready < (int) sizeof(struct input_event) ) {
+				DPRINTF("Short read of event structure (%d bytes)\n", nready);
+				continue;
+			}
 
-				switch (evt.code) {
-				case KEY_UP:
-					action = A_UP;
-					break;
-				case KEY_DOWN:
-				case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
-					action = A_DOWN;
-					break;
+			/* NOTE: debug
+			if ( nready > (int) sizeof(struct input_event) )
+				DPRINTF("Have more than one event here (%d bytes, %d events)\n",
+						nready, (int) (nready / sizeof(struct input_event)) );
+			*/
+
+			for (e = 0; e < (int) (nready / sizeof(struct input_event)); e++) {
+
+				/* DPRINTF("+ event on %d, type: %d, code: %d, value: %d\n",
+						efd, evt[e].type, evt[e].code, evt[e].value); */
+
+				if ((EV_KEY == evt[e].type) && (0 != evt[e].value)) {
+					/* EV_KEY event actions */
+
+					switch (evt[e].code) {
+					case KEY_UP:
+						action = A_UP;
+						break;
+					case KEY_DOWN:
+					case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
+						action = A_DOWN;
+						break;
 #ifndef USE_HOST_DEBUG
-				case KEY_R:
-					action = A_REBOOT;
-					break;
+					case KEY_R:
+						action = A_REBOOT;
+						break;
 #endif
-				case KEY_S:	/* reScan */
-					action = A_RESCAN;
-					break;
-				case KEY_Q:	/* Quit (when not in initmode) */
-					if (0 == initmode) action = A_EXIT;
-					break;
-				case KEY_ENTER:
-				case KEY_SPACE:
-				case KEY_HIRAGANA:	/* Zaurus SL-6000 */
-				case KEY_HENKAN:	/* Zaurus SL-6000 */
-				case 87:			/* Zaurus: OK (remove?) */
-				case 63:			/* Zaurus: Enter (remove?) */
-				case KEY_POWER:		/* GTA02: Power (116) */
-				case KEY_PHONE:		/* GTA02: AUX (169) */
-					action = A_SELECT;
-					break;
-				default:
-					action = A_NONE;
-					break;
-				}
+					case KEY_S:	/* reScan */
+						action = A_RESCAN;
+						break;
+					case KEY_Q:	/* Quit (when not in initmode) */
+						if (0 == initmode) action = A_EXIT;
+						break;
+					case KEY_ENTER:
+					case KEY_SPACE:
+					case KEY_HIRAGANA:	/* Zaurus SL-6000 */
+					case KEY_HENKAN:	/* Zaurus SL-6000 */
+					case 87:			/* Zaurus: OK (remove?) */
+					case 63:			/* Zaurus: Enter (remove?) */
+					case KEY_POWER:		/* GTA02: Power (116) */
+					case KEY_PHONE:		/* GTA02: AUX (169) */
+						action = A_SELECT;
+						break;
+					default:
+						action = A_NONE;
+						break;
+					}
 #if 0
-			} else if ((EV_ABS == evt.type) && (0 != evt.value)) {
-				/* EV_KEY event actions */
-				suitable_event = 1;
-				switch (evt.code) {
-				case ABS_PRESSURE:	/* Touchscreen touch */
-					if (choice < (bl->fill - 1)) choice++;
-					else choice = 0;
-					break;
-				default:
-					suitable_event = 0;
-				}
+				} else if ((EV_ABS == evt.type) && (0 != evt.value)) {
+					/* EV_KEY event actions */
+					suitable_event = 1;
+					switch (evt.code) {
+					case ABS_PRESSURE:	/* Touchscreen touch */
+						if (choice < (bl->fill - 1)) choice++;
+						else choice = 0;
+						break;
+					default:
+						suitable_event = 0;
+					}
 #endif
+				}
 			}
 		}
 	}
