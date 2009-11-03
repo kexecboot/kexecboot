@@ -49,6 +49,11 @@
 #include "gui.h"
 #endif
 
+/* Don't re-create devices when executing on host */
+#ifdef USE_HOST_DEBUG
+#undef USE_DEVICES_RECREATING
+#endif
+
 /* Machine-dependent kernel patch */
 char *machine_kernel = NULL;
 
@@ -155,7 +160,11 @@ void start_kernel(struct boot_item_t *item)
 {
 	/* we use var[] instead of *var because sizeof(var) using */
 	const char mount_point[] = "/mnt";
+#ifdef USE_HOST_DEBUG
+	const char kexec_path[] = "/bin/echo";
+#else
 	const char kexec_path[] = "/usr/sbin/kexec";
+#endif
 
 	const char str_cmdline_start[] = "--command-line=";
 	const char str_root[] = " root=";
@@ -403,7 +412,9 @@ struct menu_t *build_system_menu()
 	if (!initmode) {
 		menu_add_item(sys_menu, "Exit", A_EXIT,  NULL);
 	}
+#ifndef USE_HOST_DEBUG
 	menu_add_item(sys_menu, "Reboot", A_REBOOT, NULL);
+#endif
 	menu_add_item(sys_menu, "Rescan", A_RESCAN, NULL);
 	menu_add_item(sys_menu, "Show debug info", A_DEBUG, NULL);
 

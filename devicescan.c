@@ -352,7 +352,7 @@ int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev)
 
 	DPRINTF("Got device '%s' (%d, %d) of size %dMb\n", device, major, minor, blocks>>10);
 
-#ifndef KX_NO_DEVICES_CREATION
+#ifdef USE_DEVICES_RECREATING
 	/* Remove old device node. We don't care about unlink() result. */
 	unlink(device);
 
