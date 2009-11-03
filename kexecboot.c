@@ -632,9 +632,11 @@ enum actions_t process_events(struct ev_params_t *ev)
 				case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
 					action = A_DOWN;
 					break;
+#ifndef USE_HOST_DEBUG
 				case KEY_R:
 					action = A_REBOOT;
 					break;
+#endif
 				case KEY_S:	/* reScan */
 					action = A_RESCAN;
 					break;
@@ -764,6 +766,7 @@ int main(int argc, char **argv)
 			menu = params.menu;
 			gui->menu_icons = icons;	/* HACK restore menu_icons */
 			break;
+#ifndef USE_HOST_DEBUG
 		case A_REBOOT:
 #ifdef USE_FBMENU
 			gui_show_text(gui, "Rebooting...");
@@ -774,6 +777,7 @@ int main(int argc, char **argv)
 				perror("Can't initiate reboot");
 			}
 			break;
+#endif
 		case A_RESCAN:
 #ifdef USE_FBMENU
 			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
