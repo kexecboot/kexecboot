@@ -637,6 +637,9 @@ enum actions_t process_events(struct ev_params_t *ev)
 				case KEY_S:	/* reScan */
 					action = A_RESCAN;
 					break;
+				case KEY_Q:	/* Quit (when not in initmode) */
+					if (0 == initmode) action = A_EXIT;
+					break;
 				case KEY_ENTER:
 				case KEY_SPACE:
 				case KEY_HIRAGANA:	/* Zaurus SL-6000 */
