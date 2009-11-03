@@ -60,7 +60,7 @@ void addto_charlist(struct charlist *cl, char *str)
 	++cl->fill;
 
 	/* Resize list when needed */
-	if (cl->fill > cl->size) {
+	if (cl->fill >= cl->size) {
 		char **new_list;
 
 		cl->size <<= 1;	/* size *= 2; */

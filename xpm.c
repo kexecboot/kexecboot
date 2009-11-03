@@ -852,7 +852,7 @@ int addto_xpmlist(struct xpmlist_t *xl, struct xpm_parsed_t *xpm)
 	++xl->fill;
 
 	/* Resize list when needed */
-	if (xl->fill > xl->size) {
+	if (xl->fill >= xl->size) {
 		struct xpm_parsed_t **new_list;
 
 		xl->size <<= 1;	/* size *= 2; */

@@ -76,7 +76,7 @@ int menu_add_item(struct menu_t *menu, char *label, int tag, struct menu_t *subm
 	++menu->fill;
 
 	/* Resize list when needed */
-	if (menu->fill > menu->size) {
+	if (menu->fill >= menu->size) {
 		struct menu_item_t **new_list;
 
 		menu->size <<= 1;	/* size *= 2; */
