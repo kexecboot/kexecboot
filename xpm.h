@@ -47,7 +47,7 @@
  * but use 96 to speed up ariphmetic ((x << 6) + (x << 5))
  * Returns x * 96
  */
-#define XPM_ASCII_RANGE(x) ((x << 6) + (x << 5))
+#define XPM_ASCII_RANGE(x) (((x) << 6) + ((x) << 5))
 
 /* Macro to find number of lines in compiled-in XPM image array
  * NOTE: Use it only with compiled-in arrays!

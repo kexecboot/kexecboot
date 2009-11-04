@@ -599,7 +599,7 @@ int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
 	/* Optimize some cases for speed. Prepare lookup tables */
 	if (chpp < 3) {	/* chpp should be positive integer */
 		width = XPM_ASCII_RANGE(1);		/* 96 */
-		if (2 == chpp) width *= width;	/* (96 * 96) */
+		if (2 == chpp) width = XPM_ASCII_RANGE(width);	/* (96 * 96) */
 
 		ctable = malloc(width * sizeof(*ctable));
 		if (NULL == ctable) {
@@ -654,7 +654,7 @@ int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
 		}
 
 		/* Iterate over pixels (every chpp chars) */
-		for(p = *data; p < *data + width; p += chpp) {
+		for(p = *data; p < *data + (width * chpp); p += chpp) {
 
 			/* Optimize some cases for speed */
 			switch (chpp) {
@@ -674,9 +674,11 @@ int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
 				/* Search pixel */
 				i = 0;	/* Used as flag */
 				for(pdata = xpm_meta->pixdata; pdata < edata; pdata++) {
-					if ( 0 != strcmp(pdata->pixel, pixel) ) continue;
-					*xpm_pixel = pdata->rgb;
-					i = 1;
+					if ( 0 == strcmp(pdata->pixel, pixel) ) {
+						*xpm_pixel = pdata->rgb;
+						i = 1;
+						break;
+					}
 				}
 				if (0 == i) *xpm_pixel = NULL;	/* Consider this pixel as transparent */
 
