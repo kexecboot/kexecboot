@@ -40,6 +40,8 @@ struct xpm_meta_t {
 	unsigned int ncolors;	/* number of colors */
 	char *pixnames;		/* place for pixel names */
 	struct xpm_pixel_t *pixdata;	/* array of named pixels */
+	unsigned int ctable_size;		/* color lookup table size */
+	struct xpm_color_t **ctable;	/* color lookup table */
 };
 
 
@@ -498,11 +500,12 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 {
 	int rc, chpp;
 	/* Color structures: array and temporary pointer */
-	struct xpm_color_t *xpm_color;
+	struct xpm_color_t *xpm_color, **ctable;
 	char **data, **e, *p;
 	char *color;
 	char *pixel;
 	struct xpm_pixel_t *pdata;
+	unsigned char c1, c2;
 	/* Array of colors in line */
 	char *colors[XPM_KEY_SYMBOL];
 	/* Color line buffer */
@@ -510,18 +513,23 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 
 	xpm_color = xpm_meta->xpm_parsed->colors;
 	pixel = xpm_meta->pixnames;
+	ctable = xpm_meta->ctable;
 	pdata = xpm_meta->pixdata;
 	chpp = xpm_meta->chpp;
 
 	e = xpm_data + xpm_meta->ncolors;
 	for (data = xpm_data; data < e; data++) {
 
-		p = *data;
-
-		/* Split first chpp chars (pixel) */
-		strncpy(pixel, p, chpp);
-		pixel[chpp] = '\0';
-		p += chpp;
+		/* If we have ctable then don't use pixnames */
+		if (NULL != ctable) {
+			/* Skip pixel chars. Will be accessible via *data */
+			p = *data + chpp;
+		} else {
+			p = *data;
+			/* Split first chpp chars (pixel) */
+			strncpy(pixel, p, chpp);
+			pixel[chpp] = '\0';
+		}
 
 		/* Create temporary copy for parsing */
 		strncpy(line, p, sizeof(line)-1);
@@ -566,15 +574,37 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 			return -1;
 		}
 
-		pdata->pixel = pixel;
 		if (1 == rc) {	/* transparent pixel */
 			pdata->rgb = NULL;
 		} else {
 			pdata->rgb = xpm_color;
 		}
 
+		/* Insert pixel into lookup table */
+		if (NULL != ctable) {
+			pdata->pixel = NULL;
+			c1 = (unsigned char)(*data)[0];
+			if (2 == chpp) c2 = (unsigned char)(*data)[1];
+
+			if ( (c1 < 32) || (c1 > 127) ||
+					( (2 == chpp) && ( (c2 < 32) || (c2 > 127) ) )
+			) {
+				DPRINTF("Pixel char is out of range [32-127]\n");
+			} else {
+				c1 -= ' ';
+				if (1 == chpp) {
+					ctable[c1] = pdata->rgb;
+				} else {
+					/* (y * 96 + x) */
+					ctable[XPM_ASCII_RANGE(c1) + c2 - ' '] = pdata->rgb;
+				}
+			}
+		} else {
+			pdata->pixel = pixel;
+			pixel += chpp + 1;	/* Go next place */
+		}
+
 		++xpm_color;
-		pixel += chpp + 1;	/* Go next place */
 		++pdata;
 	}
 
@@ -585,104 +615,59 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 /* Local function to parse pixels data */
 int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
 {
-	int chpp, width, i;
-	struct xpm_color_t **xpm_pixel, **ctable = NULL;
+	int chpp, width, i, dlen;
+	struct xpm_color_t **xpm_pixel, **ctable;
 	struct xpm_pixel_t *pdata, *edata;
 	char **data, **e;
 	char *p;
-	char *pixel = NULL;
-	unsigned char pix;
+	unsigned char c1, c2;
 
 	chpp = xpm_meta->chpp;
 	edata = xpm_meta->pixdata + xpm_meta->ncolors;
-
-	/* Optimize some cases for speed. Prepare lookup tables */
-	if (chpp < 3) {	/* chpp should be positive integer */
-		width = XPM_ASCII_RANGE(1);		/* 96 */
-		if (2 == chpp) width = XPM_ASCII_RANGE(width);	/* (96 * 96) */
-
-		ctable = malloc(width * sizeof(*ctable));
-		if (NULL == ctable) {
-			DPRINTF("Can't allocate memory for colors lookup table\n");
-			goto free_nothing;
-		}
-
-		/* Clean lookup table */
-		xpm_pixel = ctable;
-		for (i = 0; i < width; i++) {
-			*xpm_pixel = NULL;
-		}
-
-		/* Fill lookup table */
-		for(pdata = xpm_meta->pixdata; pdata < edata; pdata++) {
-			if ( ((unsigned char)pdata->pixel[0] < 32) ||
-					((unsigned char)pdata->pixel[0] > 127) ||
-					( (2 == chpp) && (
-					((unsigned char)pdata->pixel[1] < 32) ||
-					((unsigned char)pdata->pixel[1] > 127) ) ) )
-			{
-				DPRINTF("Pixel char is out of range [32-127]\n");
-				goto free_ctable;
-			}
-
-			pix = pdata->pixel[0] - ' ';
-
-			if (2 == chpp) {
-				/* (y * 96 + x) */
-				ctable[XPM_ASCII_RANGE(pix) + pdata->pixel[1] - ' '] = pdata->rgb;
-			} else {	/* 1 == chpp */
-				ctable[pix] = pdata->rgb;
-			}
-		}
-	} else {
-		pixel = malloc((chpp + 1) * sizeof(char));
-		if (NULL == pixel) {
-			DPRINTF("Can't allocate pixel\n");
-			goto free_nothing;	/* ctable is not allocated here */
-		}
-	}
+	ctable = xpm_meta->ctable;
 
 	width = xpm_meta->xpm_parsed->width;
 	xpm_pixel = xpm_meta->xpm_parsed->pixels;
 	e = xpm_data + xpm_meta->xpm_parsed->height;
 	for (data = xpm_data; data < e; data++) {
 
-		if (strlen(*data) != (width * chpp)) {
+		dlen = strlen(*data);
+		if (dlen != (width * chpp)) {
 			DPRINTF("Wrong XPM format: pixel data length is not equal to width (%d != %d)\n",
-			strlen(*data), width);
-			goto free_ctable;
+			dlen, width * chpp);
 		}
 
 		/* Iterate over pixels (every chpp chars) */
-		for(p = *data; p < *data + (width * chpp); p += chpp) {
+		for (p = *data; p < *data + dlen; p += chpp) {
 
-			/* Optimize some cases for speed */
-			switch (chpp) {
-			case 1:
-				*xpm_pixel = ctable[(unsigned char)*p - ' '];
-				break;
-
-			case 2:
-				pix = *p - ' ';
-				*xpm_pixel = ctable[XPM_ASCII_RANGE(pix) + *(p+1) - ' '];
-				break;
-
-			default:
-				strncpy(pixel, p, chpp);
-				pixel[chpp] = '\0';
-
+			if (NULL != ctable) {
+				/* We have lookup table - use it */
+				c1 = (unsigned char)*p;
+				if (2 == chpp) c2 = (unsigned char)*(p+1);
+				if ( (c1 < 32) || (c1 > 127) ||
+						( (2 == chpp) && ( (c2 < 32) || (c2 > 127) ) )
+				) {
+					DPRINTF("Pixel char is out of range [32-127]\n");
+					*xpm_pixel = NULL; 	/* Consider this pixel as transparent */
+				} else {
+					c1 -= ' ';
+					if (1 == chpp) {
+						*xpm_pixel = ctable[c1];
+					} else {
+						*xpm_pixel = ctable[XPM_ASCII_RANGE(c1) + c2 - ' '];
+					}
+				}
+			} else {
 				/* Search pixel */
 				i = 0;	/* Used as flag */
-				for(pdata = xpm_meta->pixdata; pdata < edata; pdata++) {
-					if ( 0 == strcmp(pdata->pixel, pixel) ) {
+				for (pdata = xpm_meta->pixdata; pdata < edata; pdata++) {
+					if ( 0 == strncmp(pdata->pixel, p, chpp) ) {
 						*xpm_pixel = pdata->rgb;
 						i = 1;
 						break;
 					}
 				}
 				if (0 == i) *xpm_pixel = NULL;	/* Consider this pixel as transparent */
-
-				break;
 			}
 
 			++xpm_pixel;
@@ -690,21 +675,7 @@ int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
 
 	}
 
-	if (chpp < 3)
-		free(ctable);
-	else
-		free(pixel);
-
 	return 0;
-
-free_ctable:
-	if (chpp < 3)
-		free(ctable);
-	else
-		free(pixel);
-
-free_nothing:
-	return -1;
 }
 
 
@@ -778,11 +749,29 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 		goto free_xpm_parsed;	/* Colors are freed by same function */
 	}
 
-	/* Allocate place for pixel names */
-	xpm_meta.pixnames = malloc(ncolors * (chpp + 1) * sizeof(char));
-	if (NULL == xpm_meta.pixnames) {
-		DPRINTF("Can't allocate memory for pixel names array\n");
-		goto free_pixdata;
+	/* Allocate colors lookup table when chpp is 1 or 2 */
+	if (chpp < 3) {
+		xpm_meta.ctable_size = XPM_ASCII_RANGE(1);		/* 96 */
+		if (2 == chpp) xpm_meta.ctable_size = XPM_ASCII_RANGE(xpm_meta.ctable_size);	/* (96 * 96) */
+
+		xpm_meta.ctable = malloc(xpm_meta.ctable_size * sizeof(xpm_meta.ctable));
+		if (NULL == xpm_meta.ctable) {
+			DPRINTF("Can't allocate memory for colors lookup table\n");
+			xpm_meta.ctable_size = 0;
+		}
+		xpm_meta.pixnames = NULL;
+	} else {
+		xpm_meta.ctable_size = 0;
+		xpm_meta.ctable = NULL;
+	}
+
+	/* If we have no lookup table then allocate place for pixel names */
+	if (NULL == xpm_meta.ctable) {
+		xpm_meta.pixnames = malloc(ncolors * (chpp + 1) * sizeof(char));
+		if (NULL == xpm_meta.pixnames) {
+			DPRINTF("Can't allocate memory for pixel names array\n");
+			goto free_pixdata;
+		}
 	}
 
 	/* Parse colors data */
@@ -806,12 +795,14 @@ struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 		goto free_pixnames;
 	}
 
-	free(xpm_meta.pixnames);
+	dispose(xpm_meta.ctable);
+	dispose(xpm_meta.pixnames);
 	free(xpm_meta.pixdata);
 	return xpm_parsed;
 
 free_pixnames:
-	free(xpm_meta.pixnames);
+	dispose(xpm_meta.ctable);
+	dispose(xpm_meta.pixnames);
 
 free_pixdata:
 	free(xpm_meta.pixdata);
