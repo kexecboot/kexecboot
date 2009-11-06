@@ -551,7 +551,9 @@ free_label:
 	return 0;
 
 free_icons:
-	free(icons);
+#ifdef USE_FBMENU
+	free_xpmlist(icons, 0);
+#endif
 	menu_destroy(main_menu);
 	return -1;
 }
@@ -749,7 +751,9 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 	menu = params.menu;
+#ifdef USE_FBMENU
 	icons = gui->menu_icons;	/* HACK remember menu icons now */
+#endif
 
 
 	scan_evdevs(&ev);	/* Look for event devices */
@@ -811,7 +815,9 @@ int main(int argc, char **argv)
 				exit(-1);
 			}
 			menu = params.menu;
+#ifdef USE_FBMENU
 			icons = gui->menu_icons;
+#endif
 			choice = 0;
 
 			break;
