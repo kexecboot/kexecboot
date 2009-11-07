@@ -802,7 +802,7 @@ int main(int argc, char **argv)
 		case A_RESCAN:
 #ifdef USE_FBMENU
 			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
-			free_xpmlist(gui->menu_icons, 0);	/* Free xpmlist structure only */
+			free_xpmlist(icons, 0);		/* Free xpmlist structure only */
 			free_xpmlist(gui->loaded_icons, 1);
 #endif
 			free_bootcfg(params.bootcfg);
