@@ -354,6 +354,7 @@ int scan_devices(struct params_t *params)
 				DPRINTF("Can't parse xpm icon %s\n", cfgdata.iconpath);
 				goto umount;
 			}
+			xpm_destroy_image(xpm_data, rows);
 		}
 #endif
 
