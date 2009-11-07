@@ -24,11 +24,7 @@
 #include "xpm.h"
 #include "gui.h"
 
-#include "res/radeon-font.h"
-#include "res/logo.xpm"
-#include "res/cf.xpm"
-#include "res/mmc.xpm"
-#include "res/memory.xpm"
+#include "res/theme.h"
 
 
 struct gui_t *gui_init(int angle)
@@ -92,12 +88,12 @@ void draw_background(struct gui_t *gui, const char *text)
 	int margin = fb->width/40;
 
 	/* Clear the background with #ecece1 */
-	fb_draw_rect(fb, 0, 0, fb->width, fb->height,0xec, 0xec, 0xe1);
+	fb_draw_rect(fb, 0, 0, fb->width, fb->height, COLOR_BG);
 
 	fb_draw_xpm_image(fb, 0, 0, gui->icon_logo);
 
-	fb_draw_text (fb, 32 + margin, margin, 0, 0, 0,
-		&radeon_font, text);
+	fb_draw_text (fb, 32 + margin, margin, COLOR_TEXT,
+		DEFAULT_FONT, text);
 }
 
 
@@ -113,17 +109,17 @@ void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height
 			0xec, 0xec, 0xe1);
 	else { //draw red border
 		fb_draw_rect(fb, 0, slot*height, fb->width, height,
-			0xff, 0x00, 0x00);
+			COLOR_BRDR);
 		fb_draw_rect(fb, margin, slot*height+margin, fb->width-2*margin,
-			height-2*margin, 0xec, 0xec, 0xe1);
+			height-2*margin, COLOR_BG);
 	}
 
 	if (NULL != icon) {
 		fb_draw_xpm_image(fb, margin, slot * height + margin, icon);
 	}
 
-	fb_draw_text (fb, 32 + 8 + margin, slot * height + 4, 0, 0, 0,
-			&radeon_font, item->label);
+	fb_draw_text (fb, 32 + 8 + margin, slot * height + 4, COLOR_TEXT,
+			DEFAULT_FONT, item->label);
 
 	if (NULL != item->submenu) {
 		/* Draw something to show that here is submenu available */
