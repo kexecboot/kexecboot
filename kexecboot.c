@@ -57,9 +57,6 @@
 /* Machine-dependent kernel patch */
 char *machine_kernel = NULL;
 
-/* mtdparts tag value */
-char *mtdparts = NULL;
-
 /* NULL-terminated array of kernel search paths
  * First item should be filled with machine-dependent path */
 char *default_kernels[] = {
@@ -156,102 +153,87 @@ char *get_machine_kernelpath() {
 }
 
 
-void start_kernel(struct boot_item_t *item)
+void start_kernel(struct boot_item_t *item, struct cfgdata_t *cfg)
 {
 	/* we use var[] instead of *var because sizeof(var) using */
-	const char mount_point[] = "/mnt";
 #ifdef USE_HOST_DEBUG
 	const char kexec_path[] = "/bin/echo";
 #else
 	const char kexec_path[] = "/usr/sbin/kexec";
 #endif
+	const char mount_point[] = MOUNTPOINT;
 
-	const char str_cmdline_start[] = "--command-line=";
-	const char str_root[] = " root=";
+	const char str_cmdline_start[] = "--command-line=root=";
 	const char str_rootfstype[] = " rootfstype=";
 	const char str_rootwait[] = " rootwait";
+
+	/* Tags passed from host kernel cmdline to kexec'ed kernel */
 	const char str_mtdparts[] = " mtdparts=";
+	const char str_fbcon[] = " fbcon=";
 
 	/* empty environment */
 	char *const envp[] = { NULL };
 
-	const char *kexec_load_argv[] = { NULL, "-l", NULL, NULL, NULL };
-	const char *kexec_exec_argv[] = { NULL, "-e", NULL, NULL};
+	const char *load_argv[] = { NULL, "-l", NULL, NULL, NULL };
+	const char *exec_argv[] = { NULL, "-e", NULL, NULL};
 
 	char *cmdline_arg = NULL;
 	int n, idx;
-	struct stat *sinfo = malloc(sizeof(struct stat));
+	struct stat sinfo;
 
-	kexec_exec_argv[0] = kexec_path;
-
-	/* Check /proc/sys/net presence */
-	if ( -1 == stat("/proc/sys/net", sinfo) ) {
-		if (ENOENT == errno) {
-			/* We have no network, don't issue ifdown() while kexec'ing */
-			kexec_exec_argv[2] = "-x";
-			DPRINTF("No network is detected, disabling ifdown()\n");
-		} else {
-			perror("Can't stat /proc/sys/net");
-		}
-	}
-	free(sinfo);
-
-	kexec_load_argv[0] = kexec_path;
+	exec_argv[0] = kexec_path;
+	load_argv[0] = kexec_path;
 
 	/* --command-line arg generation */
-	idx = 2;	/* kexec_load_argv current option index */
+	idx = 2;	/* load_argv current option index */
 
 	/* fill '--command-line' option */
-	if (item->cmdline || mtdparts || item->device) {
+	if (item->device) {
 		/* allocate space */
-		n = strlenn(str_cmdline_start) + strlenn(item->cmdline) +
-				sizeof(char) + strlenn(str_mtdparts) + strlenn(mtdparts) +
-				strlenn(str_root) + strlenn(item->device) +
-				strlenn(str_rootfstype) + strlenn(item->fstype) +
-				strlenn(str_rootwait) + sizeof(char);
+		n = sizeof(str_cmdline_start) + strlenn(item->device) +
+				sizeof(str_rootwait) +
+				sizeof(str_rootfstype) + strlenn(item->fstype) +
+				sizeof(str_mtdparts) + strlenn(cfg->mtdparts) +
+				sizeof(str_fbcon) + strlenn(cfg->fbcon) +
+				sizeof(char) + strlenn(item->cmdline);
 
 		cmdline_arg = (char *)malloc(n);
 		if (NULL == cmdline_arg) {
 			perror("Can't allocate memory for cmdline_arg");
-			/*  Should we exit?
-			exit(-1);
-			*/
 		} else {
-			strcpy(cmdline_arg, str_cmdline_start);
-			if (mtdparts) {
+			strcpy(cmdline_arg, str_cmdline_start);	/* --command-line=root= */
+			strcat(cmdline_arg, item->device);
+			if (item->fstype) {
+				strcat(cmdline_arg, str_rootfstype);	/* rootfstype */
+				strcat(cmdline_arg, item->fstype);
+			}
+			strcat(cmdline_arg, str_rootwait);			/* rootwait */
+
+			if (cfg->mtdparts) {
 				strcat(cmdline_arg, str_mtdparts);
-				strcat(cmdline_arg, mtdparts);
+				strcat(cmdline_arg, cfg->mtdparts);
 			}
-			if (item->cmdline && mtdparts) {
-				strcat(cmdline_arg, " ");
+
+			if (cfg->fbcon) {
+				strcat(cmdline_arg, str_fbcon);
+				strcat(cmdline_arg, cfg->fbcon);
 			}
+
 			if (item->cmdline) {
+				strcat(cmdline_arg, " ");
 				strcat(cmdline_arg, item->cmdline);
 			}
-			if (item->device) {
-				strcat(cmdline_arg, str_root);
-				strcat(cmdline_arg, item->device);
-				if (item->fstype) {
-					strcat(cmdline_arg, str_rootfstype);
-					strcat(cmdline_arg, item->fstype);
-				}
-			}
-			strcat(cmdline_arg, str_rootwait);
-
-			kexec_load_argv[idx] = cmdline_arg;
+			load_argv[idx] = cmdline_arg;
 			++idx;
 		}
 	}
 
 	/* Append kernelpath as last arg of kexec */
-	kexec_load_argv[idx] = item->kernelpath;
+	load_argv[idx] = item->kernelpath;
 
-	DPRINTF("kexec_load_argv: %s, %s, %s, %s\n", kexec_load_argv[0],
-			kexec_load_argv[1], kexec_load_argv[2],
-			kexec_load_argv[3]);
-
-	DPRINTF("kexec_exec_argv: %s, %s, %s\n", kexec_exec_argv[0],
-			kexec_exec_argv[1], kexec_exec_argv[2]);
+	DPRINTF("load_argv: %s, %s, %s, %s\n", load_argv[0],
+			load_argv[1], load_argv[2],
+			load_argv[3]);
 
 	/* Mount boot device */
 	if ( -1 == mount(item->device, mount_point, item->fstype,
@@ -261,19 +243,32 @@ void start_kernel(struct boot_item_t *item)
 	}
 
 	/* Load kernel */
-	n = fexecw(kexec_path, (char *const *)kexec_load_argv, envp);
+	n = fexecw(kexec_path, (char *const *)load_argv, envp);
 	if (-1 == n) {
 		perror("Kexec can't load kernel");
 		exit(-1);
 	}
 
-	if (cmdline_arg)
-		free(cmdline_arg);
-
 	umount(mount_point);
 
+	dispose(cmdline_arg);
+
+	/* Check /proc/sys/net presence */
+	if ( -1 == stat("/proc/sys/net", &sinfo) ) {
+		if (ENOENT == errno) {
+			/* We have no network, don't issue ifdown() while kexec'ing */
+			exec_argv[2] = "-x";
+			DPRINTF("No network is detected, disabling ifdown()\n");
+		} else {
+			perror("Can't stat /proc/sys/net");
+		}
+	}
+
+	DPRINTF("exec_argv: %s, %s, %s\n", exec_argv[0],
+			exec_argv[1], exec_argv[2]);
+
 	/* Boot new kernel */
-	execve(kexec_path, (char *const *)kexec_exec_argv, envp);
+	execve(kexec_path, (char *const *)exec_argv, envp);
 }
 
 
@@ -721,8 +716,6 @@ int main(int argc, char **argv)
 	cfg.angle = KXB_FBANGLE;
 	parse_cmdline(&cfg);
 
-	mtdparts = cfg.mtdparts;	/* FIXME should be passed as arg to start_kernel() */
-
 	setup_terminal(cfg.ttydev, &echo_state, 1);
 
 	DPRINTF("FB angle is %d, tty is %s\n", cfg.angle, cfg.ttydev);
@@ -856,7 +849,7 @@ int main(int argc, char **argv)
 	menu_destroy(params.menu);
 
 	if (action >= A_DEVICES) {
-		start_kernel(params.bootcfg->list[action - A_DEVICES]);
+		start_kernel(params.bootcfg->list[action - A_DEVICES], &cfg);
 	}
 
 	/* When we reach this point then some error has occured */

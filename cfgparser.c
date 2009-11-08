@@ -152,7 +152,7 @@ static int set_default(struct cfgdata_t *cfgdata, char *value)
 	return 0;
 }
 
-static int set_angle(struct cfgdata_t *cfgdata, char *value)
+static int set_fbcon(struct cfgdata_t *cfgdata, char *value)
 {
 	const char *str_rotate = "rotate:";
 	char *c;
@@ -169,6 +169,9 @@ static int set_angle(struct cfgdata_t *cfgdata, char *value)
 		DPRINTF("Wrong 'rotate' value: %s\n", value);
 		return -1;
 	}
+
+	dispose(cfgdata->fbcon);
+	cfgdata->fbcon = strdup(value);
 
 	++c;	/* Skip ':' */
 	i = get_nni(c, NULL);
@@ -251,7 +254,7 @@ static struct cfg_keyfunc_t cfg_keyfunc[] = {
 	{ CFG_FILE, 1, "ICON", set_icon },
 	{ CFG_FILE, 1, "APPEND", set_cmdline },
 	{ CFG_FILE, 1, "PRIORITY", set_priority },
-	{ CFG_CMDLINE, 1, "FBCON", set_angle },
+	{ CFG_CMDLINE, 1, "FBCON", set_fbcon },
 	{ CFG_CMDLINE, 1, "MTDPARTS", set_mtdparts },
 	{ CFG_CMDLINE, 1, "CONSOLE", set_ttydev },
 
@@ -404,5 +407,6 @@ void init_cfgdata(struct cfgdata_t *cfgdata)
 
 	cfgdata->angle = 0;
 	cfgdata->mtdparts = NULL;
+	cfgdata->fbcon = NULL;
 	cfgdata->ttydev = NULL;
 }
