@@ -51,9 +51,10 @@ struct gui_t *gui_init(int angle)
 	 */
 	bpp = gui->fb->bpp;
 	gui->icon_logo = xpm_parse_image(logo_xpm, XPM_ROWS(logo_xpm), bpp);
-// 	gui->icon_system = xpm_parse_image(logo_system, XPM_ROWS(logo_system), bpp);
-	gui->icon_system = NULL;
-	gui->icon_cf = xpm_parse_image(cf_xpm, XPM_ROWS(cf_xpm), bpp);
+	gui->icon_system = xpm_parse_image(system_xpm, XPM_ROWS(system_xpm), bpp);
+//	gui->icon_cf = xpm_parse_image(cf_xpm, XPM_ROWS(cf_xpm), bpp);
+	gui->icon_hd = xpm_parse_image(hd_xpm, XPM_ROWS(hd_xpm), bpp);
+	gui->icon_sd = xpm_parse_image(sd_xpm, XPM_ROWS(sd_xpm), bpp);
 	gui->icon_mmc = xpm_parse_image(mmc_xpm, XPM_ROWS(mmc_xpm), bpp);
 	gui->icon_memory = xpm_parse_image(memory_xpm, XPM_ROWS(memory_xpm), bpp);
 	gui->loaded_icons = NULL;
@@ -72,7 +73,9 @@ void gui_destroy(struct gui_t *gui)
 	free_xpmlist(gui->loaded_icons, 1);
 	xpm_destroy_parsed(gui->icon_logo);
 	xpm_destroy_parsed(gui->icon_system);
-	xpm_destroy_parsed(gui->icon_cf);
+//	xpm_destroy_parsed(gui->icon_cf);
+	xpm_destroy_parsed(gui->icon_hd);
+	xpm_destroy_parsed(gui->icon_sd);
 	xpm_destroy_parsed(gui->icon_mmc);
 	xpm_destroy_parsed(gui->icon_memory);
 	fb_destroy(gui->fb);
@@ -137,9 +140,9 @@ void gui_show_menu(struct gui_t *gui, struct menu_t *menu, int current)
 	static int firstslot=0;
 
 	if (1 == menu->fill) {
-		draw_background(gui, "No bootable devices found.\nInsert bootable device!\nR: Reboot  S: Rescan devices");
+		draw_background(gui, "No bootable devices found.\nR: Reboot  S: Rescan devices");
 	} else {
-		draw_background(gui, "Make your choice by selecting\nan item with the cursor keys.\nOK/Enter: Boot selected device\nR: Reboot  S: Rescan devices");
+		draw_background(gui, "KEXECBOOT - Linux bootloader");
 	}
 
 	if(current < firstslot)

@@ -30,6 +30,7 @@ struct device_t {
 enum dtype_t {
 	DVT_UNKNOWN,
 	DVT_HD,
+	DVT_SD,
 	DVT_MMC,
 	DVT_MTD
 };

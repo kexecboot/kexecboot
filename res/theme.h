@@ -17,10 +17,20 @@
 
 /* Icons */
 #include "logo.xpm"
-// #include "system.xpm"
-#include "cf.xpm"
+#include "system.xpm"
+
+// to be enabled
+//#include "back.xpm"
+//#include "reboot.xpm"
+//#include "rescan.xpm"
+//#include "info.xpm"
+
+//#include "cf.xpm"
+#include "hd.xpm"
+#include "sd.xpm"
 #include "mmc.xpm"
 #include "memory.xpm"
+
 
 /* Font */
 #include "radeon-font.h"

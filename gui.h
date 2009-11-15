@@ -25,7 +25,8 @@
 
 struct gui_t {
 	FB *fb;
-	struct xpm_parsed_t *icon_logo, *icon_system, *icon_cf, *icon_mmc, *icon_memory;
+//	struct xpm_parsed_t *icon_logo, *icon_system, *icon_cf, *icon_sd, *icon_mmc, *icon_memory;
+	struct xpm_parsed_t *icon_logo, *icon_system, *icon_hd, *icon_sd, *icon_mmc, *icon_memory;
 	struct xpmlist_t *loaded_icons;	/* Custom icons */
 	struct xpmlist_t *menu_icons;	/* Custom menu associated icons */
 };
