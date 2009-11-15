@@ -49,6 +49,10 @@
 #include "gui.h"
 #endif
 
+#ifdef USE_ZAURUS
+#include "machine/zaurus.h"
+#endif
+
 /* Don't re-create devices when executing on host */
 #ifdef USE_HOST_DEBUG
 #undef USE_DEVICES_RECREATING
@@ -715,6 +719,12 @@ int main(int argc, char **argv)
 	init_cfgdata(&cfg);
 	cfg.angle = KXB_FBANGLE;
 	parse_cmdline(&cfg);
+
+	/* HACK added here only for debugging. should go into scan_devices */
+#ifdef USE_ZAURUS
+	struct zaurus_partinfo_t pinfo;
+	zaurus_read_partinfo(&pinfo);
+#endif
 
 	setup_terminal(cfg.ttydev, &echo_state, 1);
 

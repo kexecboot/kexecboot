@@ -2,8 +2,8 @@ bin_PROGRAMS=kexecboot
 
 AM_CFLAGS = $(GCC_FLAGS)
 
-kexecboot_SOURCES = xpm.c util.c devicescan.c fb.c kexecboot.c \
-	cfgparser.c fstype/fstype.c gui.c menu.c
+kexecboot_SOURCES = cfgparser.c devicescan.c fb.c fstype/fstype.c gui.c \
+	kexecboot.c menu.c util.c xpm.c machine/zaurus.c
 
 EXTRA_DIST = res/make-image-header.sh
 
