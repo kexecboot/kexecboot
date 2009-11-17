@@ -50,13 +50,22 @@ struct gui_t *gui_init(int angle)
 	 * We don't care about result because drawing code is aware
 	 */
 	bpp = gui->fb->bpp;
-	gui->icon_logo = xpm_parse_image(logo_xpm, XPM_ROWS(logo_xpm), bpp);
-	gui->icon_system = xpm_parse_image(system_xpm, XPM_ROWS(system_xpm), bpp);
-//	gui->icon_cf = xpm_parse_image(cf_xpm, XPM_ROWS(cf_xpm), bpp);
-	gui->icon_hd = xpm_parse_image(hd_xpm, XPM_ROWS(hd_xpm), bpp);
-	gui->icon_sd = xpm_parse_image(sd_xpm, XPM_ROWS(sd_xpm), bpp);
-	gui->icon_mmc = xpm_parse_image(mmc_xpm, XPM_ROWS(mmc_xpm), bpp);
-	gui->icon_memory = xpm_parse_image(memory_xpm, XPM_ROWS(memory_xpm), bpp);
+
+	gui->icons = malloc(sizeof(*(gui->icons)) * ICON_ARRAY_SIZE);
+
+	gui->icons[ICON_LOGO] = xpm_parse_image(logo_xpm, XPM_ROWS(logo_xpm), bpp);
+	gui->icons[ICON_SYSTEM] = xpm_parse_image(system_xpm, XPM_ROWS(system_xpm), bpp);
+	gui->icons[ICON_BACK] = xpm_parse_image(back_xpm, XPM_ROWS(back_xpm), bpp);
+	gui->icons[ICON_REBOOT] = xpm_parse_image(reboot_xpm, XPM_ROWS(reboot_xpm), bpp);
+	gui->icons[ICON_RESCAN] = xpm_parse_image(rescan_xpm, XPM_ROWS(rescan_xpm), bpp);
+	gui->icons[ICON_DEBUG] = xpm_parse_image(debug_xpm, XPM_ROWS(debug_xpm), bpp);
+	gui->icons[ICON_HD] = xpm_parse_image(hd_xpm, XPM_ROWS(hd_xpm), bpp);
+	gui->icons[ICON_SD] = xpm_parse_image(sd_xpm, XPM_ROWS(sd_xpm), bpp);
+	gui->icons[ICON_MMC] = xpm_parse_image(mmc_xpm, XPM_ROWS(mmc_xpm), bpp);
+	gui->icons[ICON_MEMORY] = xpm_parse_image(memory_xpm, XPM_ROWS(memory_xpm), bpp);
+//	gui->icons[ICON_EXIT] = xpm_parse_image(exit_xpm, XPM_ROWS(exit_xpm), bpp);
+	gui->icons[ICON_EXIT] = NULL;
+
 	gui->loaded_icons = NULL;
 	gui->menu_icons = NULL;
 
@@ -68,16 +77,16 @@ struct gui_t *gui_init(int angle)
 void gui_destroy(struct gui_t *gui)
 {
 	if (NULL == gui) return;
+	enum icon_id_t i;
 
 	free_xpmlist(gui->menu_icons, 0);
 	free_xpmlist(gui->loaded_icons, 1);
-	xpm_destroy_parsed(gui->icon_logo);
-	xpm_destroy_parsed(gui->icon_system);
-//	xpm_destroy_parsed(gui->icon_cf);
-	xpm_destroy_parsed(gui->icon_hd);
-	xpm_destroy_parsed(gui->icon_sd);
-	xpm_destroy_parsed(gui->icon_mmc);
-	xpm_destroy_parsed(gui->icon_memory);
+
+	for (i=ICON_LOGO; i<ICON_ARRAY_SIZE; i++) {
+		xpm_destroy_parsed(gui->icons[i]);
+	}
+	free(gui->icons);
+
 	fb_destroy(gui->fb);
 	free(gui);
 }
@@ -93,7 +102,7 @@ void draw_background(struct gui_t *gui, const char *text)
 	/* Clear the background with #ecece1 */
 	fb_draw_rect(fb, 0, 0, fb->width, fb->height, COLOR_BG);
 
-	fb_draw_xpm_image(fb, 0, 0, gui->icon_logo);
+	fb_draw_xpm_image(fb, 0, 0, gui->icons[ICON_LOGO]);
 
 	fb_draw_text (fb, 32 + margin, margin, COLOR_TEXT,
 		DEFAULT_FONT, text);

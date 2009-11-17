@@ -19,13 +19,11 @@
 #include "logo.xpm"
 #include "system.xpm"
 
-// to be enabled
-//#include "back.xpm"
-//#include "reboot.xpm"
-//#include "rescan.xpm"
-//#include "info.xpm"
+#include "back.xpm"
+#include "reboot.xpm"
+#include "rescan.xpm"
+#include "debug.xpm"
 
-//#include "cf.xpm"
 #include "hd.xpm"
 #include "sd.xpm"
 #include "mmc.xpm"

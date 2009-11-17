@@ -97,6 +97,7 @@ struct params_t {
 #endif
 };
 
+
 /* Return lowercased and stripped machine-specific kernel path */
 /* Return value should be free()'d */
 char *get_machine_kernelpath() {
@@ -465,7 +466,7 @@ int build_menu(struct params_t *params)
 
 	gui = params->gui;
 
-	addto_xpmlist(icons, gui->icon_system);
+	addto_xpmlist(icons, gui->icons[ICON_SYSTEM]);
 #endif
 
 	label = malloc(sizeof_label);
@@ -517,17 +518,16 @@ int build_menu(struct params_t *params)
 				/* We have no custom icon - use default */
 				switch (tbi->dtype) {
 				case DVT_HD:
-//					icon = gui->icon_cf;
-					icon = gui->icon_hd;
+					icon = gui->icons[ICON_HD];
 					break;
 				case DVT_SD:
-					icon = gui->icon_sd;
+					icon = gui->icons[ICON_SD];
 					break;
 				case DVT_MMC:
-					icon = gui->icon_mmc;
+					icon = gui->icons[ICON_MMC];
 					break;
 				case DVT_MTD:
-					icon = gui->icon_memory;
+					icon = gui->icons[ICON_MEMORY];
 					break;
 				case DVT_UNKNOWN:
 				default:

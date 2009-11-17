@@ -1,5 +1,5 @@
 /* XPM */
-static char * info_xpm[] = {
+static char * debug_xpm[] = {
 "32 32 32 1",
 " 	c None",
 ".	c #035AB3",

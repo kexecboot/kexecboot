@@ -23,13 +23,29 @@
 #include "xpm.h"
 #include "menu.h"
 
+enum icon_id_t {
+	ICON_LOGO = 0,
+	ICON_SYSTEM,
+	ICON_BACK,
+	ICON_REBOOT,
+	ICON_RESCAN,
+	ICON_DEBUG,
+	ICON_HD,
+	ICON_SD,
+	ICON_MMC,
+	ICON_MEMORY,
+	ICON_EXIT,
+
+	ICON_ARRAY_SIZE		/* should be latest item */
+};
+
 struct gui_t {
 	FB *fb;
-//	struct xpm_parsed_t *icon_logo, *icon_system, *icon_cf, *icon_sd, *icon_mmc, *icon_memory;
-	struct xpm_parsed_t *icon_logo, *icon_system, *icon_hd, *icon_sd, *icon_mmc, *icon_memory;
+	struct xpm_parsed_t **icons;
 	struct xpmlist_t *loaded_icons;	/* Custom icons */
 	struct xpmlist_t *menu_icons;	/* Custom menu associated icons */
 };
+
 
 struct gui_t *gui_init(int angle);
 
