@@ -34,7 +34,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <linux/fs.h>
+// #include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include "mtd-user.h"
@@ -166,11 +166,15 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	}
 
 	/* Get MTD device size */
-	if (ioctl(fd, BLKGETSIZE, &mtdsize) != 0) {
-		perror("BLKGETSIZE");
-		goto closefd;
-	}
-	mtdsize /= 2; /* *(512/1024) */
+#if 0
+	if (0 == ioctl(fd, BLKGETSIZE, &mtdsize))
+		mtdsize /= 2; /* *(512/1024) */
+	else
+		mtdsize = 0;
+#else
+	mtdsize = lseek(fd, 0, SEEK_END);
+	lseek(fd, 0, SEEK_SET);
+#endif
 
 	/* Make sure device page sizes are valid */
 	if (!(meminfo.oobsize == 64 && meminfo.writesize == 2048) &&
