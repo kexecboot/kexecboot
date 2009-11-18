@@ -9,7 +9,7 @@ AC_ARG_WITH([static-linking],[AS_HELP_STRING([--with-static-linking],[compiles k
 AC_ARG_WITH([fbmenu],[AS_HELP_STRING([--with-fbmenu],[support framebuffer menu @<:@default=yes@:>@])],[],[with_fbmenu=yes])
 AC_ARG_WITH([cfgfiles],[AS_HELP_STRING([--with-cfgfiles],[support config files @<:@default=yes@:>@])],[],[with_cfgfiles=yes])
 AC_ARG_WITH([icons],[AS_HELP_STRING([--with-icons],[support custom icons (depends on fbmenu) @<:@default=yes@:>@])],[],[with_icons=yes])
-AC_ARG_WITH([zaurus],[AS_HELP_STRING([--with-zaurus],[compile Sharp Zaurus specific code @<:@default=yes@:>@])],[],[with_zaurus=yes])
+AC_ARG_WITH([zaurus],[AS_HELP_STRING([--with-zaurus],[compile Sharp Zaurus specific code @<:@default=no@:>@])],[],[with_zaurus=no])
 AC_ARG_ENABLE([devices-recreating],[AS_HELP_STRING([--enable-devices-recreating],[enable devices re-creating @<:@default=yes@:>@])], [],[enable_devices_recreating=\"yes\"])
 AC_ARG_ENABLE([debug],[AS_HELP_STRING([--enable-debug],[enable debug output @<:@default=no@:>@])], [],[enable_debug=\"no\"])
 AC_ARG_ENABLE([host-debug],[AS_HELP_STRING([--enable-host-debug],[allow for non-destructive executing of kexecboot on host system@<:@default=no@:>@])], [],[enable_host_debug=\"no\"])

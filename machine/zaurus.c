@@ -2,6 +2,16 @@
  *  kexecboot - A kexec based bootloader
  *
  *  Copyright (c) 2009 Yuri Bushmelev <jay4mail@gmail.com>
+ *  Copyright (c) 2009 Andrea Adami <andrea.adami@gmail.com>
+ *
+ *  Based on
+ *  NAND logical utility for Sharp Zaurus SL-C7x0/860/7500/Cxx00
+ *  version 1.0
+ *  Copyright 2006 Alexander Chukov <sash@pdaXrom.org>
+ *
+ *  Based on nanddump.c
+ *  Copyright (c) 2000 David Woodhouse (dwmw2@infradead.org)
+ *  Copyright (c) 2000 Steven J. Hill (sjhill@cotw.com)
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +34,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include "mtd-user.h"
@@ -83,7 +94,7 @@ static uint nand_get_logical_no(unsigned char *oob)
 	}
 }
 
-void scan_logical(int fd, struct mtd_oob_buf *oob, unsigned long *log2phy, unsigned char *oobbuf, int blocks, int erasesize)
+void scan_logical(int fd, struct mtd_oob_buf *oob, unsigned long *log2phy, int blocks, int erasesize)
 {
 	int i, log_no;
 	unsigned long offset;
@@ -98,15 +109,15 @@ void scan_logical(int fd, struct mtd_oob_buf *oob, unsigned long *log2phy, unsig
 		ret = ioctl(fd, MEMREADOOB, oob);
 
 		if (!ret) {
-			log_no = nand_get_logical_no(oobbuf);	/* NOTE: Here was oobbuf before */
+			log_no = nand_get_logical_no(oob->ptr);	/* NOTE: Here was oobbuf before */
 			if ( ((int)log_no >= 0) && (log_no < blocks) ) {
 				log2phy[log_no] = offset;
-				DPRINTF("NAND logical - %08X -> %04X\n", offset, log_no * erasesize);
+// 				DPRINTF("NAND logical - %08X -> %04X\n", offset, log_no * erasesize);
 			} else {
-				DPRINTF("NAND logical - %08X - skip (%x)\n", offset, log_no);
+// 				DPRINTF("NAND logical - %08X - skip (%x)\n", offset, log_no);
 			}
 		} else {
-			DPRINTF("NAND logical - offset %x read OOB problem\n", offset);
+// 			DPRINTF("NAND logical - offset %x read OOB problem\n", offset);
 		}
 		offset += erasesize;
 	}
@@ -121,25 +132,24 @@ one big read 0x60004 - 0x60028 36 bytes
 0x60014 fsro
 0x60024 fsrw -> seems wrong: is 0x04000000 = 64Mb while new models have 128M 0x08000000 flash
 
+To Do: check backup copy at 0x64004 and 0x64014 for consistency ?
 bkp boot on 0x64004
 bkp fsro on 0x64014
 bkp fsrw on 0x64024
-
-To Do: check backup copy at 0x64004 and 0x64014 for consistency ?
 */
 
 /* Read zaurus'es mtdparts from paraminfo NAND area */
 int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 {
 
+	const unsigned long start_addr = 0x60004;
+	const unsigned long length = 36;
 	int blocks, bs, fd;
-	unsigned long start_addr = 0x60004;
-	unsigned long length = 36;
+	unsigned long mtdsize = 0;
 	unsigned long end_addr;
 	unsigned long ofs;
 	unsigned long *log2phy;
-	unsigned char *readbuf;
-	unsigned char *oobbuf;
+	unsigned char *readbuf, *p;
 	mtd_info_t meminfo;
 	struct mtd_oob_buf oob = {0, 16, NULL};
 
@@ -155,6 +165,13 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 		goto closefd;
 	}
 
+	/* Get MTD device size */
+	if (ioctl(fd, BLKGETSIZE, &mtdsize) != 0) {
+		perror("BLKGETSIZE");
+		goto closefd;
+	}
+	mtdsize /= 2; /* *(512/1024) */
+
 	/* Make sure device page sizes are valid */
 	if (!(meminfo.oobsize == 64 && meminfo.writesize == 2048) &&
 			!(meminfo.oobsize == 16 && meminfo.writesize == 512) &&
@@ -167,23 +184,27 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	//printf("erasesize %x\nwritesize %x\noobsize %x\nsize %x\n", meminfo.erasesize, meminfo.writesize, meminfo.oobsize, meminfo.size);
 
 	blocks = NAND_LOGICAL_SIZE / meminfo.erasesize;
-	log2phy = malloc(blocks * sizeof(unsigned long));
-	readbuf = malloc(meminfo.erasesize);
-	oobbuf = malloc(meminfo.writesize);
-	oob.ptr = oobbuf;
+	log2phy = malloc(blocks * sizeof(*log2phy));
+	oob.ptr = malloc(meminfo.writesize);
+	if (length > meminfo.erasesize)
+		readbuf = malloc(length);
+	else
+		readbuf = malloc(meminfo.erasesize);
 
-	scan_logical(fd, &oob, log2phy, oobbuf, blocks, meminfo.erasesize);
+	scan_logical(fd, &oob, log2phy, blocks, meminfo.erasesize);
 
-	DPRINTF("Start: %x, End: %x\n", start_addr, length);
+	DPRINTF("Start: %lx, End: %lx\n", start_addr, length);
 
 	end_addr = start_addr + length;
 	bs = meminfo.writesize;
 
-	for (ofs = start_addr; ofs < end_addr ; ofs+=bs) {
+	/* Read data */
+	p = readbuf;
+	for (ofs = start_addr; ofs < end_addr; ofs += bs) {
 	    int offset = log2phy[ofs / meminfo.erasesize];
 
 	    if ((int)offset < 0) {
-			DPRINTF("NAND logical - offset %08X not found\n", ofs);
+			DPRINTF("NAND logical - offset %08lX not found\n", ofs);
 			goto closeall;
 	    }
 
@@ -191,29 +212,38 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 
 	    DPRINTF("Offset: %x\n", offset);
 
-		if (pread(fd, readbuf, bs, offset) != bs) {
+		if (pread(fd, p, bs, offset) != bs) {
 			perror("pread");
 			goto closeall;
 		}
-
-
-		/* reversed byte order (on little endian?) */
-
-		DPRINTF("SMF: %02X%02X%02X%02X\n", readbuf[3], readbuf[2], readbuf[1], readbuf[0]);
-		DPRINTF("Root: %02X%02X%02X%02X\n", readbuf[19], readbuf[18], readbuf[17], readbuf[16]);
-		// seems wrong: is 0x04000000 = 64Mb while new models have 128M 0x08000000 flash
-		DPRINTF("Home: %02X%02X%02X%02X\n", readbuf[35], readbuf[34], readbuf[33], readbuf[32]);
-
+		p += bs;
 	}
+	close(fd);
 
-	partinfo->smf = 0x700000;
-	partinfo->root = 0x4100000;
-	partinfo->home = 0x8000000;
+	/* reversed byte order (on little endian?) */
+	DPRINTF("Total MTD size: %lu\n", mtdsize);
+	blocks = readbuf[0] + (readbuf[1] << 8) + (readbuf[2] << 16) + (readbuf[3] << 24);
+	DPRINTF("SMF: %X = %02X%02X%02X%02X\n", blocks, readbuf[3], readbuf[2], readbuf[1], readbuf[0]);
+	bs = readbuf[16] + (readbuf[17] << 8) + (readbuf[18] << 16) + (readbuf[19] << 24);
+	DPRINTF("Root: %X = %02X%02X%02X%02X\n", bs, readbuf[19], readbuf[18], readbuf[17], readbuf[16]);
+	fd = readbuf[28] + (readbuf[29] << 8) + (readbuf[30] << 16) + (readbuf[31] << 24);
+	DPRINTF("Root[2]: %X = %02X%02X%02X%02X\n", fd, readbuf[31], readbuf[30], readbuf[29], readbuf[28]);
+	DPRINTF("Home: %lX\n", mtdsize - bs - blocks);
+
+	partinfo->smf = blocks;
+	partinfo->root = bs;
+	partinfo->home = mtdsize - bs - blocks;
+
+	free(log2phy);
+	free(readbuf);
+	free(oob.ptr);
+
+	return 0;
 
 closeall:
 	free(log2phy);
 	free(readbuf);
-	free(oobbuf);
+	free(oob.ptr);
 closefd:
 	close(fd);
 
