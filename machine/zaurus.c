@@ -124,6 +124,24 @@ void scan_logical(int fd, struct mtd_oob_buf *oob, unsigned long *log2phy, int b
 }
 
 
+/* Return mtd partition size in bytes */
+unsigned long get_mtdsize(char *mtd_name)
+{
+	int fd;
+	off_t o;
+
+	if ((fd = open(mtd_name, O_RDONLY)) == -1) {
+		perror("open flash");
+		return 0;
+	}
+	o = lseek(fd, 0, SEEK_END);
+	if (o < 0) {
+		perror("lseek");
+		return 0;
+	}
+	return (unsigned long)o;
+}
+
 /*
 Sharp's bootloader (Angel) hardcoded addresses
 one big read 0x60004 - 0x60028 36 bytes
@@ -153,6 +171,10 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	mtd_info_t meminfo;
 	struct mtd_oob_buf oob = {0, 16, NULL};
 
+	/* Count overall NAND size */
+	mtdsize = get_mtdsize("/dev/mtd2");	/* FSRO (Root) */
+	mtdsize += get_mtdsize("/dev/mtd3");	/* FSRW (Home) */
+
 	/* Open MTD device */
 	if ((fd = open("/dev/mtd1", O_RDONLY)) == -1) {
 		perror("open flash");
@@ -164,17 +186,6 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 		perror("MEMGETINFO");
 		goto closefd;
 	}
-
-	/* Get MTD device size */
-#if 0
-	if (0 == ioctl(fd, BLKGETSIZE, &mtdsize))
-		mtdsize /= 2; /* *(512/1024) */
-	else
-		mtdsize = 0;
-#else
-	mtdsize = lseek(fd, 0, SEEK_END);
-	lseek(fd, 0, SEEK_SET);
-#endif
 
 	/* Make sure device page sizes are valid */
 	if (!(meminfo.oobsize == 64 && meminfo.writesize == 2048) &&
@@ -223,24 +234,34 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 		p += bs;
 	}
 	close(fd);
-
-	/* reversed byte order (on little endian?) */
-	DPRINTF("Total MTD size: %lu\n", mtdsize);
-	blocks = readbuf[0] + (readbuf[1] << 8) + (readbuf[2] << 16) + (readbuf[3] << 24);
-	DPRINTF("SMF: %X = %02X%02X%02X%02X\n", blocks, readbuf[3], readbuf[2], readbuf[1], readbuf[0]);
-	bs = readbuf[16] + (readbuf[17] << 8) + (readbuf[18] << 16) + (readbuf[19] << 24);
-	DPRINTF("Root: %X = %02X%02X%02X%02X\n", bs, readbuf[19], readbuf[18], readbuf[17], readbuf[16]);
-	fd = readbuf[28] + (readbuf[29] << 8) + (readbuf[30] << 16) + (readbuf[31] << 24);
-	DPRINTF("Root[2]: %X = %02X%02X%02X%02X\n", fd, readbuf[31], readbuf[30], readbuf[29], readbuf[28]);
-	DPRINTF("Home: %lX\n", mtdsize - bs - blocks);
-
-	partinfo->smf = blocks;
-	partinfo->root = bs;
-	partinfo->home = mtdsize - bs - blocks;
-
 	free(log2phy);
-	free(readbuf);
 	free(oob.ptr);
+
+	mtdsize += meminfo.size;
+	DPRINTF("Total MTD size: %lu\n", mtdsize);
+
+	/* fd, bs and blocks are used as temporary variables */
+	fd = readbuf[0] + (readbuf[1] << 8) + (readbuf[2] << 16) + (readbuf[3] << 24);
+	DPRINTF("SMF: %X\n", partinfo->smf);
+
+	bs = readbuf[16] + (readbuf[17] << 8) + (readbuf[18] << 16) + (readbuf[19] << 24);
+	DPRINTF("Root: %X\n", bs);
+
+	blocks = readbuf[28] + (readbuf[29] << 8) + (readbuf[30] << 16) + (readbuf[31] << 24);
+	DPRINTF("Root[2]: %X\n", blocks);
+
+	free(readbuf);
+
+	/* Try to check that we have original NAND flash content */
+	if (blocks != bs) {
+		DPRINTF("Original NAND content was changed. We can't use mtd partition info\n");
+		return -1;
+	}
+
+	partinfo->home = mtdsize - fd - bs;
+	DPRINTF("Home: %X\n", partinfo->home);
+	partinfo->smf = fd;
+	partinfo->root = bs;
 
 	return 0;
 
