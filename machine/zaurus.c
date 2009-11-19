@@ -238,11 +238,11 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	free(oob.ptr);
 
 	mtdsize += meminfo.size;
-	DPRINTF("Total MTD size: %lu\n", mtdsize);
+	DPRINTF("Total MTD size: %lX\n", mtdsize);
 
 	/* fd, bs and blocks are used as temporary variables */
 	fd = readbuf[0] + (readbuf[1] << 8) + (readbuf[2] << 16) + (readbuf[3] << 24);
-	DPRINTF("SMF: %X\n", partinfo->smf);
+	DPRINTF("SMF: %X\n", fd);
 
 	bs = readbuf[16] + (readbuf[17] << 8) + (readbuf[18] << 16) + (readbuf[19] << 24);
 	DPRINTF("Root: %X\n", bs);
@@ -252,16 +252,18 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 
 	free(readbuf);
 
+	DPRINTF("Home: %X\n", mtdsize - fd - bs);
+
 	/* Try to check that we have original NAND flash content */
 	if (blocks != bs) {
 		DPRINTF("Original NAND content was changed. We can't use mtd partition info\n");
 		return -1;
 	}
 
-	partinfo->home = mtdsize - fd - bs;
-	DPRINTF("Home: %X\n", partinfo->home);
-	partinfo->smf = fd;
-	partinfo->root = bs;
+	/* Convert bytes to Kbytes to be like /proc/partition */
+	partinfo->home = (mtdsize - fd - bs) << 10;
+	partinfo->smf = fd << 10;
+	partinfo->root = bs << 10;
 
 	return 0;
 
