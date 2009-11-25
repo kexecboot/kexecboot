@@ -90,6 +90,7 @@ enum actions_t {
 
 /* Common parameters */
 struct params_t {
+	struct cfgdata_t *cfg;
 	struct bootconf_t *bootcfg;
 	struct menu_t *menu;
 #ifdef USE_FBMENU
@@ -158,7 +159,7 @@ char *get_machine_kernelpath() {
 }
 
 
-void start_kernel(struct boot_item_t *item, struct cfgdata_t *cfg)
+void start_kernel(struct params_t *params, int choice)
 {
 	/* we use var[] instead of *var because sizeof(var) using */
 #ifdef USE_HOST_DEBUG
@@ -185,6 +186,9 @@ void start_kernel(struct boot_item_t *item, struct cfgdata_t *cfg)
 	char *cmdline_arg = NULL;
 	int n, idx;
 	struct stat sinfo;
+	struct boot_item_t *item;
+
+	item = params->bootcfg->list[choice];
 
 	exec_argv[0] = kexec_path;
 	load_argv[0] = kexec_path;
@@ -195,11 +199,11 @@ void start_kernel(struct boot_item_t *item, struct cfgdata_t *cfg)
 	/* fill '--command-line' option */
 	if (item->device) {
 		/* allocate space */
-		n = sizeof(str_cmdline_start) + strlenn(item->device) +
+		n = sizeof(str_cmdline_start) + strlen(item->device) +
 				sizeof(str_rootwait) +
-				sizeof(str_rootfstype) + strlenn(item->fstype) +
-				sizeof(str_mtdparts) + strlenn(cfg->mtdparts) +
-				sizeof(str_fbcon) + strlenn(cfg->fbcon) +
+				sizeof(str_rootfstype) + strlen(item->fstype) +
+				sizeof(str_mtdparts) + strlenn(params->cfg->mtdparts) +
+				sizeof(str_fbcon) + strlenn(params->cfg->fbcon) +
 				sizeof(char) + strlenn(item->cmdline);
 
 		cmdline_arg = (char *)malloc(n);
@@ -214,14 +218,14 @@ void start_kernel(struct boot_item_t *item, struct cfgdata_t *cfg)
 			}
 			strcat(cmdline_arg, str_rootwait);			/* rootwait */
 
-			if (cfg->mtdparts) {
+			if (params->cfg->mtdparts) {
 				strcat(cmdline_arg, str_mtdparts);
-				strcat(cmdline_arg, cfg->mtdparts);
+				strcat(cmdline_arg, params->cfg->mtdparts);
 			}
 
-			if (cfg->fbcon) {
+			if (params->cfg->fbcon) {
 				strcat(cmdline_arg, str_fbcon);
-				strcat(cmdline_arg, cfg->fbcon);
+				strcat(cmdline_arg, params->cfg->fbcon);
 			}
 
 			if (item->cmdline) {
@@ -314,6 +318,17 @@ int scan_devices(struct params_t *params)
 	bpp = params->gui->fb->bpp;
 #endif
 
+#ifdef USE_ZAURUS
+	struct zaurus_partinfo_t pinfo;
+	int zaurus_error = 0;
+	zaurus_error = zaurus_read_partinfo(&pinfo);
+	if (0 == zaurus_error) {
+		/* Fix mtdparts tag */
+		dispose(params->cfg->mtdparts);
+		params->cfg->mtdparts = zaurus_mtdparts(&pinfo);
+	}
+#endif
+
 	for (;;) {
 		rc = devscan_next(f, fl, &dev);
 		if (rc < 0) continue;	/* Error */
@@ -382,6 +397,18 @@ umount:
 			icon->tag = rc;	/* rc is No. of current bootconf item */
 			addto_xpmlist(xl, icon);
 			DPRINTF("Added %d icon '%s' to %s\n",rc, cfgdata.iconpath, dev.device);
+		}
+#endif
+
+#ifdef USE_ZAURUS
+		/* Fix partition sizes. We can have kernel in root and home partitions on NAND */
+		/* HACK: mtdblock devices are hardcoded */
+		if (0 == zaurus_error) {
+			if (0 == strcmp(dev.device, "/dev/mtdblock2")) {	/* root */
+				bootconf->list[rc]->blocks = pinfo.root;
+			} else if (0 == strcmp(dev.device, "/dev/mtdblock3")) {	/* home */
+				bootconf->list[rc]->blocks = pinfo.home;
+			}
 		}
 #endif
 
@@ -724,12 +751,6 @@ int main(int argc, char **argv)
 	cfg.angle = KXB_FBANGLE;
 	parse_cmdline(&cfg);
 
-	/* HACK added here only for debugging. should go into scan_devices */
-#ifdef USE_ZAURUS
-	struct zaurus_partinfo_t pinfo;
-	zaurus_read_partinfo(&pinfo);
-#endif
-
 	setup_terminal(cfg.ttydev, &echo_state, 1);
 
 	DPRINTF("FB angle is %d, tty is %s\n", cfg.angle, cfg.ttydev);
@@ -747,6 +768,7 @@ int main(int argc, char **argv)
 	params.gui = gui;
 #endif
 	params.bootcfg = NULL;
+	params.cfg = &cfg;
 
 	/* In: gui.bpp */
 	/* Out: bootcfg, gui.loaded_icons */
@@ -863,7 +885,7 @@ int main(int argc, char **argv)
 	menu_destroy(params.menu);
 
 	if (action >= A_DEVICES) {
-		start_kernel(params.bootcfg->list[action - A_DEVICES], &cfg);
+		start_kernel(&params, action - A_DEVICES);
 	}
 
 	/* When we reach this point then some error has occured */

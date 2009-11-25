@@ -19,12 +19,13 @@
 #define _HAVE_ZAURUS_H
 
 struct zaurus_partinfo_t {
-	int smf;
-	int root;
-	int home;
+	unsigned int smf;
+	unsigned int root;
+	unsigned int home;
 };
 
 /* Read zaurus'es mtdparts from paraminfo NAND area */
 int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo);
+char *zaurus_mtdparts(struct zaurus_partinfo_t *partinfo);
 
 #endif /* _HAVE_ZAURUS_H */

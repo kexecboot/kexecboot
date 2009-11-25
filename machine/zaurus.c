@@ -125,7 +125,7 @@ void scan_logical(int fd, struct mtd_oob_buf *oob, unsigned long *log2phy, int b
 
 
 /* Return mtd partition size in bytes */
-unsigned long get_mtdsize(char *mtd_name)
+unsigned int get_mtdsize(char *mtd_name)
 {
 	int fd;
 	off_t o;
@@ -139,7 +139,7 @@ unsigned long get_mtdsize(char *mtd_name)
 		perror("lseek");
 		return 0;
 	}
-	return (unsigned long)o;
+	return (unsigned int)o;
 }
 
 /*
@@ -163,7 +163,7 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	const unsigned long start_addr = 0x60004;
 	const unsigned long length = 36;
 	int blocks, bs, fd;
-	unsigned long mtdsize = 0;
+	unsigned int mtdsize = 0;
 	unsigned long end_addr;
 	unsigned long ofs;
 	unsigned long *log2phy;
@@ -238,7 +238,7 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	free(oob.ptr);
 
 	mtdsize += meminfo.size;
-	DPRINTF("Total MTD size: %lX\n", mtdsize);
+	DPRINTF("Total MTD size: %X\n", mtdsize);
 
 	/* fd, bs and blocks are used as temporary variables */
 	fd = readbuf[0] + (readbuf[1] << 8) + (readbuf[2] << 16) + (readbuf[3] << 24);
@@ -261,9 +261,9 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	}
 
 	/* Convert bytes to Kbytes to be like /proc/partition */
-	partinfo->home = (mtdsize - fd - bs) << 10;
-	partinfo->smf = fd << 10;
-	partinfo->root = bs << 10;
+	partinfo->home = (unsigned int)(mtdsize - fd - bs) << 10;
+	partinfo->smf = (unsigned int)fd << 10;
+	partinfo->root = (unsigned int)bs << 10;
 
 	return 0;
 
@@ -275,6 +275,23 @@ closefd:
 	close(fd);
 
 	return -1;
+}
+
+
+char *zaurus_mtdparts(struct zaurus_partinfo_t *partinfo)
+{
+	const char tag_format[] = "sharpsl-nand:%uk(smf),%uk(root),-(home)";
+	const int tag_size = sizeof(tag_format) >> 1;	/* to be sure.. */
+	char *tag;
+
+	tag = malloc(tag_size);
+	if (NULL == tag) {
+		DPRINTF("Can't allocate memory for mtdparts tag\n");
+		return NULL;
+	}
+
+	snprintf(tag, tag_size, tag_format, partinfo->smf, partinfo->root);
+	return tag;
 }
 
 #endif /* USE_ZAURUS */
