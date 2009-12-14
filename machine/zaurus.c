@@ -261,9 +261,9 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	}
 
 	/* Convert bytes to Kbytes to be like /proc/partition */
-	partinfo->home = (unsigned int)(mtdsize - fd - bs) << 10;
-	partinfo->smf = (unsigned int)fd << 10;
-	partinfo->root = (unsigned int)bs << 10;
+	partinfo->home = (unsigned int)(mtdsize - fd - bs) >> 10;
+	partinfo->smf = (unsigned int)fd >> 10;
+	partinfo->root = (unsigned int)bs >> 10;
 
 	return 0;
 
@@ -281,7 +281,7 @@ closefd:
 char *zaurus_mtdparts(struct zaurus_partinfo_t *partinfo)
 {
 	const char tag_format[] = "sharpsl-nand:%uk(smf),%uk(root),-(home)";
-	const int tag_size = sizeof(tag_format) >> 1;	/* to be sure.. */
+	const int tag_size = sizeof(tag_format) << 1;	/* to be sure.. */
 	char *tag;
 
 	tag = malloc(tag_size);
