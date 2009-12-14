@@ -254,6 +254,7 @@ int get_bootinfo(struct cfgdata_t *cfgdata)
 
 	} else {	/* No config file found. Check kernels. */
 
+#ifdef USE_MACHINE_KERNEL
 		/* Check machine kernel if set */
 		if (NULL != machine_kernel) {
 			if (0 == stat(machine_kernel, &sinfo)) {
@@ -262,6 +263,7 @@ int get_bootinfo(struct cfgdata_t *cfgdata)
 				return 0;
 			}
 		}
+#endif
 
 		/* Check default kernels */
 		char **kp;

@@ -58,14 +58,22 @@
 #undef USE_DEVICES_RECREATING
 #endif
 
+#ifdef USE_MACHINE_KERNEL
 /* Machine-dependent kernel patch */
 char *machine_kernel = NULL;
+#endif
 
 /* NULL-terminated array of kernel search paths
  * First item should be filled with machine-dependent path */
 char *default_kernels[] = {
+#ifdef USE_ZIMAGE
 	"/mnt/boot/zImage",
 	"/mnt/zImage",
+#endif
+#ifdef USE_UIMAGE
+	"/mnt/boot/uImage",
+	"/mnt/uImage",
+#endif
 	NULL
 };
 
@@ -98,7 +106,7 @@ struct params_t {
 #endif
 };
 
-
+#ifdef USE_MACHINE_KERNEL
 /* Return lowercased and stripped machine-specific kernel path */
 /* Return value should be free()'d */
 char *get_machine_kernelpath() {
@@ -157,6 +165,7 @@ char *get_machine_kernelpath() {
 	DPRINTF("Can't find 'Hardware' line in cpuinfo\n");
 	return NULL;
 }
+#endif	/* USE_MACHINE_KERNEL */
 
 
 void start_kernel(struct params_t *params, int choice)
@@ -755,7 +764,9 @@ int main(int argc, char **argv)
 
 	DPRINTF("FB angle is %d, tty is %s\n", cfg.angle, cfg.ttydev);
 
+#ifdef USE_MACHINE_KERNEL
 	machine_kernel = get_machine_kernelpath();	/* FIXME should be passed as arg to get_bootinfo() */
+#endif
 
 	sys_menu = build_system_menu();
 
