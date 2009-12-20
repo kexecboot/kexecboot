@@ -156,7 +156,7 @@ bkp fsro on 0x64014
 bkp fsrw on 0x64024
 */
 
-/* Read zaurus'es mtdparts from paraminfo NAND area */
+/* Read zaurus'es mtdparts offsets from paraminfo NAND area */
 int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 {
 
@@ -240,19 +240,19 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	mtdsize += meminfo.size;
 	DPRINTF("Total MTD size: %X\n", mtdsize);
 
-	/* fd, bs and blocks are used as temporary variables */
+	/* Calculating offsets. fd, bs and blocks are used as temporary variables */
 	fd = readbuf[0] + (readbuf[1] << 8) + (readbuf[2] << 16) + (readbuf[3] << 24);
-	DPRINTF("SMF: %X\n", fd);
+	DPRINTF("SMF offset: %X\n", fd);
 
 	bs = readbuf[16] + (readbuf[17] << 8) + (readbuf[18] << 16) + (readbuf[19] << 24);
-	DPRINTF("Root: %X\n", bs);
+	DPRINTF("Root offset: %X\n", bs);
 
 	blocks = readbuf[28] + (readbuf[29] << 8) + (readbuf[30] << 16) + (readbuf[31] << 24);
-	DPRINTF("Root[2]: %X\n", blocks);
+	DPRINTF("Root[2] offset: %X\n", blocks);
 
 	free(readbuf);
 
-	DPRINTF("Home: %X\n", mtdsize - fd - bs);
+	DPRINTF("Home size: %X\n", mtdsize - bs);
 
 	/* Try to check that we have original NAND flash content */
 	if (blocks != bs) {
@@ -260,10 +260,11 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 		return -1;
 	}
 
-	/* Convert bytes to Kbytes to be like /proc/partition */
-	partinfo->home = (unsigned int)(mtdsize - fd - bs) >> 10;
+	/* Convert offsets to sizes */
+	/* and convert bytes to Kbytes to be like /proc/partition */
+	partinfo->home = (unsigned int)(mtdsize - bs) >> 10;
 	partinfo->smf = (unsigned int)fd >> 10;
-	partinfo->root = (unsigned int)bs >> 10;
+	partinfo->root = (unsigned int)(bs - fd) >> 10;
 
 	return 0;
 

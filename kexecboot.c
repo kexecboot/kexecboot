@@ -414,8 +414,10 @@ umount:
 		/* HACK: mtdblock devices are hardcoded */
 		if (0 == zaurus_error) {
 			if (0 == strcmp(dev.device, "/dev/mtdblock2")) {	/* root */
+				DPRINTF("[Zaurus] Size of %s will be changed from %u to %u\n", dev.device, bootconf->list[rc]->blocks, pinfo.root);
 				bootconf->list[rc]->blocks = pinfo.root;
 			} else if (0 == strcmp(dev.device, "/dev/mtdblock3")) {	/* home */
+				DPRINTF("[Zaurus] Size of %s will be changed from %u to %u\n", dev.device, bootconf->list[rc]->blocks, pinfo.home);
 				bootconf->list[rc]->blocks = pinfo.home;
 			}
 		}
