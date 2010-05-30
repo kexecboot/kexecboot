@@ -37,7 +37,7 @@
 // #include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include "mtd-user.h"
+#include <mtd/mtd-user.h>
 #include "zaurus.h"
 #include "../util.h"
 
