@@ -133,6 +133,7 @@ int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
 	bi->label = cfgdata->label;
 	bi->kernelpath = cfgdata->kernelpath;
 	bi->cmdline = cfgdata->cmdline;
+	bi->initrd = cfgdata->initrd;
 	bi->iconpath = cfgdata->iconpath;
 	bi->priority = cfgdata->priority;
 
@@ -172,6 +173,7 @@ void free_bootcfg(struct bootconf_t *bc)
 		free(bc->list[i]->device);
 		free(bc->list[i]->kernelpath);
 		dispose(bc->list[i]->cmdline);
+		dispose(bc->list[i]->initrd);
 		dispose(bc->list[i]->label);
 		dispose(bc->list[i]->iconpath);
 		free(bc->list[i]);
@@ -198,6 +200,7 @@ void print_bootcfg(struct bootconf_t *bc)
 		DPRINTF(" [%d] label: '%s'\n", i, bc->list[i]->label);
 		DPRINTF(" [%d] kernelpath: '%s'\n", i, bc->list[i]->kernelpath);
 		DPRINTF(" [%d] cmdline: '%s'\n", i, bc->list[i]->cmdline);
+		DPRINTF(" [%d] initrd: '%s'\n", i, bc->list[i]->initrd);
 		DPRINTF(" [%d] iconpath: '%s'\n", i, bc->list[i]->iconpath);
 		DPRINTF(" [%d] priority: '%d'\n", i, bc->list[i]->priority);
 	}

@@ -186,13 +186,15 @@ void start_kernel(struct params_t *params, int choice)
 	const char str_mtdparts[] = " mtdparts=";
 	const char str_fbcon[] = " fbcon=";
 
+	const char str_initrd_start[] = "--initrd=";
+
 	/* empty environment */
 	char *const envp[] = { NULL };
 
-	const char *load_argv[] = { NULL, "-l", NULL, NULL, NULL };
+	const char *load_argv[] = { NULL, "-l", NULL, NULL, NULL, NULL };
 	const char *exec_argv[] = { NULL, "-e", NULL, NULL};
 
-	char *cmdline_arg = NULL;
+	char *cmdline_arg = NULL, *initrd_arg = NULL;
 	int n, idx;
 	struct stat sinfo;
 	struct boot_item_t *item;
@@ -246,12 +248,28 @@ void start_kernel(struct params_t *params, int choice)
 		}
 	}
 
+	/* fill '--initrd' option */
+	if (item->initrd) {
+		/* allocate space */
+		n = sizeof(str_initrd_start) + strlen(item->initrd);
+
+		initrd_arg = (char *)malloc(n);
+		if (NULL == initrd_arg) {
+			perror("Can't allocate memory for initrd_arg");
+		} else {
+			strcpy(initrd_arg, str_initrd_start);	/* --initrd= */
+			strcat(initrd_arg, item->initrd;
+			load_argv[idx] = initrd_arg;
+			++idx;
+		}
+	}
+
 	/* Append kernelpath as last arg of kexec */
 	load_argv[idx] = item->kernelpath;
 
-	DPRINTF("load_argv: %s, %s, %s, %s\n", load_argv[0],
+	DPRINTF("load_argv: %s, %s, %s, %s, %s\n", load_argv[0],
 			load_argv[1], load_argv[2],
-			load_argv[3]);
+			load_argv[3], load_argv[4]);
 
 	/* Mount boot device */
 	if ( -1 == mount(item->device, mount_point, item->fstype,
@@ -270,6 +288,7 @@ void start_kernel(struct params_t *params, int choice)
 	umount(mount_point);
 
 	dispose(cmdline_arg);
+	dispose(initrd_arg);
 
 	/* Check /proc/sys/net presence */
 	if ( -1 == stat("/proc/sys/net", &sinfo) ) {

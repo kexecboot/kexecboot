@@ -85,6 +85,13 @@ static int set_cmdline(struct cfgdata_t *cfgdata, char *value)
 	return 0;
 }
 
+static int set_initrd(struct cfgdata_t *cfgdata, char *value)
+{
+	dispose(cfgdata->initrd);
+	cfgdata->initrd = strdup(value);
+	return 0;
+}
+
 static int set_priority(struct cfgdata_t *cfgdata, char *value)
 {
 	cfgdata->priority = get_nni(value, NULL);
@@ -253,6 +260,7 @@ static struct cfg_keyfunc_t cfg_keyfunc[] = {
 	{ CFG_FILE, 1, "KERNEL", set_kernel },
 	{ CFG_FILE, 1, "ICON", set_icon },
 	{ CFG_FILE, 1, "APPEND", set_cmdline },
+	{ CFG_FILE, 1, "INITRD", set_initrd },
 	{ CFG_FILE, 1, "PRIORITY", set_priority },
 	{ CFG_CMDLINE, 1, "FBCON", set_fbcon },
 	{ CFG_CMDLINE, 1, "MTDPARTS", set_mtdparts },
@@ -402,6 +410,7 @@ void init_cfgdata(struct cfgdata_t *cfgdata)
 	cfgdata->label = NULL;
 	cfgdata->kernelpath = NULL;
 	cfgdata->cmdline = NULL;
+	cfgdata->initrd = NULL;
 	cfgdata->iconpath = NULL;
 	cfgdata->priority = 0;
 
