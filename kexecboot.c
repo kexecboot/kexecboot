@@ -258,7 +258,7 @@ void start_kernel(struct params_t *params, int choice)
 			perror("Can't allocate memory for initrd_arg");
 		} else {
 			strcpy(initrd_arg, str_initrd_start);	/* --initrd= */
-			strcat(initrd_arg, item->initrd;
+			strcat(initrd_arg, item->initrd);
 			load_argv[idx] = initrd_arg;
 			++idx;
 		}
