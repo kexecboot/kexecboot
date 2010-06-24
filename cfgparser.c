@@ -88,7 +88,15 @@ static int set_cmdline(struct cfgdata_t *cfgdata, char *value)
 static int set_initrd(struct cfgdata_t *cfgdata, char *value)
 {
 	dispose(cfgdata->initrd);
-	cfgdata->initrd = strdup(value);
+	/* Add our mountpoint, since the enduser won't know it */
+	cfgdata->initrd = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
+	if (NULL == cfgdata->initrd) {
+		DPRINTF("Can't allocate memory to store initrd '%s'\n", value);
+		return -1;
+	}
+
+	strcpy(cfgdata->initrd, "/mnt");
+	strcat(cfgdata->initrd, value);
 	return 0;
 }
 
