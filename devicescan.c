@@ -621,6 +621,8 @@ void close_event_devices(int *ev_fds, int size)
 {
 	int i;
 
+	if (size <= 0) return;
+
 	for(i = 0; i < size; i++) {
 		if (ev_fds > 0) close(ev_fds[i]);
 	}
