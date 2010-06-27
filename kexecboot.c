@@ -106,6 +106,14 @@ struct params_t {
 #endif
 };
 
+static char *kxb_ttydev = NULL;
+static int kxb_echo_state = 0;
+
+static void atexit_restore_terminal(void)
+{
+	setup_terminal(kxb_ttydev, &kxb_echo_state, 0);
+}
+
 #ifdef USE_MACHINE_KERNEL
 /* Return lowercased and stripped machine-specific kernel path */
 /* Return value should be free()'d */
@@ -760,7 +768,6 @@ enum actions_t process_events(struct ev_params_t *ev)
 int main(int argc, char **argv)
 {
 	int choice = 0;
-	int echo_state = 0;
 	int is_selected = 0;
 	int action = A_MAINMENU;
 	struct cfgdata_t cfg;
@@ -781,7 +788,10 @@ int main(int argc, char **argv)
 	cfg.angle = KXB_FBANGLE;
 	parse_cmdline(&cfg);
 
-	setup_terminal(cfg.ttydev, &echo_state, 1);
+	kxb_ttydev = cfg.ttydev;
+	setup_terminal(kxb_ttydev, &kxb_echo_state, 1);
+	/* Setup function that will restore terminal when exit() will called */
+	atexit(atexit_restore_terminal);
 
 	DPRINTF("FB angle is %d, tty is %s\n", cfg.angle, cfg.ttydev);
 
@@ -908,7 +918,6 @@ int main(int argc, char **argv)
 	close_event_devices(ev.fd, ev.count);
 
 	if ( (A_EXIT == action) || (A_ERROR == action) ) {
-		setup_terminal(cfg.ttydev, &echo_state, 0);
 		exit(action);
 	}
 
@@ -921,7 +930,6 @@ int main(int argc, char **argv)
 	}
 
 	/* When we reach this point then some error has occured */
-	setup_terminal(cfg.ttydev, &echo_state, 0);
 	DPRINTF("We should not reach this point!");
-	return -1;
+	exit(-1);
 }
