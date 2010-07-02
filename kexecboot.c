@@ -652,11 +652,12 @@ int do_init(void)
 	/* Set up console loglevel */
 	f = fopen("/proc/sys/kernel/printk", "w");
 	if (NULL == f) {
+		/* CONFIG_PRINTK may be disabled */
 		perror("/proc/sys/kernel/printk");
-		exit(-1);
+	} else {
+		fputs("0 4 1 7\n", f);
+		fclose(f);
 	}
-	fputs("0 4 1 7\n", f);
-	fclose(f);
 
 	return 1;
 }
