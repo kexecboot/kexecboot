@@ -1,7 +1,7 @@
 /*
  *  kexecboot - A kexec based bootloader
  *
- *  Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
+ *  Copyright (c) 2008-2010 Yuri Bushmelev <jay4mail@gmail.com>
  *  Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *  Copyright (c) 2006 Matthew Allum <mallum@o-hand.com>
  *
@@ -156,6 +156,11 @@ FB *fb_new(int angle)
 		if (!attempt_to_change_pixel_format(fb, &fb_var))
 			goto fail;
 	}
+	if (ioctl (fb->fd, FBIOGET_VSCREENINFO, &fb_var) == -1)
+	{
+		perror ("Error getting variable framebuffer info (2)");
+		goto fail;
+	}
 
 	/* NB: It looks like the fbdev concept of fixed vs variable screen info is
 	 * broken. The line_length is part of the fixed info but it can be changed
@@ -171,8 +176,35 @@ FB *fb_new(int angle)
 	fb->stride = fb_fix.line_length;
 	fb->type = fb_fix.type;
 	fb->visual = fb_fix.visual;
-	fb->screensize = fb->width * fb->height * fb->bpp/8;
+	fb->screensize = fb->width * fb->height * fb->bpp/8; /* FIXME: is it ok for bpp < 8? */
 	fb->backbuffer = malloc(fb->screensize);
+
+	fb->red_offset = fb_var.red.offset;
+	fb->red_length = fb_var.red.length;
+	fb->green_offset = fb_var.green.offset;
+	fb->green_length = fb_var.green.length;
+	fb->blue_offset = fb_var.blue.offset;
+	fb->blue_length = fb_var.blue.length;
+
+	if (fb->red_offset == 11 && fb->red_length == 5 &&
+		fb->green_offset == 5 && fb->green_length == 6 &&
+		fb->blue_offset == 0 && fb->blue_length == 5) {
+			fb->rgbmode = RGB565;
+	} else if (fb->red_offset == 0 && fb->red_length == 5 &&
+		fb->green_offset == 5 && fb->green_length == 6 &&
+		fb->blue_offset == 11 && fb->blue_length == 5) {
+			fb->rgbmode = BGR565;
+	} else if (fb->red_offset == 16 && fb->red_length == 8 &&
+		fb->green_offset == 8 && fb->green_length == 8 &&
+		fb->blue_offset == 0 && fb->blue_length == 8) {
+			fb->rgbmode = RGB888;
+	} else if (fb->red_offset == 0 && fb->red_length == 8 &&
+		fb->green_offset == 8 && fb->green_length == 8 &&
+		fb->blue_offset == 8 && fb->blue_length == 8) {
+			fb->rgbmode = BGR888; /* NOTE: 0/8/8 looking strange.. should it be 0/8/16? */
+	} else {
+			fb->rgbmode = GENERIC;
+	}
 
 	fb->base = (char *) mmap((caddr_t) NULL,
 				 /*fb_fix.smem_len */
@@ -253,7 +285,7 @@ fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 {
 	int off, shift;
 
-	if (x < 0 || x > (fb->width - 1) || y < 0 || y > (fb->height - 1))
+	if ( (x < 0) || (x > (fb->width - 1)) || (y < 0) || (y > (fb->height - 1)) )
 		return;
 
 	switch (fb->angle) {
@@ -272,37 +304,78 @@ fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 		break;
 	}
 
-	/* FIXME: handle no RGB orderings */
-	switch (fb->bpp) {
-	case 24:
-	case 32:
-		*(fb->backbuffer + off) = red;
-		*(fb->backbuffer + off + 1) = green;
-		*(fb->backbuffer + off + 2) = blue;
-	//	*(fb->data + off) = red;
-	//	*(fb->data + off + 1) = green;
-	//	*(fb->data + off + 2) = blue;
-		break;
-	case 16:
-	//	*(volatile uint16 *) (fb->data + off)
-		*(volatile uint16 *) (fb->backbuffer + off)
-		    = ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
-		break;
-	case 2:
-		shift = (3 - (off & 3)) << 1;
-		*(fb->data + (off >> 2)) = (*(fb->data + (off >> 2)) & ~(3 << shift))
-		| (((11*red + 16*green + 5*blue) >> 11) << shift);
-		break;
-	case 1:
-		shift = 7 - (off & 7);
-		if (((11*red + 16*green + 5*blue) >> 5) >= 128)
-			*(fb->data + (off >> 3)) |= (1 << shift);
-		else
-			*(fb->data + (off >> 3)) &= ~(1 << shift);
-		break;
-	default:
-		/* depth not supported yet */
-		break;
+	if (fb->rgbmode == RGB565 || fb->rgbmode == RGB888) {
+	switch (fb->bpp)
+		{
+		case 24:
+		case 32:
+			*(fb->backbuffer + off)     = blue;
+			*(fb->backbuffer + off + 1) = green;
+			*(fb->backbuffer + off + 2) = red;
+			break;
+		case 16:
+			*(volatile uint16_t *) (fb->backbuffer + off)
+				= ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
+			break;
+		default:
+			/* depth not supported yet */
+			break;
+		}
+	} else if (fb->rgbmode == BGR565 || fb->rgbmode == BGR888) {
+	switch (fb->bpp)
+		{
+		case 24:
+		case 32:
+			*(fb->backbuffer + off)     = red;
+			*(fb->backbuffer + off + 1) = green;
+			*(fb->backbuffer + off + 2) = blue;
+			break;
+		/* FIXME: this was compared against sum of color length, not bpp */
+		/* FIXME: should we add this to other blocks? */
+		case 18:
+			*(fb->backbuffer + off)     = (red >> 2) | ((green & 0x0C) << 4);
+			*(fb->backbuffer + off + 1) = ((green & 0xF0) >> 4) | ((blue & 0x3C) << 2);
+			*(fb->backbuffer + off + 2) = (blue & 0xC0) >> 6;
+			break;
+		case 16:
+			*(volatile uint16_t *) (fb->backbuffer + off)
+				= ((blue >> 3) << 11) | ((green >> 2) << 5) | (red >> 3);
+			break;
+		default:
+			/* depth not supported yet */
+			break;
+		}
+	} else {
+		switch (fb->bpp)
+		{
+		case 32:
+			*(volatile uint32_t *) (fb->backbuffer + off)
+			= ((red >> (8 - fb->red_length)) << fb->red_offset)
+				| ((green >> (8 - fb->green_length)) << fb->green_offset)
+				| ((blue >> (8 - fb->blue_length)) << fb->blue_offset);
+			break;
+		case 16:
+			*(volatile uint16_t *) (fb->backbuffer + off)
+			= ((red >> (8 - fb->red_length)) << fb->red_offset)
+				| ((green >> (8 - fb->green_length)) << fb->green_offset)
+				| ((blue >> (8 - fb->blue_length)) << fb->blue_offset);
+			break;
+		case 2:
+				shift = (3 - (off & 3)) << 1;
+				*(fb->backbuffer + (off >> 2)) = (*(fb->backbuffer + (off >> 2)) & ~(3 << shift))
+				| (((11*red + 16*green + 5*blue) >> 11) << shift);
+			break;
+		case 1:
+			shift = 7 - (off & 7);
+			if (((11*red + 16*green + 5*blue) >> 5) >= 128)
+				*(fb->backbuffer + (off >> 3)) |= (1 << shift);
+			else
+				*(fb->backbuffer + (off >> 3)) &= ~(1 << shift);
+			break;
+		default:
+			/* depth not supported yet */
+			break;
+		}
 	}
 
 }
@@ -318,6 +391,7 @@ void fb_draw_rect(FB * fb, int x, int y, int width, int height,
 				      blue);
 }
 
+#if 0
 void fb_draw_image(FB * fb, int x, int y, int img_width, int img_height,
 		int img_bytes_per_pixel, uint8 * rle_data)
 {
@@ -365,6 +439,7 @@ void fb_draw_image(FB * fb, int x, int y, int img_width, int img_height,
 		}
 	}
 }
+#endif
 
 
 /* Draw xpm image from parsed data */

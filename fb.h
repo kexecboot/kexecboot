@@ -1,7 +1,7 @@
 /*
  *  kexecboot - A kexec based bootloader
  *
- *  Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
+ *  Copyright (c) 2008-2010 Yuri Bushmelev <jay4mail@gmail.com>
  *  Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *  Copyright (c) 2006 Matthew Allum <mallum@o-hand.com>
  *
@@ -35,6 +35,14 @@
 #include "res/font.h"
 #include "xpm.h"
 
+enum RGBMode {
+    RGB565,
+    BGR565,
+    RGB888,
+    BGR888,
+    GENERIC,
+};
+
 typedef struct FB {
 	int fd;
 	int type;
@@ -49,6 +57,14 @@ typedef struct FB {
 	int screensize;
 	int angle;
 	int real_width, real_height;
+
+	enum RGBMode rgbmode;
+	int red_offset;
+	int red_length;
+	int green_offset;
+	int green_length;
+	int blue_offset;
+	int blue_length;
 } FB;
 
 void fb_destroy(FB * fb);
@@ -64,12 +80,14 @@ fb_draw_rect(FB * fb,
 	     int y,
 	     int width, int height, uint8 red, uint8 green, uint8 blue);
 
+#if 0
 void
 fb_draw_image(FB * fb,
 	      int x,
 	      int y,
 	      int img_width,
 	      int img_height, int img_bytes_pre_pixel, uint8 * rle_data);
+#endif
 
 void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data);
 
