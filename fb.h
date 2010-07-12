@@ -51,7 +51,7 @@ typedef struct FB {
 	int width, height;
 	int bpp;
 	int depth;		/* Color depth to enable 18bpp mode */
-	int byte_pp;	/* Byte per pixel, 0 for 1/2 bpp */
+	int byte_pp;	/* Byte per pixel, 0 for bpp < 8 */
 	int stride;
 	char *data;
 	char *backbuffer;
@@ -86,6 +86,10 @@ fb_draw_rect(FB * fb,
 	     int x,
 	     int y,
 	     int width, int height, uint8 red, uint8 green, uint8 blue);
+
+void
+fb_draw_rounded_rect(FB * fb, int x, int y, int width, int height,
+		uint8 red, uint8 green, uint8 blue);
 
 void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data);
 

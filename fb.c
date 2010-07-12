@@ -714,15 +714,38 @@ fb_draw_hline_1bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uin
 		}
 }
 
+
+/**************************************************************************
+ * Graphic primitives
+ */
+
 void fb_draw_rect(FB * fb, int x, int y, int width, int height,
 		uint8 red, uint8 green, uint8 blue)
 {
-	int dx, dy;
+	static int dy;
 
-	for (dy = 0; dy < height; dy++)
-		for (dx = 0; dx < width; dx++)
-			fb->plot_pixel(fb, x + dx, y + dy, red, green,
-				      blue);
+	for (dy = y; dy < y+height; dy++)
+		fb->draw_hline(fb, x, dy, width, red, green, blue);
+}
+
+
+void fb_draw_rounded_rect(FB * fb, int x, int y, int width, int height,
+		uint8 red, uint8 green, uint8 blue)
+{
+	static int dy;
+
+	if (height < 4) return;
+	/* Top rounded part */
+	dy = y;
+	fb->draw_hline(fb, x+2, dy++, width-4, red, green, blue);
+	fb->draw_hline(fb, x+1, dy++, width-2, red, green, blue);
+
+	for (; dy < y+height-2; dy++)
+		fb->draw_hline(fb, x, dy, width, red, green, blue);
+
+	/* Bottom rounded part */
+	fb->draw_hline(fb, x+1, dy++, width-2, red, green, blue);
+	fb->draw_hline(fb, x+2, dy++, width-4, red, green, blue);
 }
 
 
