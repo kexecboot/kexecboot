@@ -36,7 +36,7 @@
 #include "xpm.h"
 
 typedef void (*plot_pixel_func)(FB *fb, int x, int y, uint8 red, uint8 green, uint8 blue);
-typedef void (*draw_line_func)(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue);
+typedef void (*draw_hline_func)(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue);
 
 enum RGBMode {
     BGR,
@@ -70,30 +70,22 @@ typedef struct FB {
 	int blue_length;
 
 	plot_pixel_func plot_pixel;
-	draw_line_func draw_line;
+	draw_hline_func draw_hline;
 } FB;
 
 void fb_destroy(FB * fb);
 
 FB *fb_new(int angle);
 
-inline void
-fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue);
+#ifdef DEBUG
+void print_fb(FB *fb);
+#endif
 
 void
 fb_draw_rect(FB * fb,
 	     int x,
 	     int y,
 	     int width, int height, uint8 red, uint8 green, uint8 blue);
-
-#if 0
-void
-fb_draw_image(FB * fb,
-	      int x,
-	      int y,
-	      int img_width,
-	      int img_height, int img_bytes_pre_pixel, uint8 * rle_data);
-#endif
 
 void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data);
 
