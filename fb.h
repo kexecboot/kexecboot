@@ -35,14 +35,15 @@
 #include "res/font.h"
 #include "xpm.h"
 
-typedef void (*plot_pixel_func)(FB *fb, int x, int y, uint8 red, uint8 green, uint8 blue);
-typedef void (*draw_hline_func)(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue);
-
 enum RGBMode {
     BGR,
     RGB,
     GENERIC
 };
+
+typedef struct FB *FBPTR;
+typedef void (*plot_pixel_func)(FBPTR fb, int x, int y, uint8 red, uint8 green, uint8 blue);
+typedef void (*draw_hline_func)(FBPTR fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue);
 
 typedef struct FB {
 	int fd;
