@@ -1,7 +1,7 @@
 /*
  *  kexecboot - A kexec based bootloader
  *
- *  Copyright (c) 2009 Yuri Bushmelev <jay4mail@gmail.com>
+ *  Copyright (c) 2009-2010 Yuri Bushmelev <jay4mail@gmail.com>
  *  Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -41,6 +41,8 @@ enum icon_id_t {
 
 struct gui_t {
 	FB *fb;
+	int x,y;
+	int height, width;
 	struct xpm_parsed_t **icons;
 	struct xpmlist_t *loaded_icons;	/* Custom icons */
 	struct xpmlist_t *menu_icons;	/* Custom menu associated icons */

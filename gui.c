@@ -1,7 +1,7 @@
 /*
  *  kexecboot - A kexec based bootloader
  *
- *  Copyright (c) 2009 Yuri Bushmelev <jay4mail@gmail.com>
+ *  Copyright (c) 2009-2010 Yuri Bushmelev <jay4mail@gmail.com>
  *  Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -30,6 +30,7 @@
 struct gui_t *gui_init(int angle)
 {
 	struct gui_t *gui;
+	FB *fb;
 	int bpp;
 
 	gui = malloc(sizeof(*gui));
@@ -39,17 +40,33 @@ struct gui_t *gui_init(int angle)
 	}
 
 	/* init framebuffer */
-	gui->fb = fb_new(angle);
+	fb = fb_new(angle);
 
-	if (NULL == gui->fb) {
+	if (NULL == fb) {
 		DPRINTF("Can't initialize framebuffer\n");
 		return NULL;
 	}
 
+	gui->fb = fb;
+
+	/* Tune GUI size */
+	if (fb->width > LYT_MAX_WIDTH)
+		gui->width = LYT_MAX_WIDTH;
+	else
+		gui->width = fb->width;
+
+	if (fb->height > LYT_MAX_HEIGHT)
+		gui->height = LYT_MAX_HEIGHT;
+	else
+		gui->height = fb->height;
+
+	gui->x = (fb->width - gui->width)/2;
+	gui->y = (fb->height - gui->height)/2;
+
 	/* Parse compiled images.
 	 * We don't care about result because drawing code is aware
 	 */
-	bpp = gui->fb->bpp;
+	bpp = fb->bpp;
 
 	gui->icons = malloc(sizeof(*(gui->icons)) * ICON_ARRAY_SIZE);
 
@@ -95,17 +112,46 @@ void gui_destroy(struct gui_t *gui)
 /* Draw background with logo and text */
 void draw_background(struct gui_t *gui, const char *text)
 {
-	FB *fb = gui->fb;
+	static FB *fb;
+	static int w, h;
 
-	int margin = fb->width/40;
+	fb = gui->fb;
 
-	/* Clear the background with #ecece1 */
-	fb_draw_rect(fb, 0, 0, fb->width, fb->height, COLOR_BG);
+	/* Fill background */
+	fb_draw_rect(fb, 0, 0, fb->width, fb->height, CLR_BG);
 
-	fb_draw_xpm_image(fb, 0, 0, gui->icons[ICON_LOGO]);
+	/* Draw icon pad */
+	fb_draw_rounded_rect(fb, gui->x + LYT_HDR_PAD_LEFT,
+			gui->y + LYT_HDR_PAD_TOP,
+			LYT_HDR_PAD_WIDTH, LYT_HDR_PAD_HEIGHT, CLR_BG_PAD);
 
-	fb_draw_text (fb, 32 + margin, margin, COLOR_TEXT,
-		DEFAULT_FONT, text);
+	/* Draw icon */
+	fb_draw_xpm_image(fb, gui->x + LYT_HDR_PAD_LEFT + LYT_PAD_ICON_LOFF,
+			gui->y + LYT_HDR_PAD_TOP + LYT_PAD_ICON_TOFF,
+			gui->icons[ICON_LOGO]);
+
+	/* Calculate text size */
+	fb_text_size(fb, &w, &h, DEFAULT_FONT, text);
+
+	/* Draw text */
+	fb_draw_text(fb, gui->x + LYT_HDR_PAD_LEFT + LYT_HDR_PAD_WIDTH + 2 +
+			(gui->width - (LYT_HDR_PAD_LEFT + LYT_HDR_PAD_WIDTH + 2)*2 - w - LYT_FRAME_SIZE)/2,
+			gui->y + (LYT_MENU_FRAME_TOP - h)/2,
+			CLR_BG_TEXT, DEFAULT_FONT, text);
+
+	/* Draw menu frame */
+	fb_draw_rounded_rect(fb, gui->x + LYT_MENU_FRAME_LEFT,
+			gui->y + LYT_MENU_FRAME_TOP,
+			LYT_MENU_FRAME_WIDTH,
+			LYT_MENU_FRAME_HEIGHT,
+			CLR_MENU_FRAME);
+
+	/* Draw menu area */
+	fb_draw_rect(fb, gui->x + LYT_MENU_AREA_LEFT,
+			gui->y + LYT_MENU_AREA_TOP,
+			LYT_MENU_AREA_WIDTH,
+			LYT_MENU_AREA_HEIGHT,
+			CLR_MENU_BG);
 }
 
 
@@ -113,29 +159,61 @@ void draw_background(struct gui_t *gui, const char *text)
 void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height,
 		int iscurrent, struct xpm_parsed_t *icon)
 {
-	FB *fb = gui->fb;
+	static FB *fb;
+	static uint32 cbg, cpad, ctext, cline;
+	static int slot_top, w, h;
 
-	int margin = (height - 32)/2;
-	if(!iscurrent)
-		fb_draw_rect(fb, 0, slot*height, fb->width, height,
-			COLOR_BG);
-	else { //draw red border
-		fb_draw_rect(fb, 0, slot*height, fb->width, height,
-			COLOR_BRDR);
-		fb_draw_rect(fb, margin, slot*height+margin, fb->width-2*margin,
-			height-2*margin, COLOR_BG);
+	fb = gui->fb;
+
+	if (!iscurrent) {
+		cbg =   CLR_MNI_BG;
+		cpad =  CLR_MNI_PAD;
+		ctext = CLR_MNI_TEXT;
+		cline = CLR_MNI_LINE;
+	} else {
+		cbg =   CLR_SMNI_BG;
+		cpad =  CLR_SMNI_PAD;
+		ctext = CLR_SMNI_TEXT;
+		cline = CLR_SMNI_LINE;
 	}
 
+	slot_top = gui->y + LYT_MENU_AREA_TOP + LYT_MNI_HEIGHT * (slot-1); /* Slots are numbered from 1 */
+	/* Draw background */
+	fb_draw_rect(fb, gui->x + LYT_MNI_LEFT,
+			slot_top,
+			LYT_MNI_WIDTH,
+			height,	cbg);
+
+	/* Draw icon pad */
+	fb_draw_rounded_rect(fb, gui->x + LYT_MNI_PAD_LEFT,
+			slot_top + LYT_MNI_PAD_TOP,
+			LYT_MNI_PAD_WIDTH, LYT_MNI_PAD_HEIGHT, cpad);
+
+	/* Draw icon */
 	if (NULL != icon) {
-		fb_draw_xpm_image(fb, margin, slot * height + margin, icon);
+		fb_draw_xpm_image(fb, gui->x + LYT_MNI_PAD_LEFT + LYT_PAD_ICON_LOFF,
+				slot_top + LYT_MNI_PAD_TOP + LYT_PAD_ICON_TOFF,
+				icon);
 	}
 
-	fb_draw_text (fb, 32 + 8 + margin, slot * height + 4, COLOR_TEXT,
-			DEFAULT_FONT, item->label);
+	/* Calculate text size */
+	fb_text_size(fb, &w, &h, DEFAULT_FONT, item->label);
+
+	/* Draw text */
+	fb_draw_text(fb,
+			gui->x + LYT_MNI_TEXT_LEFT,
+			slot_top + (height - h)/2,
+			ctext, DEFAULT_FONT, item->label);
 
 	if (NULL != item->submenu) {
 		/* Draw something to show that here is submenu available */
 	}
+
+	/* Draw line */
+	fb_draw_rect(fb, gui->x + LYT_MNI_LEFT,
+			slot_top + LYT_MNI_LINE_TOP,
+			LYT_MNI_LINE_WIDTH,
+			LYT_MNI_LINE_HEIGHT, cline);
 }
 
 
@@ -143,15 +221,15 @@ void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height
 void gui_show_menu(struct gui_t *gui, struct menu_t *menu, int current)
 {
 	int i,j;
-	int slotheight = 40;	/* FIXME Fix hardcoded height */
-	int slots = gui->fb->height/slotheight -1;
+	int slotheight = LYT_MNI_HEIGHT;
+	int slots = gui->height/slotheight -1;
 	// struct boot that is in fist slot
 	static int firstslot=0;
 
 	if (1 == menu->fill) {
 		draw_background(gui, "No bootable devices found.\nR: Reboot  S: Rescan devices");
 	} else {
-		draw_background(gui, "KEXECBOOT - Linux bootloader");
+		draw_background(gui, "KEXECBOOT - Linux Soft-bootloader");
 	}
 
 	if(current < firstslot)
