@@ -3,7 +3,7 @@
  *  XPM parsing routines based on libXpm
  *  NOTE: Only XPM 3 are supported!
  *
- *  Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
+ *  Copyright (c) 2008-2010 Yuri Bushmelev <jay4mail@gmail.com>
  *  Copyright (C) 1989-95 GROUPE BULL
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -33,7 +33,7 @@
 #ifndef _HAVE_XPM_H
 #define _HAVE_XPM_H
 
-#include "util.h"
+#include "fb.h"
 
 /* Limit maximum xpm file size to 64Kb */
 #ifndef MAX_XPM_FILE_SIZE
@@ -49,11 +49,6 @@
  */
 #define XPM_ASCII_RANGE(x) (((x) << 6) + ((x) << 5))
 
-/* Macro to find number of lines in compiled-in XPM image array
- * NOTE: Use it only with compiled-in arrays!
- */
-#define XPM_ROWS(array) (sizeof(array)/sizeof(*array))
-
 
 /* Color keys */
 enum xpm_ckey_t {
@@ -67,20 +62,13 @@ enum xpm_ckey_t {
 	XPM_KEY_UNKNOWN = 5,
 };
 
-/* Colors triplet structure */
-struct xpm_color_t {
-	uint8 r;
-	uint8 g;
-	uint8 b;
-};
-
 /* XPM main structure. That's only data needed for drawing */
 struct xpm_parsed_t {
 	int tag;				/* user driven tag */
 	unsigned int width;		/* image width */
 	unsigned int height;	/* image height */
-	struct xpm_color_t *colors;	/* colors array */
-	struct xpm_color_t **pixels;/* pixels array (pointers to colors) */
+	struct rgb_color *colors;	/* colors array */
+	struct rgb_color **pixels;/* pixels array (pointers to colors) */
 };
 
 /* List of xpm icons */
@@ -129,6 +117,9 @@ int xpm_load_image(char ***xpm_data, const char *filename);
  */
 struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
 		unsigned int bpp);
+
+/* Draw xpm image on framebuffer from parsed data */
+void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data);
 
 /*
  * Function: xpm_destroy_parsed()

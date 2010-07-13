@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
+ * Copyright (c) 2008-2010 Yuri Bushmelev <jay4mail@gmail.com>
  * Copyright (C) 1989-95 GROUPE BULL
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -43,23 +43,18 @@
 
 #include <stdint.h>
 
-struct xpm_named_color_t {
+struct named_rgb_color {
 	char *name;
-//     uint32_t rgb;
-	uint8_t r;
-	uint8_t g;
-	uint8_t b;
+	uint32_t rgb;
 };
 
-/*
 #define MYRGB(r,g,b) \
 	((uint32_t)r<<16|(uint32_t)g<<8|(uint32_t)b)
-*/
 
-#define MYRGB(r,g,b) (r), (g), (b)
+/* #define MYRGB(r,g,b) (r), (g), (b) */
 
 /* NOTE: Keep array sorted by name! Binary search is used. */
-struct xpm_named_color_t xpm_color_names[] = {
+struct named_rgb_color color_names[] = {
     {"aliceblue", MYRGB(240, 248, 255)},
     {"antiquewhite", MYRGB(250, 235, 215)},
     {"aquamarine", MYRGB(50, 191, 193)},

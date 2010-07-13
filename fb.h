@@ -33,13 +33,7 @@
 
 #include "util.h"
 #include "res/font.h"
-#include "xpm.h"
-
-enum RGBMode {
-    BGR,
-    RGB,
-    GENERIC
-};
+#include "rgb.h"
 
 typedef struct FB *FBPTR;
 typedef void (*plot_pixel_func)(FBPTR fb, int x, int y, uint8 red, uint8 green, uint8 blue);
@@ -91,8 +85,6 @@ fb_draw_rect(FB * fb,
 void
 fb_draw_rounded_rect(FB * fb, int x, int y, int width, int height,
 		uint8 red, uint8 green, uint8 blue);
-
-void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data);
 
 void
 fb_text_size(FB * fb,

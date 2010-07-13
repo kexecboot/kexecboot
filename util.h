@@ -50,6 +50,11 @@ typedef uint32_t uint32;
 #define DPRINTF(fmt, args...)	do { } while (0)
 #endif
 
+/* Macro to find number of lines in compiled-in array
+ * NOTE: Use it only with compiled-in arrays!
+ */
+#define ROWS(array) (sizeof(array)/sizeof(*array))
+
 
 /* Charlist structure */
 struct charlist {

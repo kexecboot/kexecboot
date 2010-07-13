@@ -2,7 +2,7 @@
  *  kexecboot - A kexec based bootloader
  *  XPM parsing routines based on libXpm
  *
- *  Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
+ *  Copyright (c) 2008-2010 Yuri Bushmelev <jay4mail@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,12 +25,11 @@
 #include <string.h>
 #include <ctype.h>
 #include "xpm.h"
-#include "rgbtab.h"
 
 /* XPM pixel structure (internal) */
 struct xpm_pixel_t {
 	char *pixel;
-	struct xpm_color_t *rgb;
+	struct rgb_color *rgb;
 };
 
 /* XPM metadata (internal, not needed for drawing code) */
@@ -41,7 +40,7 @@ struct xpm_meta_t {
 	char *pixnames;		/* place for pixel names */
 	struct xpm_pixel_t *pixdata;	/* array of named pixels */
 	unsigned int ctable_size;		/* color lookup table size */
-	struct xpm_color_t **ctable;	/* color lookup table */
+	struct rgb_color **ctable;	/* color lookup table */
 };
 
 
@@ -292,131 +291,6 @@ int xpm_load_image(char ***xpm_data, const char *filename)
 }
 
 
-static int hchar2int(unsigned char c)
-{
-	static int r;
-
-	if (c >= '0' && c <= '9')
-		r = c - '0';
-	else if (c >= 'a' && c <= 'f')
-		r = c - 'a' + 10;
-	else if (c >= 'A' && c <= 'F')
-		r = c - 'A' + 10;
-	else
-		r = 0;
-
-	return (r);
-}
-
-
-int hex2rgb(char *hex, struct xpm_color_t *rgb)
-{
-	switch (strlen(hex)) {
-	case 3 + 1:		/* #abc */
-		rgb->r = hchar2int(hex[1]);
-		rgb->g = hchar2int(hex[2]);
-		rgb->b = hchar2int(hex[3]);
-		break;
-	case 6 + 1:		/* abcdef */
-		rgb->r = hchar2int(hex[1]) << 4 | hchar2int(hex[2]);
-		rgb->g = hchar2int(hex[3]) << 4 | hchar2int(hex[4]);
-		rgb->b = hchar2int(hex[5]) << 4 | hchar2int(hex[6]);
-		break;
-	case 12 + 1:	/* #32329999CCCC */
-		/* so for now only take two digits */
-		rgb->r = hchar2int(hex[1]) << 4 | hchar2int(hex[2]);
-		rgb->g = hchar2int(hex[5]) << 4 | hchar2int(hex[6]);
-		rgb->b = hchar2int(hex[9]) << 4 | hchar2int(hex[10]);
-		break;
-	default:
-		return -1;
-	}
-	return 0;
-}
-
-/* Local function to convert color name to rgb structure */
-int cname2rgb(char *cname, struct xpm_color_t *rgb)
-{
-	char *tmp, *color;
-	int len, half, rest;
-	unsigned char c;
-	/* Named color structure */
-	struct xpm_named_color_t *cn;
-
-	color = strdup(cname);
-	if (NULL == color) {
-		DPRINTF("Can't allocate memory for color name copy (%s)\n", cname);
-		return -1;
-	}
-	len = strlen(cname);
-
-	/* Strip spaces and lowercase */
-	tmp = color;
-	while('\0' != *tmp) {
-		c = *tmp;
-		if (' ' == c) {
-			memmove(tmp, tmp+1, color + len - tmp);
-			continue;
-		} else {
-			*tmp = tolower(c);
-		}
-		++tmp;
-	}
-
-	/* Check for transparent color */
-	if( 0 == strcmp(color, "none") ) {
-		free(color);
-		rgb->r = 0;
-		rgb->g = 0;
-		rgb->b = 0;
-		return 1;
-	}
-
-	/* check for "grey" */
-	tmp = strstr(color, "grey");
-	if (NULL != tmp) {
-		tmp[2] = 'a';	/* Convert to "gray" */
-	}
-
-	/* Binary search in color names array */
-	len = XPM_ROWS(xpm_color_names);
-
-	half = len >> 1;
-	rest = len - half;
-
-	cn = xpm_color_names + half;
-	len = 1; /* Used as flag */
-
-	while (half > 0) {
-		half = rest >> 1;
-		len = strcmp(tmp, cn->name);
-		if (len < 0) {
-			cn -= half;
-		} else if (len > 0) {
-			cn += half;
-		} else {
-			/* len will be 0 here */
-			break;
-		}
-		rest -= half;
-	}
-
-	if (0 == len) {	/* Found */
-		rgb->r = cn->r;
-		rgb->g = cn->g;
-		rgb->b = cn->b;
-	} else {		/* Not found */
-		DPRINTF("Color name '%s' not in colors database, returning red\n", color);
-		/* Return 'red' color like libXpm does */
-		rgb->r = 0xFF;
-		rgb->g = 0;
-		rgb->b = 0;
-	}
-	free(color);
-	return 0;
-}
-
-
 /* Local function to parse color line
  * NOTE: It will modify 'data'.
  */
@@ -500,7 +374,7 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 {
 	int rc, chpp;
 	/* Color structures: array and temporary pointer */
-	struct xpm_color_t *xpm_color, **ctable;
+	struct rgb_color *xpm_color, **ctable;
 	char **data, **e, *p;
 	char *color;
 	char *pixel;
@@ -616,7 +490,7 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
 {
 	int chpp, width, i, dlen;
-	struct xpm_color_t **xpm_pixel, **ctable;
+	struct rgb_color **xpm_pixel, **ctable;
 	struct xpm_pixel_t *pdata, *edata;
 	char **data, **e;
 	char *p;
@@ -813,6 +687,33 @@ free_xpm_parsed:
 free_nothing:
 	return NULL;
 
+}
+
+
+/* Draw xpm image on framebuffer from parsed data */
+void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data)
+{
+	if (NULL == xpm_data) return;
+
+	unsigned int i, j;
+	int dx = 0, dy = 0;
+	struct rgb_color **xpm_pixel, *xpm_color;
+
+	xpm_pixel = xpm_data->pixels;
+	dy = y;
+	for (i = 0; i < xpm_data->height; i++) {
+		dx = x;
+		for (j = 0; j < xpm_data->width; j++) {
+			xpm_color = *xpm_pixel;
+			if (NULL != xpm_color) {	/* Non-transparent pixel */
+				fb->plot_pixel(fb, dx, dy, xpm_color->r, xpm_color->g,
+					xpm_color->b);
+			}
+			++dx;
+			++xpm_pixel;
+		}
+		++dy;
+	}
 }
 
 
