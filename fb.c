@@ -198,10 +198,17 @@ fb_draw_hline_32bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, ui
 {
 	static char *offset;
 	static int ox, oy;
+	static uint32 color;
 
 	fb_respect_angle(fb, x, y, &ox, &oy);
 	offset = fb->backbuffer + ((oy * fb->width + ox) << 2);
 	if (offset > (fb->backbuffer + fb->screensize - 4)) return;
+
+	if (RGB == fb->rgbmode) {
+		color = (uint32)blue << 16 | (uint32)green << 8 | (uint32)red;
+	} else {
+		color = (uint32)red << 16 | (uint32)green << 8 | (uint32)blue;
+	}
 
 	if (length > fb->width - ox)
 		oy = fb->width - ox;
@@ -209,16 +216,8 @@ fb_draw_hline_32bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, ui
 		oy = length;
 
 	for(; oy > 0; oy--) {
-		if (RGB == fb->rgbmode) {
-			*(offset++) = blue;
-			*(offset++) = green;
-			*(offset++) = red;
-		} else {
-			*(offset++) = red;
-			*(offset++) = green;
-			*(offset++) = blue;
-		}
-		++offset;	/* Padding or transparency byte */
+		*(volatile uint32 *) offset = color;
+		offset += 4;
 	}
 }
 
@@ -227,27 +226,31 @@ fb_draw_hline_24bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, ui
 {
 	static char *offset;
 	static int ox, oy, r;
+	static uint8 c1, c3;
 
 	fb_respect_angle(fb, x, y, &ox, &oy);
 	r = oy * fb->width + ox;
 	offset = fb->backbuffer + (r + (r << 1));
 	if (offset > (fb->backbuffer + fb->screensize - 3)) return;
 
+	if (RGB == fb->rgbmode) {
+		c1 = blue;
+		c3 = red;
+	} else {
+		c1 = red;
+		c3 = blue;
+	}
+
 	if (length > fb->width - ox)
 		oy = fb->width - ox;
 	else
 		oy = length;
 
+	/* Can be optimized even more by writing by 2x(uint16) or 3x(uint32) */
 	for(; oy > 0; oy--) {
-		if (RGB == fb->rgbmode) {
-			*(offset++) = blue;
-			*(offset++) = green;
-			*(offset++) = red;
-		} else {
-			*(offset++) = red;
-			*(offset++) = green;
-			*(offset++) = blue;
-		}
+		*(offset++) = c1;
+		*(offset++) = green;
+		*(offset++) = c3;
 	}
 }
 
@@ -256,27 +259,33 @@ fb_draw_hline_18bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, ui
 {
 	static char *offset;
 	static int ox, oy, r;
+	static uint8 c1, c2, c3;
 
 	fb_respect_angle(fb, x, y, &ox, &oy);
 	r = oy * fb->width + ox;
 	offset = fb->backbuffer + (r + (r << 1));
 	if (offset > (fb->backbuffer + fb->screensize - 3)) return;
 
+	if (RGB == fb->rgbmode) {
+		c1 = (blue >> 2) | ((green & 0x0C) << 4);
+		c2 = ((green & 0xF0) >> 4) | ((red & 0x3C) << 2);
+		c3 = (red & 0xC0) >> 6;
+	} else {
+		c1 = (red >> 2) | ((green & 0x0C) << 4);
+		c2 = ((green & 0xF0) >> 4) | ((blue & 0x3C) << 2);
+		c3 = (blue & 0xC0) >> 6;
+	}
+
 	if (length > fb->width - ox)
 		oy = fb->width - ox;
 	else
 		oy = length;
 
+	/* Can be optimized even more by writing by 2x(uint16) or 3x(uint32) */
 	for(; oy > 0; oy--) {
-		if (RGB == fb->rgbmode) {
-			*(offset++)     = (blue >> 2) | ((green & 0x0C) << 4);
-			*(offset++) = ((green & 0xF0) >> 4) | ((red & 0x3C) << 2);
-			*(offset++) = (red & 0xC0) >> 6;
-		} else {
-			*(offset++)     = (red >> 2) | ((green & 0x0C) << 4);
-			*(offset++) = ((green & 0xF0) >> 4) | ((blue & 0x3C) << 2);
-			*(offset++) = (blue & 0xC0) >> 6;
-		}
+		*(offset++) = c1;
+		*(offset++) = c2;
+		*(offset++) = c3;
 	}
 }
 
@@ -285,10 +294,17 @@ fb_draw_hline_16bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, ui
 {
 	static char *offset;
 	static int ox, oy;
+	static uint16 color;
 
 	fb_respect_angle(fb, x, y, &ox, &oy);
 	offset = fb->backbuffer + ((oy * fb->width + ox) << 1);
 	if (offset > (fb->backbuffer + fb->screensize - 2)) return;
+
+	if (RGB == fb->rgbmode) {
+		color = ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
+	} else {
+		color = ((blue >> 3) << 11) | ((green >> 2) << 5) | (red >> 3);
+	}
 
 	if (length > fb->width - ox)
 		oy = fb->width - ox;
@@ -296,13 +312,7 @@ fb_draw_hline_16bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, ui
 		oy = length;
 
 	for(; oy > 0; oy--) {
-		if (RGB == fb->rgbmode) {
-			*(volatile uint16_t *) (offset)
-				= ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
-		} else {
-			*(volatile uint16_t *) (offset)
-				= ((blue >> 3) << 11) | ((green >> 2) << 5) | (red >> 3);
-		}
+		*(volatile uint16 *) offset = color;
 		offset += 2;
 	}
 }
