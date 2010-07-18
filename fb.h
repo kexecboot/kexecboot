@@ -98,6 +98,15 @@ void
 fb_draw_text(FB * fb, int x, int y, uint32 rgb,
 		const Font * font, const char *text);
 
+/* Move backbuffer contents to videomemory */
 void fb_render(FB * fb);
+
+/* Save backbuffer contents to further usage */
+char *fb_dump(FB * fb);
+
+/* Restore saved backbuffer */
+void fb_restore(FB * fb, char *dump);
+
+
 
 #endif	/* _HAVE_FB_H */

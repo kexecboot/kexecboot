@@ -431,21 +431,53 @@ fb_draw_hline_1bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uin
 		}
 }
 
+/*
+ * NOTE: klibc uses 8bit transfers that breaks image on tosa
+ * So we will use own memcpy.
+ * We can use uint32 transfers because of screen dimensions
+ * are always even numbers: (W/2*2)*(H/2*2) = (W*H/4)*4
+ */
 
-void fb_render(FB * fb)
+void
+fb_memcpy(char *src, char *dst, int length)
 {
-	/* klibc uses 8bit transfers that breaks image on tosa */
-	/* memcpy(fb->data, fb->backbuffer, fb->screensize); */
-	uint16 *source, *dest;
-	int n = fb->screensize/2;
+	static uint32 *s, *d;
+	static int n;
 
-	source = (uint16 *)fb->backbuffer;
-	dest = (uint16 *)fb->data;
+	s = (uint32 *)src;
+	d = (uint32 *)dst;
+	n = length >> 2;
 
 	while (n--) {
-		*dest++ = *source++;
+		*(d++) = *(s++);
 	}
 }
+
+/* Move backbuffer contents to videomemory */
+void fb_render(FB * fb)
+{
+	fb_memcpy(fb->backbuffer, fb->data, fb->screensize);
+}
+
+/* Save backbuffer contents to further usage */
+char *fb_dump(FB * fb)
+{
+	char *dump;
+
+	dump = malloc(fb->screensize);
+	if (NULL == dump) return NULL;
+
+	fb_memcpy(fb->backbuffer, dump, fb->screensize);
+	return dump;
+}
+
+/* Restore saved backbuffer */
+void fb_restore(FB * fb, char *dump)
+{
+	if (NULL == dump) return;
+	fb_memcpy(dump, fb->backbuffer, fb->screensize);
+}
+
 
 void fb_destroy(FB * fb)
 {
@@ -728,6 +760,23 @@ fail:
 /**************************************************************************
  * Graphic primitives
  */
+void fb_plot_pixel(FB *fb, int x, int y, uint32 rgb)
+{
+	static uint8 r, g, b;
+
+	xrgb2comp(rgb, &r, &g, &b);
+	fb->plot_pixel(fb, x, y, r, g, b);
+}
+
+
+void fb_draw_hline(FB *fb, int x, int y, int length, uint32 rgb)
+{
+	static uint8 r, g, b;
+
+	xrgb2comp(rgb, &r, &g, &b);
+	fb->draw_hline(fb, x, y, length, r, g, b);
+}
+
 
 void fb_draw_rect(FB * fb, int x, int y, int width, int height,
 		uint32 rgb)
