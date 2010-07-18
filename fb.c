@@ -786,19 +786,27 @@ static int font_glyph(const Font * font, char wc, u_int32_t ** bitmap)
 	return 0;
 }
 
+/* Return text width and height in pixels. Will return 0,0 for empty text */
 void fb_text_size(FB * fb, int *width, int *height, const Font * font,
 		const char *text)
 {
 	char *c = (char *) text;
 	int n, w, h, mw;
 
-	n = strlen(text);
-	mw = h = w = 0;
+	n = strlenn(text);
+	if (0 == n) {
+		*width = 0;
+		*height = 0;
+		return;
+	}
+
+	h = font->height;
+	mw = w = 0;
 
 	for(;*c;c++){
 		if (*c == '\n') {
-			if (w > mw)
-				mw = 0;
+			if (w > mw) mw = w;
+			w = 0;
 			h += font->height;
 			continue;
 		}
@@ -807,7 +815,7 @@ void fb_text_size(FB * fb, int *width, int *height, const Font * font,
 	}
 
 	*width = (w > mw) ? w : mw;
-	*height = (h == 0) ? font->height : h;
+	*height = h;
 }
 
 void fb_draw_text(FB * fb, int x, int y, uint32 rgb,

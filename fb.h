@@ -88,6 +88,8 @@ void
 fb_draw_rounded_rect(FB * fb, int x, int y,
 		int width, int height, uint32 rgb);
 
+
+/* Return text width and height in pixels. Will return 0,0 for empty text */
 void
 fb_text_size(FB * fb, int *width, int *height,
 		const Font * font, const char *text);
