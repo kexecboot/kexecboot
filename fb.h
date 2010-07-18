@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "config.h"
 #include "util.h"
 #include "res/font.h"
 #include "rgb.h"

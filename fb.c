@@ -51,6 +51,7 @@ fb_respect_angle(FB *fb, int x, int y, int *dx, int *dy)
 /**************************************************************************
  * Pixel plotting routines
  */
+#ifdef USE_32BPP
 static void
 fb_plot_pixel_32bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 {
@@ -70,7 +71,9 @@ fb_plot_pixel_32bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 	}
 	*(offset + 1) = green;
 }
+#endif
 
+#ifdef USE_24BPP
 static void
 fb_plot_pixel_24bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 {
@@ -91,7 +94,9 @@ fb_plot_pixel_24bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 	}
 	*(offset + 1) = green;
 }
+#endif
 
+#ifdef USE_18BPP
 static void
 fb_plot_pixel_18bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 {
@@ -113,7 +118,9 @@ fb_plot_pixel_18bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 			*(offset++) = (blue & 0xC0) >> 6;
 	}
 }
+#endif
 
+#ifdef USE_16BPP
 static void
 fb_plot_pixel_16bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 {
@@ -132,7 +139,9 @@ fb_plot_pixel_16bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 			= ((blue >> 3) << 11) | ((green >> 2) << 5) | (red >> 3);
 	}
 }
+#endif
 
+#ifdef USE_4BPP
 static void
 fb_plot_pixel_4bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 {
@@ -150,7 +159,9 @@ fb_plot_pixel_4bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 	*offset = (*offset & ~(0x0F << ox))
 			| ( ((11*red + (green << 4) + 5*blue) >> 8) << ox );
 }
+#endif
 
+#ifdef USE_2BPP
 static void
 fb_plot_pixel_2bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 {
@@ -168,7 +179,9 @@ fb_plot_pixel_2bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 	*offset = (*offset & ~(3 << ox))
 			| ( ((11*red + (green << 4) + 5*blue) >> 11) << ox );
 }
+#endif
 
+#ifdef USE_1BPP
 static void
 fb_plot_pixel_1bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 {
@@ -188,11 +201,12 @@ fb_plot_pixel_1bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 	else
 		*offset = *offset & (~( 1 << (7 - off + (oy << 3) ) ));
 }
-
+#endif
 
 /**************************************************************************
  * Horizontal line drawing routines
  */
+#ifdef USE_32BPP
 static void
 fb_draw_hline_32bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue)
 {
@@ -220,7 +234,9 @@ fb_draw_hline_32bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, ui
 		offset += 4;
 	}
 }
+#endif
 
+#ifdef USE_24BPP
 static void
 fb_draw_hline_24bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue)
 {
@@ -253,7 +269,9 @@ fb_draw_hline_24bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, ui
 		*(offset++) = c3;
 	}
 }
+#endif
 
+#ifdef USE_18BPP
 static void
 fb_draw_hline_18bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue)
 {
@@ -288,7 +306,9 @@ fb_draw_hline_18bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, ui
 		*(offset++) = c3;
 	}
 }
+#endif
 
+#ifdef USE_16BPP
 static void
 fb_draw_hline_16bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue)
 {
@@ -316,7 +336,9 @@ fb_draw_hline_16bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, ui
 		offset += 2;
 	}
 }
+#endif
 
+#ifdef USE_4BPP
 static void
 fb_draw_hline_4bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue)
 {
@@ -349,7 +371,9 @@ fb_draw_hline_4bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uin
 		if (!ox) ++offset;
 	}
 }
+#endif
 
+#ifdef USE_2BPP
 static void
 fb_draw_hline_2bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue)
 {
@@ -388,7 +412,9 @@ fb_draw_hline_2bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uin
 		}
 	}
 }
+#endif
 
+#ifdef USE_1BPP
 static void
 fb_draw_hline_1bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue)
 {
@@ -430,6 +456,7 @@ fb_draw_hline_1bpp(FB *fb, int x, int y, int length, uint8 red, uint8 green, uin
 			}
 		}
 }
+#endif
 
 /*
  * NOTE: klibc uses 8bit transfers that breaks image on tosa
@@ -713,33 +740,53 @@ FB *fb_new(int angle)
 	}
 
 	switch (fb->depth) {
+#ifdef USE_32BPP
 	case 32:
 		fb->plot_pixel = fb_plot_pixel_32bpp;
 		fb->draw_hline = fb_draw_hline_32bpp;
 		break;
+#endif
+#ifdef USE_24BPP
 	case 24:
 		fb->plot_pixel = fb_plot_pixel_24bpp;
 		fb->draw_hline = fb_draw_hline_24bpp;
 		break;
+#endif
+#ifdef USE_18BPP
 	case 18:
 		fb->plot_pixel = fb_plot_pixel_18bpp;
 		fb->draw_hline = fb_draw_hline_18bpp;
 		break;
+#endif
+#ifdef USE_16BPP
 	case 16:
 		fb->plot_pixel = fb_plot_pixel_16bpp;
 		fb->draw_hline = fb_draw_hline_16bpp;
 		break;
+#endif
+#ifdef USE_4BPP
 	case 4:
 		fb->plot_pixel = fb_plot_pixel_4bpp;
 		fb->draw_hline = fb_draw_hline_4bpp;
 		break;
+#endif
+#ifdef USE_2BPP
 	case 2:
 		fb->plot_pixel = fb_plot_pixel_2bpp;
 		fb->draw_hline = fb_draw_hline_2bpp;
 		break;
+#endif
+#ifdef USE_1BPP
 	case 1:
 		fb->plot_pixel = fb_plot_pixel_1bpp;
 		fb->draw_hline = fb_draw_hline_1bpp;
+		break;
+#endif
+	default:
+		/* We have no drawing functions for this mode ATM */
+		DPRINTF("Sorry, your bpp (%d) and/or depth (%d) are not supported yet.\n", fb->bpp, fb->depth);
+		fb_destroy(fb);
+		return NULL;
 		break;
 	}
 

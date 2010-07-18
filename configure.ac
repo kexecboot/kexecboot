@@ -17,12 +17,72 @@ AC_ARG_ENABLE([devices-recreating],[AS_HELP_STRING([--enable-devices-recreating]
 AC_ARG_ENABLE([debug],[AS_HELP_STRING([--enable-debug],[enable debug output @<:@default=no@:>@])], [],[enable_debug=\"no\"])
 AC_ARG_ENABLE([host-debug],[AS_HELP_STRING([--enable-host-debug],[allow for non-destructive executing of kexecboot on host system@<:@default=no@:>@])], [],[enable_host_debug=\"no\"])
 
+AC_ARG_ENABLE([bpp], [AS_HELP_STRING([--enable-bpp],[enable support of specified bpp modes (all,32,24,18,16,4,2,1)@<:@default=all@:>@])],
+[
+	SIFS=${IFS}
+	IFS=','
+	for bpp in ${enable_bpp}
+	do
+		case ${bpp} in
+			32) enable_32bpp=yes;;
+			24) enable_24bpp=yes;;
+			18) enable_18bpp=yes;;
+			16) enable_16bpp=yes;;
+			4) enable_4bpp=yes;;
+			2) enable_2bpp=yes;;
+			1) enable_1bpp=yes;;
+			*) enable_all_bpp=yes;;
+		esac
+	done
+	IFS=${SIFS}
+],
+[enable_all_bpp=yes])
+
 AS_IF([test "x$with_fbmenu" != xno],
 		[
-		AC_DEFINE([USE_FBMENU], [1],[Define if you use the framebuffer menu])
+		AC_DEFINE([USE_FBMENU], [1], [Define if you use the framebuffer menu])
 		AS_IF([test "x$with_icons" != xno],
 			[
-			AC_DEFINE([USE_ICONS], [1],[Define if you want to parse and use custom icons])
+			AC_DEFINE([USE_ICONS], [1], [Define if you want to parse and use custom icons])
+			],[])
+
+		AS_IF([test "x$enable_32bpp" == xyes],
+			[
+			AC_DEFINE([USE_32BPP], [1], [Define if you want to support this bpp mode])
+			],[])
+		AS_IF([test "x$enable_24bpp" == xyes],
+			[
+			AC_DEFINE([USE_24BPP], [1], [Define if you want to support this bpp mode])
+			],[])
+		AS_IF([test "x$enable_18bpp" == xyes],
+			[
+			AC_DEFINE([USE_18BPP], [1], [Define if you want to support this bpp mode])
+			],[])
+		AS_IF([test "x$enable_16bpp" == xyes],
+			[
+			AC_DEFINE([USE_16BPP], [1], [Define if you want to support this bpp mode])
+			],[])
+		AS_IF([test "x$enable_4bpp" == xyes],
+			[
+			AC_DEFINE([USE_4BPP],  [1], [Define if you want to support this bpp mode])
+			],[])
+		AS_IF([test "x$enable_2bpp" == xyes],
+			[
+			AC_DEFINE([USE_2BPP],  [1], [Define if you want to support this bpp mode])
+			],[])
+		AS_IF([test "x$enable_1bpp" == xyes],
+			[
+			AC_DEFINE([USE_1BPP],  [1], [Define if you want to support this bpp mode])
+			],[])
+		AS_IF([test "x$enable_all_bpp" == xyes],
+			[
+			AC_DEFINE([USE_32BPP], [1], [Define if you want to support this bpp mode])
+			AC_DEFINE([USE_24BPP], [1], [Define if you want to support this bpp mode])
+			AC_DEFINE([USE_18BPP], [1], [Define if you want to support this bpp mode])
+			AC_DEFINE([USE_16BPP], [1], [Define if you want to support this bpp mode])
+			AC_DEFINE([USE_4BPP],  [1], [Define if you want to support this bpp mode])
+			AC_DEFINE([USE_2BPP],  [1], [Define if you want to support this bpp mode])
+			AC_DEFINE([USE_1BPP],  [1], [Define if you want to support this bpp mode])
 			],[])
 		],[])
 
