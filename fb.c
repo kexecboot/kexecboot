@@ -173,10 +173,16 @@ FB *fb_new(int angle)
 	fb->real_width = fb->width = fb_var.xres;
 	fb->real_height = fb->height = fb_var.yres;
 	fb->bpp = fb_var.bits_per_pixel;
+	fb->byte_pp = fb->bpp >> 3;
 	fb->stride = fb_fix.line_length;
 	fb->type = fb_fix.type;
 	fb->visual = fb_fix.visual;
-	fb->screensize = fb->width * fb->height * fb->bpp/8; /* FIXME: is it ok for bpp < 8? */
+
+	if (0 == fb->byte_pp)
+		fb->screensize = fb->width * fb->height; /* FIXME: it should be fine-tuned according to fb->stride */
+	else
+		fb->screensize = fb->width * fb->height * fb->byte_pp;
+
 	fb->backbuffer = malloc(fb->screensize);
 
 	fb->red_offset = fb_var.red.offset;
@@ -186,24 +192,15 @@ FB *fb_new(int angle)
 	fb->blue_offset = fb_var.blue.offset;
 	fb->blue_length = fb_var.blue.length;
 
-	if (fb->red_offset == 11 && fb->red_length == 5 &&
-		fb->green_offset == 5 && fb->green_length == 6 &&
-		fb->blue_offset == 0 && fb->blue_length == 5) {
-			fb->rgbmode = RGB565;
-	} else if (fb->red_offset == 0 && fb->red_length == 5 &&
-		fb->green_offset == 5 && fb->green_length == 6 &&
-		fb->blue_offset == 11 && fb->blue_length == 5) {
-			fb->rgbmode = BGR565;
-	} else if (fb->red_offset == 16 && fb->red_length == 8 &&
-		fb->green_offset == 8 && fb->green_length == 8 &&
-		fb->blue_offset == 0 && fb->blue_length == 8) {
-			fb->rgbmode = RGB888;
-	} else if (fb->red_offset == 0 && fb->red_length == 8 &&
-		fb->green_offset == 8 && fb->green_length == 8 &&
-		fb->blue_offset == 8 && fb->blue_length == 8) {
-			fb->rgbmode = BGR888; /* NOTE: 0/8/8 looking strange.. should it be 0/8/16? */
+	/* FIXME: should we switch to depth from bpp? */
+	fb->depth = fb->red_length + fb->green_length + fb->blue_length;
+
+	if ((fb->red_offset > fb->green_offset) && (fb->green_offset > fb->blue_offset)) {
+		fb->rgbmode = RGB;
+	} else if ((fb->red_offset < fb->green_offset) && (fb->green_offset < fb->blue_offset)) {
+		fb->rgbmode = BGR;
 	} else {
-			fb->rgbmode = GENERIC;
+		fb->rgbmode = GENERIC;
 	}
 
 	fb->base = (char *) mmap((caddr_t) NULL,
@@ -257,28 +254,201 @@ FB *fb_new(int angle)
 		break;
 	}
 
+	switch (fb->depth) {
+	case 32:
+	case 24:
+		fb->plot_pixel = fb_plot_pixel_24bpp;
+		break;
+	case 18:
+		fb->plot_pixel = fb_plot_pixel_18bpp;
+		break;
+	case 16:
+		fb->plot_pixel = fb_plot_pixel_16bpp;
+		break;
+	case 2:
+		fb->plot_pixel = fb_plot_pixel_2bpp;
+		break;
+	case 1:
+		fb->plot_pixel = fb_plot_pixel_1bpp;
+		break;
+	}
+
+	fb->draw_line = NULL;
+
 	return fb;
 
-      fail:
-
+fail:
 	if (fb)
 		fb_destroy(fb);
 
 	return NULL;
 }
 
-static inline int
-fb_offset(FB *fb, int x, int y)
+#ifdef DEBUG
+void print_fb(FB *fb)
 {
-	switch (fb->bpp)
-	{
-	/* pixel offset */
-	case 2: return (y * (fb->stride << 2)) + x;
-	case 1: return (y * (fb->stride << 3)) + x;
-	/* byte offset */
-	default: return (y * fb->stride) + (x * (fb->bpp >> 3));
+	DPRINTF("Framebuffer structure");
+	DPRINTF("Descriptor: %d\n", fd);
+	DPRINTF("Type: %d\n", type);
+	DPRINTF("Visual: %d\n", visual);
+	DPRINTF("Width: %d, height: %d\n", width, height);
+	DPRINTF("Real width: %d, real height: %d\n", real_width, real_height);
+	DPRINTF("BPP: %d\n", bpp);
+	DPRINTF("Stride: %d\n", stride);
+
+	DPRINTF("Screensize: %d\n", screensize);
+	DPRINTF("Angle: %d\n", angle);
+
+	DPRINTF("RGBmode: %d\n", rgbmode);
+	DPRINTF("Red offset: %d, red lenght: %d\n", red_offset, red_length);
+	DPRINTF("Green offset: %d, green lenght: %d\n", green_offset, green_length);
+	DPRINTF("Blue offset: %d, blue lenght: %d\n", blue_offset, blue_length);
+}
+#endif
+
+/* pixel offset (for 1bpp or 2bpp */
+static inline int
+fb_offset_pixel(FB *fb, int x, int y)
+{
+	static int ox, oy;
+	switch (fb->angle) {
+	case 270:
+		oy = x;
+		ox = fb->height - y - 1;
+		break;
+	case 180:
+		ox = fb->width - x - 1;
+		oy = fb->height - y - 1;
+		break;
+	case 90:
+		ox = y;
+		oy = fb->width - x - 1;
+		break;
+	case 0:
+	default:
+		ox = x;
+		oy = y;
+		break;
+	}
+
+	switch (fb->bpp) {
+	case 2: return (oy * (fb->stride << 2)) + ox;
+	case 1: return (oy * (fb->stride << 3)) + ox;
 	}
 }
+
+/* byte offset */
+static inline int
+fb_offset_byte(FB *fb, int x, int y)
+{
+	static int ox, oy;
+	switch (fb->angle) {
+	case 270:
+		oy = x;
+		ox = fb->height - y - 1;
+		break;
+	case 180:
+		ox = fb->width - x - 1;
+		oy = fb->height - y - 1;
+		break;
+	case 90:
+		ox = y;
+		oy = fb->width - x - 1;
+		break;
+	case 0:
+	default:
+		ox = x;
+		oy = y;
+		break;
+	}
+
+	return (oy * fb->stride) + (ox * (fb->byte_pp));
+}
+
+
+inline void
+fb_plot_pixel_24bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
+{
+	static char *offset;
+
+	offset = fb->backbuffer + fb_offset_byte(fb, x, y);
+
+	if (offset > (fb->backbuffer + fb->screensize - fb->byte_pp)) return;
+
+	if (RGB = fb->rgbmode) {
+		*(offset++) = blue
+		*(offset + 2) = red;
+	} else {
+		*(offset) = red;
+		*(offset + 2) = blue;
+	}
+	*(offset + 1) = green;
+}
+
+inline void
+fb_plot_pixel_18bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
+{
+	static char *offset;
+
+	offset = fb->backbuffer + fb_offset_byte(fb, x, y);
+
+	if (offset > (fb->backbuffer + fb->screensize - fb->byte_pp)) return;
+
+	if (RGB = fb->rgbmode) {
+			*(offset)     = (blue >> 2) | ((green & 0x0C) << 4);
+			*(offset + 1) = ((green & 0xF0) >> 4) | ((red & 0x3C) << 2);
+			*(offset + 2) = (red & 0xC0) >> 6;
+	} else {
+			*(offset)     = (red >> 2) | ((green & 0x0C) << 4);
+			*(offset + 1) = ((green & 0xF0) >> 4) | ((blue & 0x3C) << 2);
+			*(offset + 2) = (blue & 0xC0) >> 6;
+	}
+}
+
+inline void
+fb_plot_pixel_16bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
+{
+	static char *offset;
+
+	offset = fb->backbuffer + fb_offset_byte(fb, x, y);
+
+	if (offset > (fb->backbuffer + fb->screensize - fb->byte_pp)) return;
+
+	if (RGB = fb->rgbmode) {
+		*(volatile uint16_t *) (offset)
+			= ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
+	} else {
+		*(volatile uint16_t *) (offset)
+			= ((blue >> 3) << 11) | ((green >> 2) << 5) | (red >> 3);
+	}
+}
+
+inline void
+fb_plot_pixel_2bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
+{
+	static int off, shift;
+
+	off = fb_offset_bit(fb, x, y);
+	shift = (3 - (off & 3)) << 1;
+
+	*(fb->backbuffer + (off >> 2)) = (*(fb->backbuffer + (off >> 2)) & ~(3 << shift))
+	| (((11*red + 16*green + 5*blue) >> 11) << shift);
+}
+
+inline void
+fb_plot_pixel_1bpp(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
+{
+	static int off, shift;
+
+	off = fb_offset_bit(fb, x, y);
+	shift = 7 - (off & 7);
+
+	if (((11*red + 16*green + 5*blue) >> 5) >= 128)
+		*(fb->backbuffer + (off >> 3)) |= (1 << shift);
+	else
+		*(fb->backbuffer + (off >> 3)) &= ~(1 << shift);
+}
+
 
 inline void
 fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
@@ -304,7 +474,7 @@ fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 		break;
 	}
 
-	if (fb->rgbmode == RGB565 || fb->rgbmode == RGB888) {
+	if (fb->rgbmode == RGB) {
 	switch (fb->bpp)
 		{
 		case 24:
@@ -321,7 +491,7 @@ fb_plot_pixel(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue)
 			/* depth not supported yet */
 			break;
 		}
-	} else if (fb->rgbmode == BGR565 || fb->rgbmode == BGR888) {
+	} else if (fb->rgbmode == BGR) {
 	switch (fb->bpp)
 		{
 		case 24:

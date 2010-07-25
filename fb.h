@@ -35,12 +35,13 @@
 #include "res/font.h"
 #include "xpm.h"
 
+typedef void (*plot_pixel_func)(FB *fb, int x, int y, uint8 red, uint8 green, uint8 blue);
+typedef void (*draw_line_func)(FB *fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue);
+
 enum RGBMode {
-    RGB565,
-    BGR565,
-    RGB888,
-    BGR888,
-    GENERIC,
+    BGR,
+    RGB,
+    GENERIC
 };
 
 typedef struct FB {
@@ -49,6 +50,8 @@ typedef struct FB {
 	int visual;
 	int width, height;
 	int bpp;
+	int depth;		/* Color depth to enable 18bpp mode */
+	int byte_pp;	/* Byte per pixel, 0 for 1/2 bpp */
 	int stride;
 	char *data;
 	char *backbuffer;
@@ -65,6 +68,9 @@ typedef struct FB {
 	int green_length;
 	int blue_offset;
 	int blue_length;
+
+	plot_pixel_func plot_pixel;
+	draw_line_func draw_line;
 } FB;
 
 void fb_destroy(FB * fb);
