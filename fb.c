@@ -830,14 +830,14 @@ void fb_draw_text(FB * fb, int x, int y, uint32 rgb,
 
 	n = strlen(text);
 	h = font->height;
-	dx = dy = 0;
+	dx = x; dy = y;
 
 	for(; *c;c++){
 		u_int32_t *glyph = NULL;
 
 		if (*c == '\n') {
 			dy += h;
-			dx = 0;
+			dx = x;
 			continue;
 		}
 
@@ -851,8 +851,8 @@ void fb_draw_text(FB * fb, int x, int y, uint32 rgb,
 
 			for (cx = 0; cx < w; cx++) {
 				if (gl & 0x80000000)
-					fb->plot_pixel(fb, x + dx + cx,
-						      y + dy + cy, r, g, b);
+					fb->plot_pixel(fb, dx + cx,
+						      dy + cy, r, g, b);
 				gl <<= 1;
 			}
 		}
