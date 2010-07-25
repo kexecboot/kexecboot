@@ -36,8 +36,12 @@
 #include "rgb.h"
 
 typedef struct FB *FBPTR;
-typedef void (*plot_pixel_func)(FBPTR fb, int x, int y, uint8 red, uint8 green, uint8 blue);
-typedef void (*draw_hline_func)(FBPTR fb, int x, int y, int length, uint8 red, uint8 green, uint8 blue);
+
+typedef void (*plot_pixel_func)(FBPTR fb, int x, int y,
+		uint8 red, uint8 green, uint8 blue);
+
+typedef void (*draw_hline_func)(FBPTR fb, int x, int y, int length,
+		uint8 red, uint8 green, uint8 blue);
 
 typedef struct FB {
 	int fd;
@@ -77,25 +81,20 @@ void print_fb(FB *fb);
 #endif
 
 void
-fb_draw_rect(FB * fb,
-	     int x,
-	     int y,
-	     int width, int height, uint8 red, uint8 green, uint8 blue);
+fb_draw_rect(FB * fb, int x, int y,
+		int width, int height, uint32 rgb);
 
 void
-fb_draw_rounded_rect(FB * fb, int x, int y, int width, int height,
-		uint8 red, uint8 green, uint8 blue);
+fb_draw_rounded_rect(FB * fb, int x, int y,
+		int width, int height, uint32 rgb);
 
 void
-fb_text_size(FB * fb,
-	     int *width, int *height, const Font * font, const char *text);
+fb_text_size(FB * fb, int *width, int *height,
+		const Font * font, const char *text);
 
 void
-fb_draw_text(FB * fb,
-	     int x,
-	     int y,
-	     uint8 red,
-	     uint8 green, uint8 blue, const Font * font, const char *text);
+fb_draw_text(FB * fb, int x, int y, uint32 rgb,
+		const Font * font, const char *text);
 
 void fb_render(FB * fb);
 

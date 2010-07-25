@@ -118,7 +118,7 @@ void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height
 	int margin = (height - 32)/2;
 	if(!iscurrent)
 		fb_draw_rect(fb, 0, slot*height, fb->width, height,
-			0xec, 0xec, 0xe1);
+			COLOR_BG);
 	else { //draw red border
 		fb_draw_rect(fb, 0, slot*height, fb->width, height,
 			COLOR_BRDR);

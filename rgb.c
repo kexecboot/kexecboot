@@ -22,6 +22,15 @@
 #include "rgb.h"
 #include "rgbtab.h"
 
+inline void
+xrgb2comp(uint32 rgb, uint8 *red, uint8 *green, uint8 *blue)
+{
+	*blue =  rgb & 0x000000FF;
+	*green = (rgb & 0x0000FF00) >> 8;
+	*red = rgb >> 16;
+}
+
+
 static int hchar2int(unsigned char c)
 {
 	static int r;
@@ -132,9 +141,7 @@ int cname2rgb(char *cname, struct rgb_color *rgb)
 	}
 
 	if (0 == len) {	/* Found */
-		rgb->b = cn->rgb & 0xFFFFFF00;
-		rgb->g = cn->rgb & 0xFFFF00FF >> 8;
-		rgb->r = cn->rgb >> 16;
+		xrgb2comp(cn->rgb, &rgb->r, &rgb->g, &rgb->b);
 	} else {		/* Not found */
 		DPRINTF("Color name '%s' not in colors database, returning red\n", color);
 		/* Return 'red' color like libXpm does */

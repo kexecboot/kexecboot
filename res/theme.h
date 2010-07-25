@@ -29,13 +29,11 @@
 #include "mmc.xpm"
 #include "memory.xpm"
 
-
 /* Font */
 #include "radeon-font.h"
 #define DEFAULT_FONT	(&radeon_font)
 
-#define MYRGB(r,g,b)	(r), (g), (b)
 /* Colors */
-#define COLOR_BG		MYRGB(0xEC, 0xEC, 0xE1)
-#define COLOR_BRDR		MYRGB(0xFF, 0, 0)
-#define COLOR_TEXT		MYRGB(0, 0, 0)
+#define COLOR_BG		0xECECE1
+#define COLOR_BRDR		0xFF0000
+#define COLOR_TEXT		0x000000

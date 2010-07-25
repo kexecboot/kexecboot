@@ -34,6 +34,10 @@ enum RGBMode {
     GENERIC
 };
 
+/* Convert XRGB uint32 to red/green/blue components */
+inline void
+xrgb2comp(uint32 rgb, uint8 *red, uint8 *green, uint8 *blue);
+
 /* Convert hex rgb color to rgb structure */
 int hex2rgb(char *hex, struct rgb_color *rgb);
 

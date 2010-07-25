@@ -456,7 +456,7 @@ void fb_destroy(FB * fb)
 	free(fb);
 }
 
-static int
+int
 attempt_to_change_pixel_format(FB * fb, struct fb_var_screeninfo *fb_var)
 {
 	/* By default the framebuffer driver may have set an oversized
@@ -730,32 +730,38 @@ fail:
  */
 
 void fb_draw_rect(FB * fb, int x, int y, int width, int height,
-		uint8 red, uint8 green, uint8 blue)
+		uint32 rgb)
 {
 	static int dy;
+	static uint8 r, g, b;
 
+	xrgb2comp(rgb, &r, &g, &b);
 	for (dy = y; dy < y+height; dy++)
-		fb->draw_hline(fb, x, dy, width, red, green, blue);
+		fb->draw_hline(fb, x, dy, width, r, g, b);
 }
 
 
 void fb_draw_rounded_rect(FB * fb, int x, int y, int width, int height,
-		uint8 red, uint8 green, uint8 blue)
+		uint32 rgb)
 {
 	static int dy;
+	static uint8 r, g, b;
 
 	if (height < 4) return;
+
+	xrgb2comp(rgb, &r, &g, &b);
+
 	/* Top rounded part */
 	dy = y;
-	fb->draw_hline(fb, x+2, dy++, width-4, red, green, blue);
-	fb->draw_hline(fb, x+1, dy++, width-2, red, green, blue);
+	fb->draw_hline(fb, x+2, dy++, width-4, r, g, b);
+	fb->draw_hline(fb, x+1, dy++, width-2, r, g, b);
 
 	for (; dy < y+height-2; dy++)
-		fb->draw_hline(fb, x, dy, width, red, green, blue);
+		fb->draw_hline(fb, x, dy, width, r, g, b);
 
 	/* Bottom rounded part */
-	fb->draw_hline(fb, x+1, dy++, width-2, red, green, blue);
-	fb->draw_hline(fb, x+2, dy++, width-4, red, green, blue);
+	fb->draw_hline(fb, x+1, dy++, width-2, r, g, b);
+	fb->draw_hline(fb, x+2, dy++, width-4, r, g, b);
 }
 
 
@@ -804,11 +810,15 @@ void fb_text_size(FB * fb, int *width, int *height, const Font * font,
 	*height = (h == 0) ? font->height : h;
 }
 
-void fb_draw_text(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue,
+void fb_draw_text(FB * fb, int x, int y, uint32 rgb,
 		const Font * font, const char *text)
 {
 	int h, w, n, cx, cy, dx, dy;
 	char *c = (char *) text;
+	uint8 r, g, b;
+	u_int32_t gl;
+
+	xrgb2comp(rgb, &r, &g, &b);
 
 	n = strlen(text);
 	h = font->height;
@@ -829,14 +839,13 @@ void fb_draw_text(FB * fb, int x, int y, uint8 red, uint8 green, uint8 blue,
 			continue;
 
 		for (cy = 0; cy < h; cy++) {
-			u_int32_t g = *glyph++;
+			gl = *glyph++;
 
 			for (cx = 0; cx < w; cx++) {
-				if (g & 0x80000000)
+				if (gl & 0x80000000)
 					fb->plot_pixel(fb, x + dx + cx,
-						      y + dy + cy, red,
-						      green, blue);
-				g <<= 1;
+						      y + dy + cy, r, g, b);
+				gl <<= 1;
 			}
 		}
 
