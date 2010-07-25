@@ -43,6 +43,9 @@ struct gui_t {
 	FB *fb;
 	int x,y;
 	int height, width;
+#ifdef USE_BG_BUFFER
+	char *bg_buffer;
+#endif
 	struct xpm_parsed_t **icons;
 	struct xpmlist_t *loaded_icons;	/* Custom icons */
 	struct xpmlist_t *menu_icons;	/* Custom menu associated icons */

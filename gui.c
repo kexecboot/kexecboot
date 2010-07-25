@@ -27,6 +27,42 @@
 #include "res/theme.h"
 
 
+/* Draw background with logo */
+void draw_background_low(struct gui_t *gui)
+{
+	static FB *fb;
+
+	fb = gui->fb;
+
+	/* Fill background */
+	fb_draw_rect(fb, 0, 0, fb->width, fb->height, CLR_BG);
+
+	/* Draw icon pad */
+	fb_draw_rounded_rect(fb, gui->x + LYT_HDR_PAD_LEFT,
+			gui->y + LYT_HDR_PAD_TOP,
+			LYT_HDR_PAD_WIDTH, LYT_HDR_PAD_HEIGHT, CLR_BG_PAD);
+
+	/* Draw icon */
+	fb_draw_xpm_image(fb, gui->x + LYT_HDR_PAD_LEFT + LYT_PAD_ICON_LOFF,
+			gui->y + LYT_HDR_PAD_TOP + LYT_PAD_ICON_TOFF,
+			gui->icons[ICON_LOGO]);
+
+	/* Draw menu frame */
+	fb_draw_rounded_rect(fb, gui->x + LYT_MENU_FRAME_LEFT,
+			gui->y + LYT_MENU_FRAME_TOP,
+			LYT_MENU_FRAME_WIDTH,
+			LYT_MENU_FRAME_HEIGHT,
+			CLR_MENU_FRAME);
+
+	/* Draw menu area */
+	fb_draw_rect(fb, gui->x + LYT_MENU_AREA_LEFT,
+			gui->y + LYT_MENU_AREA_TOP,
+			LYT_MENU_AREA_WIDTH,
+			LYT_MENU_AREA_HEIGHT,
+			CLR_MENU_BG);
+}
+
+
 struct gui_t *gui_init(int angle)
 {
 	struct gui_t *gui;
@@ -86,6 +122,12 @@ struct gui_t *gui_init(int angle)
 	gui->loaded_icons = NULL;
 	gui->menu_icons = NULL;
 
+#ifdef USE_BG_BUFFER
+	/* Pre-draw background and store it in special buffer */
+	draw_background_low(gui);
+	gui->bg_buffer = fb_dump(fb);
+#endif
+
 	return gui;
 }
 
@@ -108,50 +150,40 @@ void gui_destroy(struct gui_t *gui)
 	free(gui);
 }
 
-
-/* Draw background with logo and text */
-void draw_background(struct gui_t *gui, const char *text)
+/* Draw text */
+void draw_bg_text(struct gui_t *gui, const char *text)
 {
-	static FB *fb;
 	static int w, h;
 
-	fb = gui->fb;
-
-	/* Fill background */
-	fb_draw_rect(fb, 0, 0, fb->width, fb->height, CLR_BG);
-
-	/* Draw icon pad */
-	fb_draw_rounded_rect(fb, gui->x + LYT_HDR_PAD_LEFT,
-			gui->y + LYT_HDR_PAD_TOP,
-			LYT_HDR_PAD_WIDTH, LYT_HDR_PAD_HEIGHT, CLR_BG_PAD);
-
-	/* Draw icon */
-	fb_draw_xpm_image(fb, gui->x + LYT_HDR_PAD_LEFT + LYT_PAD_ICON_LOFF,
-			gui->y + LYT_HDR_PAD_TOP + LYT_PAD_ICON_TOFF,
-			gui->icons[ICON_LOGO]);
-
 	/* Calculate text size */
-	fb_text_size(fb, &w, &h, DEFAULT_FONT, text);
+	fb_text_size(gui->fb, &w, &h, DEFAULT_FONT, text);
 
 	/* Draw text */
-	fb_draw_text(fb, gui->x + LYT_HDR_PAD_LEFT + LYT_HDR_PAD_WIDTH + 2 +
+	fb_draw_text(gui->fb, gui->x + LYT_HDR_PAD_LEFT + LYT_HDR_PAD_WIDTH + 2 +
 			(gui->width - (LYT_HDR_PAD_LEFT + LYT_HDR_PAD_WIDTH + 2)*2 - w - LYT_FRAME_SIZE)/2,
 			gui->y + (LYT_MENU_FRAME_TOP - h)/2,
 			CLR_BG_TEXT, DEFAULT_FONT, text);
+}
 
-	/* Draw menu frame */
-	fb_draw_rounded_rect(fb, gui->x + LYT_MENU_FRAME_LEFT,
-			gui->y + LYT_MENU_FRAME_TOP,
-			LYT_MENU_FRAME_WIDTH,
-			LYT_MENU_FRAME_HEIGHT,
-			CLR_MENU_FRAME);
 
-	/* Draw menu area */
-	fb_draw_rect(fb, gui->x + LYT_MENU_AREA_LEFT,
-			gui->y + LYT_MENU_AREA_TOP,
-			LYT_MENU_AREA_WIDTH,
-			LYT_MENU_AREA_HEIGHT,
-			CLR_MENU_BG);
+/* Draw background and text */
+void draw_background(struct gui_t *gui, const char *text)
+{
+#ifdef USE_BG_BUFFER
+	if (NULL != gui->bg_buffer) {
+		/* If we have bg buffer use it */
+		fb_restore(gui->fb, gui->bg_buffer);
+	} else {
+		/* else draw bg */
+		draw_background_low(gui);
+		DPRINTF("bg_buffer is empty\n");
+	}
+#else
+	/* Have bg buffer disabled. Draw bg */
+	draw_background_low(gui);
+#endif
+	/* Draw text on bg */
+	draw_bg_text(gui, text);
 }
 
 

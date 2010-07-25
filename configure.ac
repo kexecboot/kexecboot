@@ -13,9 +13,10 @@ AC_ARG_WITH([zaurus],[AS_HELP_STRING([--with-zaurus],[compile Sharp Zaurus speci
 AC_ARG_WITH([zimage],[AS_HELP_STRING([--with-zimage],[compile with zImage support @<:@default=yes@:>@])],[],[with_zimage=yes])
 AC_ARG_WITH([uimage],[AS_HELP_STRING([--with-uimage],[compile with uImage support @<:@default=no@:>@])],[],[with_uimage=no])
 AC_ARG_WITH([machine-kernel],[AS_HELP_STRING([--with-machine-kernel],[enable looking for machine-specific zImage kernel @<:@default=no@:>@])],[],[with_machine_kernel=no])
-AC_ARG_ENABLE([devices-recreating],[AS_HELP_STRING([--enable-devices-recreating],[enable devices re-creating @<:@default=yes@:>@])], [],[enable_devices_recreating=\"yes\"])
+AC_ARG_ENABLE([devices-recreating],[AS_HELP_STRING([--enable-devices-recreating],[enable devices re-creating @<:@default=yes@:>@])], [],[enable_devices_recreating=yes])
 AC_ARG_ENABLE([debug],[AS_HELP_STRING([--enable-debug],[enable debug output @<:@default=no@:>@])], [],[enable_debug=\"no\"])
-AC_ARG_ENABLE([host-debug],[AS_HELP_STRING([--enable-host-debug],[allow for non-destructive executing of kexecboot on host system@<:@default=no@:>@])], [],[enable_host_debug=\"no\"])
+AC_ARG_ENABLE([host-debug],[AS_HELP_STRING([--enable-host-debug],[allow for non-destructive executing of kexecboot on host system@<:@default=no@:>@])], [],[enable_host_debug=no])
+AC_ARG_ENABLE([bg-buffer],[AS_HELP_STRING([--enable-bg-buffer],[enable special buffer to hold pre-drawed FB GUI background@<:@default=no@:>@])], [],[enable_bg_buffer=no])
 
 AC_ARG_ENABLE([bpp], [AS_HELP_STRING([--enable-bpp],[enable support of specified bpp modes (all,32,24,18,16,4,2,1)@<:@default=all@:>@])],
 [
@@ -44,6 +45,11 @@ AS_IF([test "x$with_fbmenu" != xno],
 		AS_IF([test "x$with_icons" != xno],
 			[
 			AC_DEFINE([USE_ICONS], [1], [Define if you want to parse and use custom icons])
+			],[])
+
+		AS_IF([test "x$enable_bg_buffer" = xyes],
+			[
+			AC_DEFINE([USE_BG_BUFFER], [1], [Define if you want to use special buffer to hold pre-drawed background])
 			],[])
 
 		AS_IF([test "x$enable_32bpp" == xyes],
