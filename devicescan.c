@@ -36,6 +36,7 @@
 #include "fstype/fstype.h"
 #include "util.h"
 #include "devicescan.h"
+#include "config.h"
 
 
 /* Create charlist of known filesystems */
