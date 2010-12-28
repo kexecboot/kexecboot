@@ -853,11 +853,15 @@ int main(int argc, char **argv)
 			break;
 		case A_SYSMENU:
 			menu = sys_menu;
+#ifdef USE_FBMENU
 			gui->menu_icons = NULL;	/* HACK reset menu_icons */
+#endif
 			break;
 		case A_MAINMENU:
 			menu = params.menu;
+#ifdef USE_FBMENU
 			gui->menu_icons = icons;	/* HACK restore menu_icons */
+#endif
 			break;
 #ifndef USE_HOST_DEBUG
 		case A_REBOOT:
