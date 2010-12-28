@@ -607,13 +607,13 @@ attempt_to_change_pixel_format(FB * fb, struct fb_var_screeninfo *fb_var)
 #ifdef DEBUG
 void print_fb(FB *fb)
 {
-	DPRINTF("Framebuffer structure");
+	DPRINTF("Framebuffer structure\n");
 	DPRINTF("Descriptor: %d\n", fb->fd);
 	DPRINTF("Type: %d\n", fb->type);
 	DPRINTF("Visual: %d\n", fb->visual);
 	DPRINTF("Width: %d, height: %d\n", fb->width, fb->height);
 	DPRINTF("Real width: %d, real height: %d\n", fb->real_width, fb->real_height);
-	DPRINTF("BPP: %d\n", fb->bpp);
+	DPRINTF("BPP: %d, depth: %d\n", fb->bpp, fb->depth);
 	DPRINTF("Stride: %d\n", fb->stride);
 
 	DPRINTF("Screensize: %d\n", fb->screensize);
