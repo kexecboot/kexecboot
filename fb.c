@@ -27,10 +27,18 @@
 static inline void
 fb_respect_angle(FB *fb, int x, int y, int *dx, int *dy, int *nx)
 {
+/*	// Not sure about this check. IMHO programmer should do this check in his head
+	if (x < 0 || x > fb->width - 1 || y < 0 || y > fb->height - 1) {
+		*dx = 0;
+		*dy = 0;
+		if (nx) *nx = 0;
+		return;
+	}
+*/
 	switch (fb->angle) {
 	case 270:
 		*dy = x;
-		*dx = fb->real_height - y - 1;
+		*dx = fb->real_width - y - 1;
 		if (nx) *nx = fb->stride;
 		break;
 	case 180:
@@ -40,7 +48,7 @@ fb_respect_angle(FB *fb, int x, int y, int *dx, int *dy, int *nx)
 		break;
 	case 90:
 		*dx = y;
-		*dy = fb->real_width - x - 1;
+		*dy = fb->real_height - x - 1;
 		if (nx) *nx = -fb->stride;
 		break;
 	case 0:
@@ -50,6 +58,14 @@ fb_respect_angle(FB *fb, int x, int y, int *dx, int *dy, int *nx)
 		if (nx) *nx = fb->byte_pp;
 		break;
 	}
+/*	// Not sure about this check. IMHO programmer should do this check in his head
+	if (*dx < 0 || *dx > fb->real_width - 1 || *dy < 0 || *dy > fb->real_height - 1) {
+		*dx = 0;
+		*dy = 0;
+		if (nx) *nx = 0;
+		return;
+	}
+*/
 }
 
 /**************************************************************************
