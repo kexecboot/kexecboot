@@ -671,13 +671,17 @@ enum actions_t process_events(struct ev_params_t *ev)
 	const int evt_size = 4;
 	struct input_event evt[evt_size];
 	enum actions_t action = A_NONE;
+	struct timeval timeout;
+
+	timeout.tv_usec = 0;
+	timeout.tv_sec = 60;	// exit after timeout to allow to do something above
 
 	if (0 == ev->count) return A_ERROR;		/* A_EXIT ? */
 
 	fds = ev->fds;
 
 	/* Wait for some input */
-	nready = select(ev->maxfd, &fds, NULL, NULL, NULL);	/* Wait indefinitely */
+	nready = select(ev->maxfd, &fds, NULL, NULL, &timeout);	/* Wait for input or timeout */
 
 	if (-1 == nready) {
 		if (errno == EINTR) return A_NONE;
@@ -685,6 +689,8 @@ enum actions_t process_events(struct ev_params_t *ev)
 			DPRINTF("Error %d occured in select() call\n", errno);
 			return A_ERROR;
 		}
+	} else if (0 == nready) {	// timeout reached
+		return A_NONE;
 	}
 
 	/* Check fds */
