@@ -18,6 +18,10 @@ AC_ARG_ENABLE([debug],[AS_HELP_STRING([--enable-debug],[enable debug output @<:@
 AC_ARG_ENABLE([host-debug],[AS_HELP_STRING([--enable-host-debug],[allow for non-destructive executing of kexecboot on host system@<:@default=no@:>@])], [],[enable_host_debug=no])
 AC_ARG_ENABLE([bg-buffer],[AS_HELP_STRING([--enable-bg-buffer],[enable special buffer to hold pre-drawed FB GUI background@<:@default=no@:>@])], [],[enable_bg_buffer=no])
 
+AC_ARG_ENABLE([timeout],[AS_HELP_STRING([--enable-timeout@<:@=seconds@:>@],[allow to boot 1st kernel after timeout in seconds @<:@default=no@:>@])], [
+	test "x$enable_timeout" = xyes && enable_timeout=10
+],[enable_timeout=no])
+
 AC_ARG_ENABLE([bpp], [AS_HELP_STRING([--enable-bpp],[enable support of specified bpp modes (all,32,24,18,16,4,2,1)@<:@default=all@:>@])],
 [
 	SIFS=${IFS}
@@ -135,6 +139,11 @@ AS_IF([test "x$with_uimage" = xyes],
 AS_IF([test "x$with_machine_kernel" = xyes],
 		[
 		AC_DEFINE([USE_MACHINE_KERNEL], [1], [Define if you wish to enable looking for machine-specific zImage kernel])
+		], [])
+
+AS_IF([test "x$enable_timeout" != xno],
+		[
+		AC_DEFINE_UNQUOTED([USE_TIMEOUT], [${enable_timeout}], [Define timeout in seconds to automatic boot 1st kernel after this time])
 		], [])
 
 AC_ISC_POSIX

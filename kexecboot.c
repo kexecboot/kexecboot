@@ -93,6 +93,9 @@ enum actions_t {
 	A_RESCAN,
 	A_DEBUG,
 	A_SELECT,
+#ifdef USE_TIMEOUT
+	A_TIMEOUT,
+#endif
 	A_DEVICES
 };
 
@@ -674,7 +677,11 @@ enum actions_t process_events(struct ev_params_t *ev)
 	struct timeval timeout;
 
 	timeout.tv_usec = 0;
+#ifdef USE_TIMEOUT
+	timeout.tv_sec = USE_TIMEOUT;
+#else
 	timeout.tv_sec = 60;	// exit after timeout to allow to do something above
+#endif
 
 	if (0 == ev->count) return A_ERROR;		/* A_EXIT ? */
 
@@ -690,7 +697,12 @@ enum actions_t process_events(struct ev_params_t *ev)
 			return A_ERROR;
 		}
 	} else if (0 == nready) {	// timeout reached
+#ifdef USE_TIMEOUT
+		DPRINTF("Timeout reached!\n");
+		return A_TIMEOUT;
+#else
 		return A_NONE;
+#endif
 	}
 
 	/* Check fds */
@@ -914,6 +926,14 @@ int main(int argc, char **argv)
 		case A_EXIT:
 			is_selected = 1;
 			break;
+#ifdef USE_TIMEOUT
+		case A_TIMEOUT:		// timeout was reached - boot 1st kernel if exists
+			if (menu->fill > 1) {
+				choice = 1;
+				is_selected = 1;
+			}
+			break;
+#endif
 		default:
 			if ( (action >= A_DEVICES) &&
 					(NULL != params.bootcfg) && (params.bootcfg->fill > 0)
