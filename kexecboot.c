@@ -81,25 +81,6 @@ char *default_kernels[] = {
 /* Init mode flag */
 int initmode = 0;
 
-/* Menu/keyboard/TS actions */
-enum actions_t {
-	A_ERROR = -1,
-	A_EXIT = 0,
-	A_NONE,
-	A_UP,
-	A_DOWN,
-	A_MAINMENU,
-	A_SYSMENU,
-	A_REBOOT,
-	A_RESCAN,
-	A_DEBUG,
-	A_SELECT,
-#ifdef USE_TIMEOUT
-	A_TIMEOUT,
-#endif
-	A_DEVICES
-};
-
 /* Common parameters */
 struct params_t {
 	struct cfgdata_t *cfg;
@@ -667,124 +648,6 @@ int do_init(void)
 }
 
 
-/* Read and process events */
-enum actions_t process_events(struct ev_params_t *ev)
-{
-	fd_set fds;
-	int i, e, nready, efd;
-	const int evt_size = 4;
-	struct input_event evt[evt_size];
-	enum actions_t action = A_NONE;
-	struct timeval timeout;
-
-	timeout.tv_usec = 0;
-#ifdef USE_TIMEOUT
-	timeout.tv_sec = USE_TIMEOUT;
-#else
-	timeout.tv_sec = 60;	// exit after timeout to allow to do something above
-#endif
-
-	if (0 == ev->count) return A_ERROR;		/* A_EXIT ? */
-
-	fds = ev->fds;
-
-	/* Wait for some input */
-	nready = select(ev->maxfd, &fds, NULL, NULL, &timeout);	/* Wait for input or timeout */
-
-	if (-1 == nready) {
-		if (errno == EINTR) return A_NONE;
-		else {
-			DPRINTF("Error %d occured in select() call\n", errno);
-			return A_ERROR;
-		}
-	} else if (0 == nready) {	// timeout reached
-#ifdef USE_TIMEOUT
-		DPRINTF("Timeout reached!\n");
-		return A_TIMEOUT;
-#else
-		return A_NONE;
-#endif
-	}
-
-	/* Check fds */
-	for (i = 0; i < ev->count; i++) {
-		efd = ev->fd[i];
-		if (FD_ISSET(efd, &fds)) {
-			nready = read(efd, evt, sizeof(struct input_event) * evt_size);	/* Read events */
-			if ( nready < (int) sizeof(struct input_event) ) {
-				DPRINTF("Short read of event structure (%d bytes)\n", nready);
-				continue;
-			}
-
-			/* NOTE: debug
-			if ( nready > (int) sizeof(struct input_event) )
-				DPRINTF("Have more than one event here (%d bytes, %d events)\n",
-						nready, (int) (nready / sizeof(struct input_event)) );
-			*/
-
-			for (e = 0; e < (int) (nready / sizeof(struct input_event)); e++) {
-
-				/* DPRINTF("+ event on %d, type: %d, code: %d, value: %d\n",
-						efd, evt[e].type, evt[e].code, evt[e].value); */
-
-				if ((EV_KEY == evt[e].type) && (0 != evt[e].value)) {
-					/* EV_KEY event actions */
-
-					switch (evt[e].code) {
-					case KEY_UP:
-						action = A_UP;
-						break;
-					case KEY_DOWN:
-					case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
-						action = A_DOWN;
-						break;
-#ifndef USE_HOST_DEBUG
-					case KEY_R:
-						action = A_REBOOT;
-						break;
-#endif
-					case KEY_S:	/* reScan */
-						action = A_RESCAN;
-						break;
-					case KEY_Q:	/* Quit (when not in initmode) */
-						if (0 == initmode) action = A_EXIT;
-						break;
-					case KEY_ENTER:
-					case KEY_SPACE:
-					case KEY_HIRAGANA:	/* Zaurus SL-6000 */
-					case KEY_HENKAN:	/* Zaurus SL-6000 */
-					case 87:			/* Zaurus: OK (remove?) */
-					case 63:			/* Zaurus: Enter (remove?) */
-					case KEY_POWER:		/* GTA02: Power (116) */
-					case KEY_PHONE:		/* GTA02: AUX (169) */
-						action = A_SELECT;
-						break;
-					default:
-						action = A_NONE;
-						break;
-					}
-#if 0
-				} else if ((EV_ABS == evt.type) && (0 != evt.value)) {
-					/* EV_KEY event actions */
-					suitable_event = 1;
-					switch (evt.code) {
-					case ABS_PRESSURE:	/* Touchscreen touch */
-						if (choice < (bl->fill - 1)) choice++;
-						else choice = 0;
-						break;
-					default:
-						suitable_event = 0;
-					}
-#endif
-				}
-			}
-		}
-	}
-
-	return action;
-}
-
-
 int main(int argc, char **argv)
 {
 	int choice = 0;
@@ -923,8 +786,9 @@ int main(int argc, char **argv)
 #endif
 			sleep(1);
 			break;
-		case A_ERROR:
 		case A_EXIT:
+			if (initmode) break;	// don't exit if we are init
+		case A_ERROR:
 			is_selected = 1;
 			break;
 #ifdef USE_TIMEOUT

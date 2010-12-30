@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <errno.h>
 
 #include <sys/ioctl.h>
 #include <asm/types.h>
@@ -278,4 +279,122 @@ void close_event_devices(int *ev_fds, int size)
 	}
 
 	free(ev_fds);
+}
+
+
+/* Read and process events */
+enum actions_t process_events(struct ev_params_t *ev)
+{
+	fd_set fds;
+	int i, e, nready, efd;
+	const int evt_size = 4;
+	struct input_event evt[evt_size];
+	enum actions_t action = A_NONE;
+	struct timeval timeout;
+
+	timeout.tv_usec = 0;
+#ifdef USE_TIMEOUT
+	timeout.tv_sec = USE_TIMEOUT;
+#else
+	timeout.tv_sec = 60;	// exit after timeout to allow to do something above
+#endif
+
+	if (0 == ev->count) return A_ERROR;		/* A_EXIT ? */
+
+	fds = ev->fds;
+
+	/* Wait for some input */
+	nready = select(ev->maxfd, &fds, NULL, NULL, &timeout);	/* Wait for input or timeout */
+
+	if (-1 == nready) {
+		if (errno == EINTR) return A_NONE;
+		else {
+			DPRINTF("Error %d occured in select() call\n", errno);
+			return A_ERROR;
+		}
+	} else if (0 == nready) {	// timeout reached
+#ifdef USE_TIMEOUT
+		DPRINTF("Timeout reached!\n");
+		return A_TIMEOUT;
+#else
+		return A_NONE;
+#endif
+	}
+
+	/* Check fds */
+	for (i = 0; i < ev->count; i++) {
+		efd = ev->fd[i];
+		if (FD_ISSET(efd, &fds)) {
+			nready = read(efd, evt, sizeof(struct input_event) * evt_size);	/* Read events */
+			if ( nready < (int) sizeof(struct input_event) ) {
+				DPRINTF("Short read of event structure (%d bytes)\n", nready);
+				continue;
+			}
+
+			/* NOTE: debug
+			if ( nready > (int) sizeof(struct input_event) )
+				DPRINTF("Have more than one event here (%d bytes, %d events)\n",
+						nready, (int) (nready / sizeof(struct input_event)) );
+			*/
+
+			for (e = 0; e < (int) (nready / sizeof(struct input_event)); e++) {
+
+				/* DPRINTF("+ event on %d, type: %d, code: %d, value: %d\n",
+						efd, evt[e].type, evt[e].code, evt[e].value); */
+
+				if ((EV_KEY == evt[e].type) && (0 != evt[e].value)) {
+					/* EV_KEY event actions */
+
+					switch (evt[e].code) {
+					case KEY_UP:
+						action = A_UP;
+						break;
+					case KEY_DOWN:
+					case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
+						action = A_DOWN;
+						break;
+#ifndef USE_HOST_DEBUG
+					case KEY_R:
+						action = A_REBOOT;
+						break;
+#endif
+					case KEY_S:	/* reScan */
+						action = A_RESCAN;
+						break;
+					case KEY_Q:	/* Quit (when not in initmode) */
+						action = A_EXIT;
+						break;
+					case KEY_ENTER:
+					case KEY_SPACE:
+					case KEY_HIRAGANA:	/* Zaurus SL-6000 */
+					case KEY_HENKAN:	/* Zaurus SL-6000 */
+					case 87:			/* Zaurus: OK (remove?) */
+					case 63:			/* Zaurus: Enter (remove?) */
+					case KEY_POWER:		/* GTA02: Power (116) */
+					case KEY_PHONE:		/* GTA02: AUX (169) */
+						action = A_SELECT;
+						break;
+					default:
+						action = A_NONE;
+						break;
+					}
+#if 0
+				} else if ((EV_ABS == evt.type) && (0 != evt.value)) {
+					/* EV_KEY event actions */
+					suitable_event = 1;
+					switch (evt.code) {
+					case ABS_PRESSURE:	/* Touchscreen touch */
+						if (choice < (bl->fill - 1)) choice++;
+						else choice = 0;
+						break;
+					default:
+						suitable_event = 0;
+					}
+#endif
+				}
+			}
+		}
+	}
+
+	return action;
 }
