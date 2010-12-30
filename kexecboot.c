@@ -42,6 +42,7 @@
 #include "util.h"
 #include "cfgparser.h"
 #include "devicescan.h"
+#include "evdevs.h"
 #include "menu.h"
 #include "kexecboot.h"
 

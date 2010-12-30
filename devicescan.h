@@ -61,14 +61,6 @@ struct bootconf_t {
 	unsigned int fill;			/* Filled items count */
 };
 
-/* Event devices parameters */
-struct ev_params_t {
-	int count;		/* Count of event descriptors */
-	int *fd;		/* Array if event devices file descriptors */
-	fd_set fds;		/* FD set of file descriptors for select() */
-	int maxfd;		/* Maximum fd number for select() */
-};
-
 extern char *machine_kernel;
 extern char *default_kernels[];
 
@@ -95,17 +87,5 @@ int get_bootinfo(struct cfgdata_t *cfgdata);
 /* Print bootconf structure */
 void print_bootcfg(struct bootconf_t *bc);
 #endif
-
-/* Return list of found event devices */
-struct charlist *scan_event_devices();
-
-/* Open event devices and return array of descriptors */
-int *open_event_devices(struct charlist *evlist);
-
-/* Close opened devices */
-void close_event_devices(int *ev_fds, int size);
-
-/* Scan for event devices */
-int scan_evdevs(struct ev_params_t *ev);
 
 #endif
