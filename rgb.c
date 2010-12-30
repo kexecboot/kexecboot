@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+
+#include "config.h"
 #include "rgb.h"
 #include "rgbtab.h"
 

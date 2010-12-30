@@ -18,6 +18,7 @@
 #ifndef _HAVE_RGB_H
 #define _HAVE_RGB_H
 
+#include "config.h"
 #include "util.h"
 
 /* Colors triplet structure */

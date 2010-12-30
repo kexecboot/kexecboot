@@ -22,6 +22,7 @@
  * NOTE: Modes 1bpp, 2bpp, 4bpp and 18bpp should be tested.
  */
 
+#include "config.h"
 #include "fb.h"
 
 static inline void

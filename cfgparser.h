@@ -19,6 +19,8 @@
 #ifndef _HAVE_CONFIGPARSER_H
 #define _HAVE_CONFIGPARSER_H
 
+#include "config.h"
+
 #define MOUNTPOINT	"/mnt"
 #define BOOTCFG_PATH MOUNTPOINT "/boot/boot.cfg"
 

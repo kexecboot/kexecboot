@@ -19,6 +19,7 @@
 #ifndef _HAVE_GUI_H_
 #define _HAVE_GUI_H_
 
+#include "config.h"
 #include "fb.h"
 #include "xpm.h"
 #include "menu.h"

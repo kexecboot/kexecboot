@@ -37,6 +37,8 @@
 #include <limits.h>
 #include <sys/mount.h>
 #include <ctype.h>
+
+#include "config.h"
 #include "util.h"
 #include "cfgparser.h"
 

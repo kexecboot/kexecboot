@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "config.h"
 #include "fb.h"
 #include "xpm.h"
 #include "gui.h"

@@ -24,6 +24,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
+
+#include "config.h"
 #include "xpm.h"
 
 /* XPM pixel structure (internal) */

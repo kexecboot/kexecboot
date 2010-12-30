@@ -19,6 +19,8 @@
 #ifndef _HAVE_MENU_H_
 #define _HAVE_MENU_H_
 
+#include "config.h"
+
 struct menu_item_t;
 
 struct menu_t {

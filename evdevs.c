@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <linux/input.h>
 
+#include "config.h"
 #include "evdevs.h"
 #include "util.h"
 

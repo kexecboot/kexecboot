@@ -20,6 +20,8 @@
 #ifndef _HAVE_KEXECBOOT_H
 #define _HAVE_KEXECBOOT_H
 
+#include "config.h"
+
 /* Default event interface. Can be redefined */
 #ifndef KXB_EVENTIF
 #define KXB_EVENTIF "/dev/event0"

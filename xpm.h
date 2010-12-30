@@ -33,6 +33,7 @@
 #ifndef _HAVE_XPM_H
 #define _HAVE_XPM_H
 
+#include "config.h"
 #include "fb.h"
 
 /* Limit maximum xpm file size to 64Kb */

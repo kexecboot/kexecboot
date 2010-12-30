@@ -27,6 +27,8 @@
 #include <errno.h>
 #include <termios.h>
 #include <limits.h>		/* LONG_MAX, INT_MAX */
+
+#include "config.h"
 #include "util.h"
 
 

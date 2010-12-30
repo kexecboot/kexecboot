@@ -18,6 +18,8 @@
 #ifndef _HAVE_DEVICESCAN_H_
 #define _HAVE_DEVICESCAN_H_
 
+#include "config.h"
+#include "util.h"
 #include "cfgparser.h"
 
 /* Device structure */
