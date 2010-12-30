@@ -1,8 +1,8 @@
 /*
  *  kexecboot - A kexec based bootloader
  *
- *  Copyright (c) 2009 Yuri Bushmelev <jay4mail@gmail.com>
- *  Copyright (c) 2009 Andrea Adami <andrea.adami@gmail.com>
+ *  Copyright (c) 2009-2011 Yuri Bushmelev <jay4mail@gmail.com>
+ *  Copyright (c) 2009-2011 Andrea Adami <andrea.adami@gmail.com>
  *
  *  Based on
  *  NAND logical utility for Sharp Zaurus SL-C7x0/860/7500/Cxx00

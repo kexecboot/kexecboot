@@ -3,7 +3,7 @@
  *  XPM parsing routines based on libXpm
  *  NOTE: Only XPM 3 are supported!
  *
- *  Copyright (c) 2008-2010 Yuri Bushmelev <jay4mail@gmail.com>
+ *  Copyright (c) 2008-2011 Yuri Bushmelev <jay4mail@gmail.com>
  *  Copyright (C) 1989-95 GROUPE BULL
  *
  *  This program is free software; you can redistribute it and/or modify

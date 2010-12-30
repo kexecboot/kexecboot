@@ -1,7 +1,7 @@
 /*
  *  kexecboot - A kexec based bootloader
  *
- *  Copyright (c) 2008-2009 Yuri Bushmelev <jay4mail@gmail.com>
+ *  Copyright (c) 2008-2011 Yuri Bushmelev <jay4mail@gmail.com>
  *  Copyright (c) 2008 Thomas Kunze <thommycheck@gmx.de>
  *
  *  This program is free software; you can redistribute it and/or modify

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2010 Yuri Bushmelev <jay4mail@gmail.com>
+ * Copyright (c) 2008-2011 Yuri Bushmelev <jay4mail@gmail.com>
  * Copyright (C) 1989-95 GROUPE BULL
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
