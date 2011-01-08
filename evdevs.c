@@ -22,6 +22,7 @@
  * pass descriptor to upper layer, close otherwise.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
