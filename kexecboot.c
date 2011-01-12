@@ -623,9 +623,6 @@ int do_init(void)
 
 	DPRINTF("I'm the init-process!\n");
 
-	/* extra delay for initializing slow SD/CF */
-	sleep(1);
-
 	/* Mount procfs */
 	if ( -1 == mount("proc", "/proc", "proc",
 			0, NULL) ) {
@@ -683,6 +680,11 @@ int main(int argc, char **argv)
 #endif
 
 	sys_menu = build_system_menu();
+
+#ifdef USE_DELAY
+	/* extra delay for initializing slow SD/CF */
+	sleep(USE_DELAY);
+#endif
 
 #ifdef USE_FBMENU
 	gui = gui_init(cfg.angle);

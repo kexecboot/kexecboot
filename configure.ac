@@ -22,6 +22,10 @@ AC_ARG_ENABLE([timeout],[AS_HELP_STRING([--enable-timeout@<:@=sec@:>@],[allow to
 	test "x$enable_timeout" = xyes && enable_timeout=10
 ],[enable_timeout=no])
 
+AC_ARG_ENABLE([delay],[AS_HELP_STRING([--enable-delay@<:@=sec@:>@],[specify delay before devices scanning @<:@default=1@:>@])], [
+	test "x$enable_delay" = xyes && enable_delay=1
+],[enable_delay=1])
+
 AC_ARG_ENABLE([bpp], [AS_HELP_STRING([--enable-bpp@<:@=list@:>@],[enable support of specified bpp modes (all,32,24,18,16,4,2,1) @<:@default=all@:>@])],
 [
 	SIFS=${IFS}
@@ -144,6 +148,11 @@ AS_IF([test "x$enable_machine_kernel" = xyes],
 AS_IF([test "x$enable_timeout" != xno],
 		[
 		AC_DEFINE_UNQUOTED([USE_TIMEOUT], [${enable_timeout}], [Define timeout in seconds to automatic boot 1st kernel after this time])
+		], [])
+
+AS_IF([test "x$enable_delay" != xno],
+		[
+		AC_DEFINE_UNQUOTED([USE_DELAY], [${enable_delay}], [Define delay to sleep before scanning devices])
 		], [])
 
 AC_ISC_POSIX
