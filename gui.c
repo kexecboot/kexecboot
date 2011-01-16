@@ -113,8 +113,7 @@ struct gui_t *gui_init(int angle)
 	gui->icons[ICON_REBOOT] = xpm_parse_image(reboot_xpm, ROWS(reboot_xpm), bpp);
 	gui->icons[ICON_RESCAN] = xpm_parse_image(rescan_xpm, ROWS(rescan_xpm), bpp);
 	gui->icons[ICON_DEBUG] = xpm_parse_image(debug_xpm, ROWS(debug_xpm), bpp);
-	gui->icons[ICON_HD] = xpm_parse_image(hd_xpm, ROWS(hd_xpm), bpp);
-	gui->icons[ICON_SD] = xpm_parse_image(sd_xpm, ROWS(sd_xpm), bpp);
+	gui->icons[ICON_STORAGE] = xpm_parse_image(storage_xpm, ROWS(storage_xpm), bpp);
 	gui->icons[ICON_MMC] = xpm_parse_image(mmc_xpm, ROWS(mmc_xpm), bpp);
 	gui->icons[ICON_MEMORY] = xpm_parse_image(memory_xpm, ROWS(memory_xpm), bpp);
 //	gui->icons[ICON_EXIT] = xpm_parse_image(exit_xpm, ROWS(exit_xpm), bpp);

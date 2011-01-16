@@ -91,8 +91,8 @@ struct dtypes_t {
 };
 
 static struct dtypes_t dtypes[] = {
-	{ DVT_HD, sizeof("/dev/hd")-1, "/dev/hd" },
-	{ DVT_SD, sizeof("/dev/sd")-1, "/dev/sd" },
+	{ DVT_STORAGE, sizeof("/dev/hd")-1, "/dev/hd" },
+	{ DVT_STORAGE, sizeof("/dev/sd")-1, "/dev/sd" },
 	{ DVT_MMC, sizeof("/dev/mmcblk")-1, "/dev/mmcblk" },
 	{ DVT_MTD, sizeof("/dev/mtdblock")-1, "/dev/mtdblock" },
 	{ DVT_UNKNOWN, 0, NULL }

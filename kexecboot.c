@@ -567,11 +567,8 @@ int build_menu(struct params_t *params)
 			if (NULL == icon) {
 				/* We have no custom icon - use default */
 				switch (tbi->dtype) {
-				case DVT_HD:
-					icon = gui->icons[ICON_HD];
-					break;
-				case DVT_SD:
-					icon = gui->icons[ICON_SD];
+				case DVT_STORAGE:
+					icon = gui->icons[ICON_STORAGE];
 					break;
 				case DVT_MMC:
 					icon = gui->icons[ICON_MMC];

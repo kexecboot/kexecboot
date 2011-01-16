@@ -1,5 +1,5 @@
 /* XPM */
-static char * sd_xpm[] = {
+static char * storage_xpm[] = {
 "32 32 32 1",
 " 	c None",
 ".	c #525351",

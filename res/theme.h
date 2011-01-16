@@ -24,8 +24,7 @@
 #include "rescan.xpm"
 #include "debug.xpm"
 
-#include "hd.xpm"
-#include "sd.xpm"
+#include "storage.xpm"
 #include "mmc.xpm"
 #include "memory.xpm"
 
