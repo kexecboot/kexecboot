@@ -24,9 +24,10 @@
 #include "menu.h"
 #include "util.h"
 
-struct menu_t *menu_init(int size)
+/* Create menu of 'size' submenus/levels */
+kx_menu *menu_create(kx_menu_dim size)
 {
-	struct menu_t *menu;
+	kx_menu *menu;
 
 	menu = malloc(sizeof(*menu));
 	if (NULL == menu) {
@@ -36,61 +37,182 @@ struct menu_t *menu_init(int size)
 
 	menu->list = malloc(size * sizeof(*(menu->list)));
 	if (NULL == menu->list) {
-		DPRINTF("Can't allocate menu items array\n");
+		DPRINTF("Can't allocate menu levels array\n");
 		free(menu);
 		return NULL;
 	}
 
 	menu->size = size;
-	menu->fill = 0;
+	menu->count = 0;
+	menu->next_id = 0;
 	return menu;
 }
 
-
-void menu_destroy(struct menu_t *menu)
+/* Get next available menu id */
+kx_menu_id menu_get_next_id(kx_menu *menu)
 {
-	int i;
-	for (i = 0; i < menu->fill; i++) {
-		free(menu->list[i]->label);
-		free(menu->list[i]);
+	return menu->next_id++;
+}
+
+/* Create menu level (submenu) of 'size' items */
+kx_menu_level *menu_level_create(kx_menu *menu, kx_menu_dim size,
+		kx_menu_level *parent)
+{
+	kx_menu_level *level;
+	
+	if (!menu) return NULL;
+
+	/* Resize list when needed before adding item */
+	if (menu->count >= menu->size) {
+		kx_menu_level **new_list;
+		kx_menu_dim new_size;
+
+		new_size = menu->size * 2;
+		new_list = realloc(menu->list, new_size * sizeof(*(menu->list)));
+		if (NULL == new_list) {
+			DPRINTF("Can't resize menu levels list\n");
+			return NULL;
+		}
+
+		menu->size = new_size;
+		menu->list = new_list;
+	}
+	
+	level = malloc(sizeof(*level));
+	if (NULL == level) {
+		DPRINTF("Can't allocate menu level\n");
+		return NULL;
+	}
+
+	level->list = malloc(size * sizeof(*(level->list)));
+	if (NULL == level->list) {
+		DPRINTF("Can't allocate menu items array\n");
+		free(level);
+		return NULL;
+	}
+
+	level->size = size;
+	level->count = 0;
+	level->current_no = 0;
+	level->parent = parent;
+	
+	menu->list[menu->count++] = level;
+	
+	return level;
+}
+
+
+/* Add menu item to menu level */
+kx_menu_item *menu_item_add(kx_menu_level *level, kx_menu_id id,
+		char *label, char *description, kx_menu_level *submenu)
+{
+	kx_menu_item *item;
+
+	if (!level) return NULL;
+	
+	/* Resize list when needed before adding item */
+	if (level->count >= level->size) {
+		kx_menu_item **new_list;
+		kx_menu_dim new_size;
+
+		new_size = level->size * 2;
+		new_list = realloc(level->list, new_size * sizeof(*(level->list)));
+		if (NULL == new_list) {
+			DPRINTF("Can't resize menu items list\n");
+			return NULL;
+		}
+
+		level->size = new_size;
+		level->list = new_list;
+	}
+	
+	item = malloc(sizeof(*item));
+	if (NULL == item) {
+		DPRINTF("Can't allocate menu level\n");
+		return NULL;
+	}
+
+	item->label = strdup(label);
+	item->description = ( description ? strdup(description) : NULL );
+	item->id = id;
+	item->submenu = submenu;
+	
+	level->list[level->count++] = item;
+	
+	return item;
+}
+
+
+void menu_destroy(kx_menu *menu, int destroy_data)
+{
+	int i,j;
+	kx_menu_level *ml;
+	kx_menu_item *mi;
+	
+	/* remove all levels/submenus */
+	for (i = 0; i < menu->count; i++) {
+		ml = menu->list[i];
+		if (ml) {
+			/* remove all items */
+			for (j = 0; j < ml->count; j++) {
+				mi = ml->list[j];
+				if (mi) {
+					dispose(mi->label);
+					dispose(mi->description);
+					if (destroy_data && mi->data) free(mi->data);
+					free(mi);
+				}
+			}
+			free(ml->list);
+			free(ml);
+		}
 	}
 	free(menu->list);
 	free(menu);
 }
 
 
-int menu_add_item(struct menu_t *menu, char *label, int tag, struct menu_t *submenu)
+#define menu_item_set_current_and_return(level, index) \
+	if ( (level)->list[(index)] ) { \
+		(level)->current_no = (index); \
+		(level)->current = (level)->list[(index)]; \
+		return (index); \
+	}
+
+/* Select next/prev/first item in current level */
+kx_menu_dim menu_item_select(kx_menu *menu, int direction)
 {
-	struct menu_item_t *mi;
+	static kx_menu_level *ml;
+	static kx_menu_dim cur_no, i, step, start;
+	
+	ml = menu->current;
+	cur_no = ml->current_no;
 
-	if (NULL == menu) return -1;
-
-	mi = malloc(sizeof(*mi));
-	if (NULL == mi) {
-		DPRINTF("Can't allocate memory for menu item\n");
-		return -1;
+	/* Just select first available item */
+	if (0 == direction)
+		for (i = 0; i < ml->count; i++)
+			menu_item_set_current_and_return(ml, i);
+	
+	if (direction > 0) {
+		step = 1;
+		start = 0;
+	} else {
+		step = -1;
+		start = ml->count - 1;
 	}
+	
+	/* Try to get next/prev item */
+	for (i = cur_no + step; ( (i < ml->count) && (i >= 0) ); i += step)
+		menu_item_set_current_and_return(ml, i);
+	
+	/* We have reached end/begin of list -> wrap to begin/end */
+	for (i = start; ( (i < ml->count) && (i >= 0) ); i += step)
+		menu_item_set_current_and_return(ml, i);
+	
+	return 0;
+}
 
-	mi->label = strdup(label);
-	mi->tag = tag;
-	mi->submenu = submenu;
-
-	menu->list[menu->fill] = mi;
-	++menu->fill;
-
-	/* Resize list when needed */
-	if (menu->fill >= menu->size) {
-		struct menu_item_t **new_list;
-
-		menu->size <<= 1;	/* size *= 2; */
-		new_list = realloc(menu->list, menu->size * sizeof(*(menu->list)));
-		if (NULL == new_list) {
-			DPRINTF("Can't resize menu list\n");
-			return -1;
-		}
-
-		menu->list = new_list;
-	}
-
-	return menu->fill - 1;
+inline void menu_item_set_data(kx_menu_item *item, void *data)
+{
+	item->data = data;
 }

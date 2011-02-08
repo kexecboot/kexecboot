@@ -85,7 +85,7 @@ int initmode = 0;
 struct params_t {
 	struct cfgdata_t *cfg;
 	struct bootconf_t *bootcfg;
-	struct menu_t *menu;
+	kx_menu *menu;
 #ifdef USE_FBMENU
 	struct gui_t *gui;
 #endif
@@ -451,46 +451,64 @@ free_device:
 
 
 /* Create system menu */
-struct menu_t *build_system_menu()
+kx_menu *build_menu()
 {
-	struct menu_t *sys_menu;
-	/* Initialize menu */
-	sys_menu = menu_init((0 == initmode ? 5 : 4));
-	if (NULL == sys_menu) {
+	kx_menu *menu;
+	kx_menu_level *ml;
+	
+	/* Create menu with 2 levels (main and system) */
+	menu = menu_create(2);
+	if (!menu) {
+		DPRINTF("Can't create menu\n");
 		return NULL;
 	}
+	
+	/* Create main menu level */
+	menu->top = menu_level_create(menu, 4, NULL);
+	
+	/* Create main menu level */
+	ml = menu_level_create(menu, 6, menu->top);
+	if (!ml) {
+		DPRINTF("Can't create system menu\n");
+		return menu;
+	}
 
-	menu_add_item(sys_menu, "Back", A_MAINMENU,  NULL);
+	/* FIXME: sysmenu icons should be passed here somehow
+	or we should set item's data to icon somewhere else */
+	menu_item_add(menu->top, A_SYSMENU, "System menu", NULL, ml);
+	
+	menu_item_add(ml, A_MAINMENU, "Back", NULL, NULL);
 	if (!initmode) {
-		menu_add_item(sys_menu, "Exit", A_EXIT,  NULL);
+		menu_item_add(ml, A_EXIT, "Exit", NULL, NULL);
 	}
 #ifndef USE_HOST_DEBUG
-	menu_add_item(sys_menu, "Reboot", A_REBOOT, NULL);
+	menu_item_add(ml, A_REBOOT, "Reboot", NULL, NULL);
 #endif
-	menu_add_item(sys_menu, "Rescan", A_RESCAN, NULL);
-	menu_add_item(sys_menu, "Show debug info", A_DEBUG, NULL);
+	menu_item_add(ml, A_RESCAN, "Rescan", NULL, NULL);
+	menu_item_add(ml, A_DEBUG, "Show debug info", NULL, NULL);
 
-	return sys_menu;
+	menu->current = menu->top;
+	menu_item_select(menu, 0);
+	return menu;
 }
 
 
-/* Build menu. Return pointers to menu and icons list */
-/* iconlist initially should point to loaded_icons, menu to sys_menu */
-int build_menu(struct params_t *params)
+/* Fill main menu with boot items */
+int fill_menu(struct params_t *params)
 {
-	struct menu_t *main_menu, *sys_menu;
+	kx_menu_item *mi;
 	int i, b_items, max_pri, max_i, *a;
 	struct boot_item_t *tbi;
 	struct bootconf_t *bl;
-	const int sizeof_label = 160;
-	char *label;
+	const int sizeof_desc = 160;
+	char *desc;
 #ifdef USE_FBMENU
 	struct xpm_parsed_t *icon;
-	struct xpmlist_t *icons;
 	struct gui_t *gui;
+
+	gui = params->gui;
 #endif
 
-	sys_menu = params->menu;
 	bl = params->bootcfg;
 
 	if ( (NULL != bl) && (bl->fill > 0) ) b_items = bl->fill;
@@ -498,37 +516,16 @@ int build_menu(struct params_t *params)
 
 	DPRINTF("Found %d items\n", b_items);
 
-	/* Initialize menu */
-	main_menu = menu_init(b_items + 1);
-	if (NULL == main_menu) {
-		DPRINTF("Can't create main menu\n");
-		return -1;
-	}
-
-	/* Insert system menu */
-	menu_add_item(main_menu, "System menu", A_SYSMENU, sys_menu);
-#ifdef USE_FBMENU
-	icons = create_xpmlist(b_items + 1);
-	if (NULL == icons) {
-		DPRINTF("Can't allocate memory for icons list\n");
-		/* Just continue without icons */
-	}
-
-	gui = params->gui;
-
-	addto_xpmlist(icons, gui->icons[ICON_SYSTEM]);
-#endif
-
-	label = malloc(sizeof_label);
-	if (NULL == label) {
-		DPRINTF("Can't allocate place for item label\n");
-		goto free_icons;
+	desc = malloc(sizeof_desc);
+	if (NULL == desc) {
+		DPRINTF("Can't allocate place for item description\n");
+		goto dirty_exit;
 	}
 
 	a = malloc(b_items * sizeof(*a));	/* Markers array */
 	if (NULL == a) {
 		DPRINTF("Can't allocate markers array\n");
-		goto free_label;
+		goto dirty_exit;
 	}
 
 	for (i = 0; i < b_items; i++) a[i] = 0;	/* Clean markers array */
@@ -554,12 +551,14 @@ int build_menu(struct params_t *params)
 			DPRINTF("* maximum priority %d found at %d\n", max_pri, max_i);
 			/* We have found new max priority - insert into menu */
 			tbi = bl->list[max_i];
-			snprintf(label, sizeof_label, "%s\n%s %s %luMb",
-					( NULL != tbi->label ? tbi->label : tbi->kernelpath ),
+			snprintf(desc, sizeof_desc, "%s %s %luMb",
 					tbi->device, tbi->fstype, tbi->blocks/1024);
-			DPRINTF("+ [%s]\n", label);
-
-			menu_add_item(main_menu, label, A_DEVICES + max_i, NULL);
+			
+			/* FIXME: label should be filled properly already */
+			DPRINTF("+ [%s\n%s]\n", ( tbi->label ? tbi->label : tbi->kernelpath ), desc);
+			mi = menu_item_add(params->menu->top, A_DEVICES + max_i, 
+					( tbi->label ? tbi->label : tbi->kernelpath ),
+					desc, NULL);
 
 #ifdef USE_FBMENU
 			/* Search associated with boot item icon if any */
@@ -581,31 +580,21 @@ int build_menu(struct params_t *params)
 					break;
 				}
 			}
-			/* Add icon to list */
-			addto_xpmlist(icons, icon);
+			
+			/* Add icon to menu */
+			if (mi) mi->data = icon;
 #endif
-
 		}
 
 		if (-1 == max_pri) break;	/* We have no items to process */
-	};
+	}
 
 	free(a);
-
-free_label:
-	free(label);
-
-	params->menu = main_menu;
-#ifdef USE_FBMENU
-	gui->menu_icons = icons;
-#endif
+	free(desc);
 	return 0;
 
-free_icons:
-#ifdef USE_FBMENU
-	free_xpmlist(icons, 0);
-#endif
-	menu_destroy(main_menu);
+dirty_exit:
+	dispose(desc);
 	return -1;
 }
 
@@ -644,14 +633,12 @@ int do_init(void)
 
 int main(int argc, char **argv)
 {
-	int choice = 0;
 	int is_selected = 0;
 	int action = A_MAINMENU;
 	struct cfgdata_t cfg;
-	struct menu_t *menu, *sys_menu;
+	kx_menu *menu;
 #ifdef USE_FBMENU
 	struct gui_t *gui;
-	struct xpmlist_t *icons;
 #endif
 	struct params_t params;
 	struct ev_params_t ev;
@@ -676,8 +663,6 @@ int main(int argc, char **argv)
 	machine_kernel = get_machine_kernelpath();	/* FIXME should be passed as arg to get_bootinfo() */
 #endif
 
-	sys_menu = build_system_menu();
-
 #ifdef USE_DELAY
 	/* extra delay for initializing slow SD/CF */
 	sleep(USE_DELAY);
@@ -691,6 +676,9 @@ int main(int argc, char **argv)
 	}
 	params.gui = gui;
 #endif
+	
+	menu = build_menu();
+	params.menu = menu;
 	params.bootcfg = NULL;
 	params.cfg = &cfg;
 
@@ -698,51 +686,36 @@ int main(int argc, char **argv)
 	/* Out: bootcfg, gui.loaded_icons */
 	scan_devices(&params);
 
-	params.menu = sys_menu;
-	/* In: bootcfg, menu=sys_menu, gui.loaded_icons */
-	/* Out: menu, gui.menu_icons */
-	if (-1 == build_menu(&params)) {
+	if (-1 == fill_menu(&params)) {
 		exit(-1);
 	}
-	menu = params.menu;
-#ifdef USE_FBMENU
-	icons = gui->menu_icons;	/* HACK remember menu icons now */
-#endif
-
 
 	scan_evdevs(&ev);	/* Look for event devices */
 
 	/* Event loop */
 	do {
 #ifdef USE_FBMENU
-		if (action != A_NONE) gui_show_menu(gui, menu, choice);
+		if (action != A_NONE) gui_show_menu(gui, menu);
 #endif
 		action = process_events(&ev);
 
-		if (A_SELECT == action) action = menu->list[choice]->tag;
+		if (A_SELECT == action) action = menu->current->current->id;
 
 		switch (action) {
 		case A_NONE:
 			break;
 		case A_UP:
-			if (choice > 0) --choice;
-			else choice = menu->fill - 1;
+			menu_item_select(menu, -1);
 			break;
 		case A_DOWN:
-			if (choice < (menu->fill - 1)) ++choice;
-			else choice = 0;
+			menu_item_select(menu, 1);
 			break;
 		case A_SYSMENU:
-			menu = sys_menu;
-#ifdef USE_FBMENU
-			gui->menu_icons = NULL;	/* HACK reset menu_icons */
-#endif
+			menu->current = menu->current->current->submenu;
 			break;
 		case A_MAINMENU:
-			menu = params.menu;
-#ifdef USE_FBMENU
-			gui->menu_icons = icons;	/* HACK restore menu_icons */
-#endif
+			menu->current = menu->current->parent;
+			/* menu->current = menu->top; */
 			break;
 #ifndef USE_HOST_DEBUG
 		case A_REBOOT:
@@ -757,26 +730,22 @@ int main(int argc, char **argv)
 			break;
 #endif
 		case A_RESCAN:
+			/* FIXME: audit this code */
 #ifdef USE_FBMENU
 			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
-			free_xpmlist(icons, 0);		/* Free xpmlist structure only */
 			free_xpmlist(gui->loaded_icons, 1);
 #endif
 			free_bootcfg(params.bootcfg);
-			menu_destroy(params.menu);
+			menu_destroy(params.menu, 0);
 
 			params.bootcfg = NULL;
 			scan_devices(&params);
 
-			params.menu = sys_menu;
-			if (-1 == build_menu(&params)) {
+			params.menu = build_menu();
+			if (-1 == fill_menu(&params)) {
 				exit(-1);
 			}
 			menu = params.menu;
-#ifdef USE_FBMENU
-			icons = gui->menu_icons;
-#endif
-			choice = 0;
 
 			break;
 		case A_DEBUG:
@@ -792,8 +761,9 @@ int main(int argc, char **argv)
 			break;
 #ifdef USE_TIMEOUT
 		case A_TIMEOUT:		// timeout was reached - boot 1st kernel if exists
-			if (menu->fill > 1) {
-				choice = 1;
+			if (menu->current->count > 1) {
+				menu_item_select(menu, 0);	/* choose first item */
+				menu_item_select(menu, 1);	/* and switch to next item */
 				is_selected = 1;
 			}
 			break;
@@ -816,9 +786,9 @@ int main(int argc, char **argv)
 		exit(action);
 	}
 
-	action = menu->list[choice]->tag;	/* action is used as temporary variable */
+	action = menu->current->current->id;	/* action is used as temporary variable */
 
-	menu_destroy(params.menu);
+	menu_destroy(params.menu, 0);
 
 	if (action >= A_DEVICES) {
 		start_kernel(&params, action - A_DEVICES);

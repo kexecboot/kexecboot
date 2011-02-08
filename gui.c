@@ -188,13 +188,14 @@ void draw_background(struct gui_t *gui, const char *text)
 
 
 /* Draw one slot in menu */
-void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height,
-		int iscurrent, struct xpm_parsed_t *icon)
+void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
+		int iscurrent)
 {
 	static FB *fb;
 	static uint32 cbg, cpad, ctext, cline;
 	static int slot_top, w, h;
-
+	static struct xpm_parsed_t *icon;
+	
 	fb = gui->fb;
 
 	if (!iscurrent) {
@@ -208,6 +209,8 @@ void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height
 		ctext = CLR_SMNI_TEXT;
 		cline = CLR_SMNI_LINE;
 	}
+	
+	icon = (struct xpm_parsed_t *)item->data;
 
 	slot_top = gui->y + LYT_MENU_AREA_TOP + LYT_MNI_HEIGHT * (slot-1); /* Slots are numbered from 1 */
 	/* Draw background */
@@ -237,9 +240,16 @@ void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height
 			slot_top + (height - h)/2,
 			ctext, DEFAULT_FONT, item->label);
 
-	if (NULL != item->submenu) {
-		/* Draw something to show that here is submenu available */
+	
+	/* Draw description if available *
+	if (NULL != item->description) {
 	}
+	*/
+	
+	/* Draw something to show that here is submenu available *
+	if (NULL != item->submenu) {
+	}
+	*/
 
 	/* Draw line */
 	fb_draw_rect(fb, gui->x + LYT_MNI_LEFT,
@@ -250,34 +260,34 @@ void draw_slot(struct gui_t *gui, struct menu_item_t *item, int slot, int height
 
 
 /* Display bootlist menu with selection */
-void gui_show_menu(struct gui_t *gui, struct menu_t *menu, int current)
+void gui_show_menu(struct gui_t *gui, kx_menu *menu)
 {
 	int i,j;
 	int slotheight = LYT_MNI_HEIGHT;
 	int slots = gui->height/slotheight -1;
+	kx_menu_level *ml;
 	// struct boot that is in fist slot
 	static int firstslot=0;
+	int cur_no;
 
-	if (1 == menu->fill) {
+	ml = menu->current;			/* active menu level */
+	cur_no = ml->current_no;	/* active menu item index */
+	
+	/* FIXME: shouldn't be done here */
+	if (1 == ml->count) {
+		/* Only system menu in list */
 		draw_background(gui, "No bootable devices found.\nR: Reboot  S: Rescan devices");
 	} else {
 		draw_background(gui, "KEXECBOOT - Linux Soft-bootloader");
 	}
 
-	if(current < firstslot)
-		firstslot=current;
-	if(current > firstslot + slots -1)
-		firstslot = current - (slots -1);
+	if(cur_no < firstslot)
+		firstslot = cur_no;
+	if(cur_no > firstslot + slots -1)
+		firstslot = cur_no - (slots -1);
 
-	if (NULL == gui->menu_icons) {
-		for(i=1, j=firstslot; i <= slots && j< menu->fill; i++, j++) {
-			draw_slot(gui, menu->list[j], i, slotheight, j == current, NULL);
-		}
-	} else {
-		for(i=1, j=firstslot; i <= slots && j< menu->fill; i++, j++) {
-			draw_slot(gui, menu->list[j], i, slotheight, j == current,
-					gui->menu_icons->list[j]);
-		}
+	for(i=1, j=firstslot; i <= slots && j< ml->count; i++, j++) {
+		draw_slot(gui, ml->list[j], i, slotheight, j == cur_no);
 	}
 
 	fb_render(gui->fb);
