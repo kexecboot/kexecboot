@@ -435,10 +435,17 @@ free_device:
 
 
 /* Create system menu */
-kx_menu *build_menu()
+kx_menu *build_menu(struct params_t *params)
 {
 	kx_menu *menu;
 	kx_menu_level *ml;
+	kx_menu_item *mi;
+	
+#ifdef USE_ICONS
+	struct xpm_parsed_t **icons;
+	
+	icons = params->gui->icons;
+#endif
 	
 	/* Create menu with 2 levels (main and system) */
 	menu = menu_create(2);
@@ -459,17 +466,39 @@ kx_menu *build_menu()
 
 	/* FIXME: sysmenu icons should be passed here somehow
 	or we should set item's data to icon somewhere else */
-	menu_item_add(menu->top, A_SYSMENU, "System menu", NULL, ml);
-	
-	menu_item_add(ml, A_MAINMENU, "Back", NULL, NULL);
-	if (!initmode) {
-		menu_item_add(ml, A_EXIT, "Exit", NULL, NULL);
-	}
-#ifndef USE_HOST_DEBUG
-	menu_item_add(ml, A_REBOOT, "Reboot", NULL, NULL);
+	mi = menu_item_add(menu->top, A_SYSMENU, "System menu", NULL, ml);
+#ifdef USE_ICONS
+	menu_item_set_data(mi, icons[ICON_SYSTEM]);
 #endif
-	menu_item_add(ml, A_RESCAN, "Rescan", NULL, NULL);
-	menu_item_add(ml, A_DEBUG, "Show debug info", NULL, NULL);
+	
+	mi = menu_item_add(ml, A_MAINMENU, "Back", NULL, NULL);
+#ifdef USE_ICONS
+	menu_item_set_data(mi, icons[ICON_BACK]);
+#endif
+	
+	if (!initmode) {
+		mi = menu_item_add(ml, A_EXIT, "Exit", NULL, NULL);
+#ifdef USE_ICONS
+		menu_item_set_data(mi, icons[ICON_EXIT]);
+#endif
+	}
+	
+#ifndef USE_HOST_DEBUG
+	mi = menu_item_add(ml, A_REBOOT, "Reboot", NULL, NULL);
+#ifdef USE_ICONS
+	menu_item_set_data(mi, icons[ICON_REBOOT]);
+#endif
+#endif
+	
+	mi = menu_item_add(ml, A_RESCAN, "Rescan", NULL, NULL);
+#ifdef USE_ICONS
+	menu_item_set_data(mi, icons[ICON_RESCAN]);
+#endif
+	
+	mi = menu_item_add(ml, A_DEBUG, "Show debug info", NULL, NULL);
+#ifdef USE_ICONS
+	menu_item_set_data(mi, icons[ICON_DEBUG]);
+#endif
 
 	menu->current = menu->top;
 	menu_item_select(menu, 0);
@@ -661,7 +690,7 @@ int main(int argc, char **argv)
 	params.gui = gui;
 #endif
 	
-	menu = build_menu();
+	menu = build_menu(&params);
 	params.menu = menu;
 	params.bootcfg = NULL;
 	params.cfg = &cfg;
@@ -725,7 +754,7 @@ int main(int argc, char **argv)
 			params.bootcfg = NULL;
 			scan_devices(&params);
 
-			params.menu = build_menu();
+			params.menu = build_menu(&params);
 			if (-1 == fill_menu(&params)) {
 				exit(-1);
 			}
