@@ -47,8 +47,6 @@ struct gui_t {
 	char *bg_buffer;
 #endif
 	struct xpm_parsed_t **icons;
-	struct xpmlist_t *loaded_icons;	/* Custom icons */
-	struct xpmlist_t *menu_icons;	/* Custom menu associated icons */
 };
 
 

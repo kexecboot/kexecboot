@@ -314,7 +314,8 @@ int scan_devices(struct params_t *params)
 	int rows, bpp;
 	char **xpm_data;
 	struct xpm_parsed_t *icon = NULL;
-	struct xpmlist_t *xl;
+
+	bpp = params->gui->fb->bpp;
 #endif
 
 	bootconf = create_bootcfg(4);
@@ -328,16 +329,6 @@ int scan_devices(struct params_t *params)
 		DPRINTF("Can't initiate device scan\n");
 		return -1;
 	}
-
-#ifdef USE_FBMENU
-	xl = create_xpmlist(4);
-	if (NULL == xl) {
-		DPRINTF("Can't allocate xpm list structure\n");
-		/* We will continue but check it later */
-	}
-
-	bpp = params->gui->fb->bpp;
-#endif
 
 #ifdef USE_ZAURUS
 	struct zaurus_partinfo_t pinfo;
@@ -373,9 +364,6 @@ int scan_devices(struct params_t *params)
 
 #ifdef USE_FBMENU
 		icon = NULL;
-
-		/* Skip icons processing if have no xpm list */
-		if (NULL == xl) goto umount;
 
 		/* Load custom icon */
 		if (NULL != cfgdata.iconpath) {
@@ -413,10 +401,9 @@ umount:
 		}
 
 #ifdef USE_FBMENU
-		if ((NULL != xl) && (NULL != icon)) {
+		if (icon) {
 			/* associate custom icon with bootconf item */
-			icon->tag = rc;	/* rc is No. of current bootconf item */
-			addto_xpmlist(xl, icon);
+			bootconf->list[rc]->icondata = icon;
 			DPRINTF("Added %d icon '%s' to %s\n",rc, cfgdata.iconpath, dev.device);
 		}
 #endif
@@ -443,9 +430,6 @@ free_device:
 
 	free_charlist(fl);
 	params->bootcfg = bootconf;
-#ifdef USE_FBMENU
-	params->gui->loaded_icons = xl;
-#endif
 	return 0;
 }
 
@@ -562,7 +546,7 @@ int fill_menu(struct params_t *params)
 
 #ifdef USE_FBMENU
 			/* Search associated with boot item icon if any */
-			icon = xpm_by_tag(gui->loaded_icons, max_i);
+			icon = tbi->icondata;
 			if (NULL == icon) {
 				/* We have no custom icon - use default */
 				switch (tbi->dtype) {
@@ -683,7 +667,7 @@ int main(int argc, char **argv)
 	params.cfg = &cfg;
 
 	/* In: gui.bpp */
-	/* Out: bootcfg, gui.loaded_icons */
+	/* Out: bootcfg */
 	scan_devices(&params);
 
 	if (-1 == fill_menu(&params)) {
@@ -733,8 +717,8 @@ int main(int argc, char **argv)
 			/* FIXME: audit this code */
 #ifdef USE_FBMENU
 			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
-			free_xpmlist(gui->loaded_icons, 1);
 #endif
+			/* FIXME: memleak of icons data */
 			free_bootcfg(params.bootcfg);
 			menu_destroy(params.menu, 0);
 

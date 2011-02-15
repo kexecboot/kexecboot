@@ -119,9 +119,6 @@ struct gui_t *gui_init(int angle)
 //	gui->icons[ICON_EXIT] = xpm_parse_image(exit_xpm, ROWS(exit_xpm), bpp);
 	gui->icons[ICON_EXIT] = NULL;
 
-	gui->loaded_icons = NULL;
-	gui->menu_icons = NULL;
-
 #ifdef USE_BG_BUFFER
 	/* Pre-draw background and store it in special buffer */
 	draw_background_low(gui);
@@ -137,9 +134,6 @@ void gui_destroy(struct gui_t *gui)
 {
 	if (NULL == gui) return;
 	enum icon_id_t i;
-
-	free_xpmlist(gui->menu_icons, 0);
-	free_xpmlist(gui->loaded_icons, 1);
 
 	for (i=ICON_LOGO; i<ICON_ARRAY_SIZE; i++) {
 		xpm_destroy_parsed(gui->icons[i]);

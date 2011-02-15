@@ -46,6 +46,7 @@ struct boot_item_t {
 	char *cmdline;		/* Kernel cmdline (logo.nologo debug) */
 	char *initrd;		/* Initial ramdisk file */
 	char *iconpath;		/* Custom partition icon path */
+	void *icondata;		/* Icon data */
 	int priority;		/* Priority of item in menu */
 	enum dtype_t dtype;	/* Device type */
 };

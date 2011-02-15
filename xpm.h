@@ -65,18 +65,10 @@ enum xpm_ckey_t {
 
 /* XPM main structure. That's only data needed for drawing */
 struct xpm_parsed_t {
-	int tag;				/* user driven tag */
 	unsigned int width;		/* image width */
 	unsigned int height;	/* image height */
 	struct rgb_color *colors;	/* colors array */
 	struct rgb_color **pixels;/* pixels array (pointers to colors) */
-};
-
-/* List of xpm icons */
-struct xpmlist_t {
-	struct xpm_parsed_t **list;	/* Boot items list */
-	unsigned int size;			/* Count of boot items in list */
-	unsigned int fill;			/* Filled items count */
 };
 
 /*
@@ -130,11 +122,5 @@ void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data);
  * Return value: None
  */
 void xpm_destroy_parsed(struct xpm_parsed_t *xpm);
-
-/* Functions to deal with xpm icons list */
-struct xpmlist_t *create_xpmlist(unsigned int size);
-int addto_xpmlist(struct xpmlist_t *xl, struct xpm_parsed_t *xpm);
-struct xpm_parsed_t *xpm_by_tag(struct xpmlist_t *xl, int tag);
-void free_xpmlist(struct xpmlist_t *xl, int free_data);
 
 #endif // _HAVE_XPM_H
