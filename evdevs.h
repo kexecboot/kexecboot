@@ -30,6 +30,7 @@ enum actions_t {
 	A_MAINMENU,
 	A_SYSMENU,
 	A_REBOOT,
+	A_SHUTDOWN,
 	A_RESCAN,
 	A_DEBUG,
 	A_SELECT,

@@ -457,7 +457,7 @@ kx_menu *build_menu(struct params_t *params)
 	/* Create main menu level */
 	menu->top = menu_level_create(menu, 4, NULL);
 	
-	/* Create main menu level */
+	/* Create system menu level */
 	ml = menu_level_create(menu, 6, menu->top);
 	if (!ml) {
 		DPRINTF("Can't create system menu\n");
@@ -470,35 +470,38 @@ kx_menu *build_menu(struct params_t *params)
 #ifdef USE_ICONS
 	menu_item_set_data(mi, icons[ICON_SYSTEM]);
 #endif
-	
+
 	mi = menu_item_add(ml, A_MAINMENU, "Back", NULL, NULL);
 #ifdef USE_ICONS
 	menu_item_set_data(mi, icons[ICON_BACK]);
 #endif
-	
+
+	mi = menu_item_add(ml, A_RESCAN, "Rescan", NULL, NULL);
+#ifdef USE_ICONS
+	menu_item_set_data(mi, icons[ICON_RESCAN]);
+#endif
+
+	mi = menu_item_add(ml, A_DEBUG, "Show debug info", NULL, NULL);
+#ifdef USE_ICONS
+	menu_item_set_data(mi, icons[ICON_DEBUG]);
+#endif
+
+	mi = menu_item_add(ml, A_REBOOT, "Reboot", NULL, NULL);
+#ifdef USE_ICONS
+	menu_item_set_data(mi, icons[ICON_REBOOT]);
+#endif
+
+	mi = menu_item_add(ml, A_SHUTDOWN, "Shutdown", NULL, NULL);
+#ifdef USE_ICONS
+	menu_item_set_data(mi, icons[ICON_SHUTDOWN]);
+#endif
+
 	if (!initmode) {
 		mi = menu_item_add(ml, A_EXIT, "Exit", NULL, NULL);
 #ifdef USE_ICONS
 		menu_item_set_data(mi, icons[ICON_EXIT]);
 #endif
 	}
-	
-#ifndef USE_HOST_DEBUG
-	mi = menu_item_add(ml, A_REBOOT, "Reboot", NULL, NULL);
-#ifdef USE_ICONS
-	menu_item_set_data(mi, icons[ICON_REBOOT]);
-#endif
-#endif
-	
-	mi = menu_item_add(ml, A_RESCAN, "Rescan", NULL, NULL);
-#ifdef USE_ICONS
-	menu_item_set_data(mi, icons[ICON_RESCAN]);
-#endif
-	
-	mi = menu_item_add(ml, A_DEBUG, "Show debug info", NULL, NULL);
-#ifdef USE_ICONS
-	menu_item_set_data(mi, icons[ICON_DEBUG]);
-#endif
 
 	menu->current = menu->top;
 	menu_item_select(menu, 0);
@@ -730,18 +733,34 @@ int main(int argc, char **argv)
 			menu->current = menu->current->parent;
 			/* menu->current = menu->top; */
 			break;
-#ifndef USE_HOST_DEBUG
 		case A_REBOOT:
 #ifdef USE_FBMENU
 			gui_show_text(gui, "Rebooting...");
 #endif
+#ifdef USE_HOST_DEBUG
+			sleep(1);
+#else
 			sync();
 			/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
 			if ( -1 == reboot(RB_AUTOBOOT) ) {
 				perror("Can't initiate reboot");
 			}
-			break;
 #endif
+			break;
+		case A_SHUTDOWN:
+#ifdef USE_FBMENU
+			gui_show_text(gui, "Shutting down...");
+#endif
+#ifdef USE_HOST_DEBUG
+			sleep(1);
+#else
+			sync();
+			/* if ( -1 == reboot(LINUX_REBOOT_CMD_POWER_OFF) ) { */
+			if ( -1 == reboot(RB_POWER_OFF) ) {
+				perror("Can't initiate shutdown");
+			}
+#endif
+			break;
 		case A_RESCAN:
 			/* FIXME: audit this code */
 #ifdef USE_FBMENU

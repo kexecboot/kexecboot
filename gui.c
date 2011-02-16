@@ -108,14 +108,16 @@ struct gui_t *gui_init(int angle)
 	gui->icons = malloc(sizeof(*(gui->icons)) * ICON_ARRAY_SIZE);
 
 	gui->icons[ICON_LOGO] = xpm_parse_image(logo_xpm, ROWS(logo_xpm), bpp);
-	gui->icons[ICON_SYSTEM] = xpm_parse_image(system_xpm, ROWS(system_xpm), bpp);
-	gui->icons[ICON_BACK] = xpm_parse_image(back_xpm, ROWS(back_xpm), bpp);
-	gui->icons[ICON_REBOOT] = xpm_parse_image(reboot_xpm, ROWS(reboot_xpm), bpp);
-	gui->icons[ICON_RESCAN] = xpm_parse_image(rescan_xpm, ROWS(rescan_xpm), bpp);
-	gui->icons[ICON_DEBUG] = xpm_parse_image(debug_xpm, ROWS(debug_xpm), bpp);
 	gui->icons[ICON_STORAGE] = xpm_parse_image(storage_xpm, ROWS(storage_xpm), bpp);
 	gui->icons[ICON_MMC] = xpm_parse_image(mmc_xpm, ROWS(mmc_xpm), bpp);
 	gui->icons[ICON_MEMORY] = xpm_parse_image(memory_xpm, ROWS(memory_xpm), bpp);
+	gui->icons[ICON_SYSTEM] = xpm_parse_image(system_xpm, ROWS(system_xpm), bpp);
+	gui->icons[ICON_BACK] = xpm_parse_image(back_xpm, ROWS(back_xpm), bpp);
+	gui->icons[ICON_RESCAN] = xpm_parse_image(rescan_xpm, ROWS(rescan_xpm), bpp);
+	gui->icons[ICON_DEBUG] = xpm_parse_image(debug_xpm, ROWS(debug_xpm), bpp);
+	gui->icons[ICON_REBOOT] = xpm_parse_image(reboot_xpm, ROWS(reboot_xpm), bpp);
+//	gui->icons[ICON_SHUTDOWN] = xpm_parse_image(shutdown_xpm, ROWS(shutdown_xpm), bpp);
+	gui->icons[ICON_SHUTDOWN] = NULL;
 //	gui->icons[ICON_EXIT] = xpm_parse_image(exit_xpm, ROWS(exit_xpm), bpp);
 	gui->icons[ICON_EXIT] = NULL;
 
