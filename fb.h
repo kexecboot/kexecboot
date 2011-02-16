@@ -33,7 +33,7 @@
 
 #include "config.h"
 #include "util.h"
-#include "res/font.h"
+#include "res/fonts/font.h"
 #include "rgb.h"
 
 typedef struct FB *FBPTR;

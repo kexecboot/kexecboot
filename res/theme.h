@@ -16,20 +16,20 @@
  */
 
 /** Icons **/
-#include "logo.xpm"
-#include "system.xpm"
+#include "icons/logo.xpm"
+#include "icons/system.xpm"
 
-#include "back.xpm"
-#include "reboot.xpm"
-#include "rescan.xpm"
-#include "debug.xpm"
+#include "icons/back.xpm"
+#include "icons/reboot.xpm"
+#include "icons/rescan.xpm"
+#include "icons/debug.xpm"
 
-#include "storage.xpm"
-#include "mmc.xpm"
-#include "memory.xpm"
+#include "icons/storage.xpm"
+#include "icons/mmc.xpm"
+#include "icons/memory.xpm"
 
 /** Font **/
-#include "radeon-font.h"
+#include "fonts/radeon-font.h"
 #define DEFAULT_FONT	(&radeon_font)
 
 /** Colors **/
