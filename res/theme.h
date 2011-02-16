@@ -23,14 +23,16 @@
 #include "icons/reboot.xpm"
 #include "icons/rescan.xpm"
 #include "icons/debug.xpm"
+#include "icons/shutdown.xpm"
+#include "icons/exit.xpm"
 
 #include "icons/storage.xpm"
 #include "icons/mmc.xpm"
 #include "icons/memory.xpm"
 
 /** Font **/
-#include "fonts/radeon-font.h"
-#define DEFAULT_FONT	(&radeon_font)
+#include "fonts/ter-u16n-ascii.h"
+#define DEFAULT_FONT	(&ter_u16n_ascii_font)
 
 /** Colors **/
 #define COLOR_BG		0xECECE1

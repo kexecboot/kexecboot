@@ -116,10 +116,8 @@ struct gui_t *gui_init(int angle)
 	gui->icons[ICON_RESCAN] = xpm_parse_image(rescan_xpm, ROWS(rescan_xpm), bpp);
 	gui->icons[ICON_DEBUG] = xpm_parse_image(debug_xpm, ROWS(debug_xpm), bpp);
 	gui->icons[ICON_REBOOT] = xpm_parse_image(reboot_xpm, ROWS(reboot_xpm), bpp);
-//	gui->icons[ICON_SHUTDOWN] = xpm_parse_image(shutdown_xpm, ROWS(shutdown_xpm), bpp);
-	gui->icons[ICON_SHUTDOWN] = NULL;
-//	gui->icons[ICON_EXIT] = xpm_parse_image(exit_xpm, ROWS(exit_xpm), bpp);
-	gui->icons[ICON_EXIT] = NULL;
+	gui->icons[ICON_SHUTDOWN] = xpm_parse_image(shutdown_xpm, ROWS(shutdown_xpm), bpp);
+	gui->icons[ICON_EXIT] = xpm_parse_image(exit_xpm, ROWS(exit_xpm), bpp);
 
 #ifdef USE_BG_BUFFER
 	/* Pre-draw background and store it in special buffer */
