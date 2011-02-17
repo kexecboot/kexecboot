@@ -32,6 +32,7 @@
 void draw_background_low(struct gui_t *gui)
 {
 	static FB *fb;
+	static int w, h;
 
 	fb = gui->fb;
 
@@ -61,6 +62,13 @@ void draw_background_low(struct gui_t *gui)
 			LYT_MENU_AREA_WIDTH,
 			LYT_MENU_AREA_HEIGHT,
 			CLR_MENU_BG);
+	
+	/* Draw kexecboot version right aligned at bottom */
+	fb_text_size(gui->fb, &w, &h, DEFAULT_FONT, "v." PACKAGE_VERSION);
+	fb_draw_text(fb, gui->x + LYT_MENU_AREA_LEFT + LYT_MENU_AREA_WIDTH - w,
+			gui->y + LYT_MENU_FRAME_TOP + LYT_MENU_FRAME_HEIGHT + (LYT_FTR_HEIGHT - h)/2,
+			CLR_BG_TEXT, DEFAULT_FONT, "v." PACKAGE_VERSION);
+	
 }
 
 
