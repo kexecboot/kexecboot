@@ -647,6 +647,40 @@ int do_init(void)
 }
 
 
+int do_rescan(struct params_t *params)
+{
+	int i;
+
+	/* Clean top menu level except system menu item */
+	/* FIXME should be done by some function from menu module */
+	kx_menu_item *mi;
+	for (i = 1; i < params->menu->top->count; i++) {
+		mi = params->menu->top->list[i];
+		if (mi) {
+			dispose(mi->label);
+			dispose(mi->description);
+			free(mi);
+		}
+		params->menu->top->list[i] = NULL;
+	}
+	params->menu->top->count = 1;
+
+#ifdef USE_ICONS
+	/* Destroy icons */
+	/* FIXME should be done by some function from devicescan module */
+	for (i = 0; i < params->bootcfg->fill; i++) {
+		fb_destroy_picture(params->bootcfg->list[i]->icondata);
+	}
+#endif
+
+	free_bootcfg(params->bootcfg);
+	params->bootcfg = NULL;
+	scan_devices(params);
+
+	return fill_menu(params);
+}
+
+
 int main(int argc, char **argv)
 {
 	int is_selected = 0;
@@ -766,15 +800,7 @@ int main(int argc, char **argv)
 #ifdef USE_FBMENU
 			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
 #endif
-			/* FIXME: memleak of icons data */
-			free_bootcfg(params.bootcfg);
-			menu_destroy(params.menu, 0);
-
-			params.bootcfg = NULL;
-			scan_devices(&params);
-
-			params.menu = build_menu(&params);
-			if (-1 == fill_menu(&params)) {
+			if (-1 == do_rescan(&params)) {
 				exit(-1);
 			}
 			menu = params.menu;
