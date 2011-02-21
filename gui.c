@@ -45,7 +45,7 @@ void draw_background_low(struct gui_t *gui)
 			LYT_HDR_PAD_WIDTH, LYT_HDR_PAD_HEIGHT, CLR_BG_PAD);
 
 	/* Draw icon */
-	fb_draw_xpm_image(fb, gui->x + LYT_HDR_PAD_LEFT + LYT_PAD_ICON_LOFF,
+	fb_draw_picture(fb, gui->x + LYT_HDR_PAD_LEFT + LYT_PAD_ICON_LOFF,
 			gui->y + LYT_HDR_PAD_TOP + LYT_PAD_ICON_TOFF,
 			gui->icons[ICON_LOGO]);
 
@@ -144,7 +144,7 @@ void gui_destroy(struct gui_t *gui)
 	enum icon_id_t i;
 
 	for (i=ICON_LOGO; i<ICON_ARRAY_SIZE; i++) {
-		xpm_destroy_parsed(gui->icons[i]);
+		fb_destroy_picture(gui->icons[i]);
 	}
 	free(gui->icons);
 
@@ -196,7 +196,7 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 	static FB *fb;
 	static uint32 cbg, cpad, ctext, cline;
 	static int slot_top, w, h;
-	static struct xpm_parsed_t *icon;
+	static kx_picture *icon;
 	
 	fb = gui->fb;
 
@@ -212,7 +212,7 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 		cline = CLR_SMNI_LINE;
 	}
 	
-	icon = (struct xpm_parsed_t *)item->data;
+	icon = (kx_picture *)item->data;
 
 	slot_top = gui->y + LYT_MENU_AREA_TOP + LYT_MNI_HEIGHT * (slot-1); /* Slots are numbered from 1 */
 	/* Draw background */
@@ -228,7 +228,7 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 
 	/* Draw icon */
 	if (NULL != icon) {
-		fb_draw_xpm_image(fb, gui->x + LYT_MNI_PAD_LEFT + LYT_PAD_ICON_LOFF,
+		fb_draw_picture(fb, gui->x + LYT_MNI_PAD_LEFT + LYT_PAD_ICON_LOFF,
 				slot_top + LYT_MNI_PAD_TOP + LYT_PAD_ICON_TOFF,
 				icon);
 	}

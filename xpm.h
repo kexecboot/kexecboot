@@ -63,14 +63,6 @@ enum xpm_ckey_t {
 	XPM_KEY_UNKNOWN = 5,
 };
 
-/* XPM main structure. That's only data needed for drawing */
-struct xpm_parsed_t {
-	unsigned int width;		/* image width */
-	unsigned int height;	/* image height */
-	struct rgb_color *colors;	/* colors array */
-	struct rgb_color **pixels;/* pixels array (pointers to colors) */
-};
-
 /*
  * Function: xpm_destroy_image()
  * Free XPM image array allocated by xpm_load_image()
@@ -108,19 +100,7 @@ int xpm_load_image(char ***xpm_data, const char *filename);
  * - NULL on error
  * Should be free()'d
  */
-struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
+kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 		unsigned int bpp);
-
-/* Draw xpm image on framebuffer from parsed data */
-void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data);
-
-/*
- * Function: xpm_destroy_parsed()
- * Free XPM image data allocated by xpm_parse_image()
- * Args:
- * - pointer to xpm parsed data
- * Return value: None
- */
-void xpm_destroy_parsed(struct xpm_parsed_t *xpm);
 
 #endif // _HAVE_XPM_H

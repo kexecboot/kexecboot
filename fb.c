@@ -980,3 +980,41 @@ void fb_draw_text(FB * fb, int x, int y, uint32 rgb,
 		dx += w;
 	}
 }
+
+/* Draw picture on framebuffer */
+void fb_draw_picture(FB * fb, int x, int y, kx_picture *pic)
+{
+	if (NULL == pic) return;
+
+	unsigned int i, j;
+	int dx = 0, dy = 0;
+	struct rgb_color **pixel, *color;
+
+	pixel = pic->pixels;
+	dy = y;
+	for (i = 0; i < pic->height; i++) {
+		dx = x;
+		for (j = 0; j < pic->width; j++) {
+			color = *pixel;
+			if (NULL != color) {	/* Non-transparent pixel */
+				fb->plot_pixel(fb, dx, dy, color->r, color->g,
+					color->b);
+			}
+			++dx;
+			++pixel;
+		}
+		++dy;
+	}
+}
+
+/* Free picture's data structure */
+void fb_destroy_picture(kx_picture* pic)
+{
+	if (NULL == pic) return;
+
+	dispose(pic->colors);
+	dispose(pic->pixels);
+	free(pic);
+}
+
+

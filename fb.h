@@ -73,6 +73,16 @@ typedef struct FB {
 	draw_hline_func draw_hline;
 } FB;
 
+/* Picture structure */
+/* FIXME: store pixels as colors triplets per uint32_t value */
+typedef struct {
+	unsigned int width;		/* picture width */
+	unsigned int height;	/* picture height */
+	struct rgb_color *colors;	/* colors array */
+	struct rgb_color **pixels;/* pixels array (pointers to colors) */
+} kx_picture;
+
+
 void fb_destroy(FB * fb);
 
 FB *fb_new(int angle);
@@ -108,6 +118,10 @@ char *fb_dump(FB * fb);
 /* Restore saved backbuffer */
 void fb_restore(FB * fb, char *dump);
 
+/* Draw picture on framebuffer */
+void fb_draw_picture(FB * fb, int x, int y, kx_picture *pic);
 
+/* Free picture's data structure */
+void fb_destroy_picture(kx_picture *pic);
 
 #endif	/* _HAVE_FB_H */

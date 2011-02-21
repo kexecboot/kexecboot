@@ -36,7 +36,7 @@ struct xpm_pixel_t {
 
 /* XPM metadata (internal, not needed for drawing code) */
 struct xpm_meta_t {
-	struct xpm_parsed_t *xpm_parsed;
+	kx_picture *xpm_parsed;
 	unsigned int chpp;		/* number of characters per pixel */
 	unsigned int ncolors;	/* number of colors */
 	char *pixnames;		/* place for pixel names */
@@ -57,17 +57,6 @@ void xpm_destroy_image(char **xpm_data, const int rows)
 		};
 		free(xpm_data);
 	}
-}
-
-
-/* Free XPM image data allocated by xpm_parse_image() */
-void xpm_destroy_parsed(struct xpm_parsed_t *xpm)
-{
-	if (NULL == xpm) return;
-
-	if (NULL != xpm->colors) free(xpm->colors);
-	if (NULL != xpm->pixels) free(xpm->pixels);
-	free(xpm);
 }
 
 
@@ -557,11 +546,11 @@ int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
 
 
 /* Process XPM image data and make it 'drawable' */
-struct xpm_parsed_t *xpm_parse_image(char **xpm_data, const int rows,
+kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 		unsigned int bpp)
 {
 	int width = 0, height = 0, ncolors = 0, chpp = 0;	/* XPM image values */
-	struct xpm_parsed_t *xpm_parsed;	/* return value */
+	kx_picture *xpm_parsed;	/* return value */
 	struct xpm_meta_t xpm_meta;	/* XPM metadata */
 	char *p;
 
@@ -684,37 +673,10 @@ free_pixdata:
 	free(xpm_meta.pixdata);
 
 free_xpm_parsed:
-	xpm_destroy_parsed(xpm_parsed);
+	fb_destroy_picture(xpm_parsed);
 
 free_nothing:
 	return NULL;
 
-}
-
-
-/* Draw xpm image on framebuffer from parsed data */
-void fb_draw_xpm_image(FB * fb, int x, int y, struct xpm_parsed_t *xpm_data)
-{
-	if (NULL == xpm_data) return;
-
-	unsigned int i, j;
-	int dx = 0, dy = 0;
-	struct rgb_color **xpm_pixel, *xpm_color;
-
-	xpm_pixel = xpm_data->pixels;
-	dy = y;
-	for (i = 0; i < xpm_data->height; i++) {
-		dx = x;
-		for (j = 0; j < xpm_data->width; j++) {
-			xpm_color = *xpm_pixel;
-			if (NULL != xpm_color) {	/* Non-transparent pixel */
-				fb->plot_pixel(fb, dx, dy, xpm_color->r, xpm_color->g,
-					xpm_color->b);
-			}
-			++dx;
-			++xpm_pixel;
-		}
-		++dy;
-	}
 }
 

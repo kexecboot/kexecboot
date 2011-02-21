@@ -313,7 +313,7 @@ int scan_devices(struct params_t *params)
 #ifdef USE_FBMENU
 	int rows, bpp;
 	char **xpm_data;
-	struct xpm_parsed_t *icon = NULL;
+	kx_picture *icon = NULL;
 
 	bpp = params->gui->fb->bpp;
 #endif
@@ -442,7 +442,7 @@ kx_menu *build_menu(struct params_t *params)
 	kx_menu_item *mi;
 	
 #ifdef USE_ICONS
-	struct xpm_parsed_t **icons;
+	kx_picture **icons;
 	
 	icons = params->gui->icons;
 #endif
@@ -519,7 +519,7 @@ int fill_menu(struct params_t *params)
 	const int sizeof_desc = 160;
 	char *desc;
 #ifdef USE_FBMENU
-	struct xpm_parsed_t *icon;
+	kx_picture *icon;
 	struct gui_t *gui;
 
 	gui = params->gui;

@@ -47,7 +47,7 @@ struct gui_t {
 #ifdef USE_BG_BUFFER
 	char *bg_buffer;
 #endif
-	struct xpm_parsed_t **icons;
+	kx_picture **icons;
 };
 
 
