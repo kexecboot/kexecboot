@@ -81,11 +81,18 @@ char *default_kernels[] = {
 /* Init mode flag */
 int initmode = 0;
 
+/* Contexts available - menu and textview */
+typedef enum {
+	KX_CTX_MENU,
+	KX_CTX_TEXTVIEW,
+} kx_context;
+
 /* Common parameters */
 struct params_t {
 	struct cfgdata_t *cfg;
 	struct bootconf_t *bootcfg;
 	kx_menu *menu;
+	kx_context context;
 #ifdef USE_FBMENU
 	struct gui_t *gui;
 #endif
@@ -466,12 +473,12 @@ kx_menu *build_menu(struct params_t *params)
 
 	/* FIXME: sysmenu icons should be passed here somehow
 	or we should set item's data to icon somewhere else */
-	mi = menu_item_add(menu->top, A_SYSMENU, "System menu", NULL, ml);
+	mi = menu_item_add(menu->top, A_SUBMENU, "System menu", NULL, ml);
 #ifdef USE_ICONS
 	menu_item_set_data(mi, icons[ICON_SYSTEM]);
 #endif
 
-	mi = menu_item_add(ml, A_MAINMENU, "Back", NULL, NULL);
+	mi = menu_item_add(ml, A_PARENTMENU, "Back", NULL, NULL);
 #ifdef USE_ICONS
 	menu_item_set_data(mi, icons[ICON_BACK]);
 #endif
@@ -681,15 +688,169 @@ int do_rescan(struct params_t *params)
 }
 
 
+/* Process menu context 
+ * Return 0 to select, <0 to raise error, >0 to continue
+ */
+int process_ctx_menu(struct params_t *params, int action) {
+	static int rc;
+	static int menu_action;
+	static kx_menu *menu;
+#ifdef USE_FBMENU
+	static struct gui_t *gui;
+
+	gui = params->gui;
+#endif
+
+	rc = 1;
+	menu = params->menu;
+	menu_action = (A_SELECT == action ? menu->current->current->id : action);
+
+	switch (menu_action) {
+	case A_UP:
+		menu_item_select(menu, -1);
+		break;
+	case A_DOWN:
+		menu_item_select(menu, 1);
+		break;
+	case A_SUBMENU:
+		menu->current = menu->current->current->submenu;
+		break;
+	case A_PARENTMENU:
+		menu->current = menu->current->parent;
+		break;
+
+	case A_REBOOT:
+#ifdef USE_FBMENU
+		gui_show_text(gui, "Rebooting...");
+#endif
+#ifdef USE_HOST_DEBUG
+		sleep(1);
+#else
+		sync();
+		/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
+		if ( -1 == reboot(RB_AUTOBOOT) ) {
+			perror("Can't initiate reboot");
+		}
+#endif
+		break;
+	case A_SHUTDOWN:
+#ifdef USE_FBMENU
+		gui_show_text(gui, "Shutting down...");
+#endif
+#ifdef USE_HOST_DEBUG
+		sleep(1);
+#else
+		sync();
+		/* if ( -1 == reboot(LINUX_REBOOT_CMD_POWER_OFF) ) { */
+		if ( -1 == reboot(RB_POWER_OFF) ) {
+			perror("Can't initiate shutdown");
+		}
+#endif
+		break;
+
+	case A_RESCAN:
+#ifdef USE_FBMENU
+		gui_show_text(gui, "Rescanning devices.\nPlease wait...");
+#endif
+		if (-1 == do_rescan(params)) {
+			return -1;
+		}
+		menu = params->menu;
+		break;
+
+	case A_DEBUG:
+#if 0
+		params->context = KX_CTX_TEXTVIEW;
+#else
+#ifdef USE_FBMENU
+		gui_show_text(gui, "Debug info dialog is not implemented yet...");
+#endif
+		sleep(1);
+#endif
+		break;
+
+	case A_EXIT:
+		if (initmode) break;	// don't exit if we are init
+	case A_ERROR:
+		rc = -1;
+		break;
+
+#ifdef USE_TIMEOUT
+	case A_TIMEOUT:		// timeout was reached - boot 1st kernel if exists
+		if (menu->current->count > 1) {
+			menu_item_select(menu, 0);	/* choose first item */
+			menu_item_select(menu, 1);	/* and switch to next item */
+			rc = 0;
+		}
+		break;
+#endif
+
+	default:
+		if (menu_action >= A_DEVICES) rc = 0;
+		break;
+	}
+
+	return rc;
+}
+
+/* Draw menu context */
+void draw_ctx_menu(struct params_t *params)
+{
+#ifdef USE_FBMENU
+	gui_show_menu(params->gui, params->menu);
+#endif
+}
+
+
+/* Main event loop */
+int do_main_loop(struct params_t *params, struct ev_params_t *ev)
+{
+	int rc = 0;
+	int action;
+
+	/* Start with menu context */
+	params->context = KX_CTX_MENU;
+	draw_ctx_menu(params);
+
+	/* Event loop */
+	do {
+		/* Read events */
+		action = process_events(ev);
+
+		/* Process events in current context */
+		switch (params->context) {
+		case KX_CTX_MENU:
+			rc = process_ctx_menu(params, action);
+			break;
+		case KX_CTX_TEXTVIEW:
+			rc = -1;
+		}
+
+		/* Draw current context */
+		if (rc > 0) {
+			switch (params->context) {
+			case KX_CTX_MENU:
+				draw_ctx_menu(params);
+				break;
+			case KX_CTX_TEXTVIEW:
+				break;
+			}
+		}
+
+	/* rc: 0 - select, <0 - raise error, >0 - continue */
+	} while (rc > 0);
+
+	/* If item is selected then return his id */
+	if (0 == rc) rc = params->menu->current->current->id;
+
+	return rc;
+}
+
+
 int main(int argc, char **argv)
 {
-	int is_selected = 0;
-	int action = A_MAINMENU;
+	int rc = 0;
 	struct cfgdata_t cfg;
-	kx_menu *menu;
-#ifdef USE_FBMENU
-	struct gui_t *gui;
-#endif
 	struct params_t params;
 	struct ev_params_t ev;
 
@@ -698,6 +859,7 @@ int main(int argc, char **argv)
 	initmode = do_init();
 
 	/* Get cmdline parameters */
+	params.cfg = &cfg;
 	init_cfgdata(&cfg);
 	cfg.angle = KXB_FBANGLE;
 	parse_cmdline(&cfg);
@@ -719,21 +881,15 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef USE_FBMENU
-	gui = gui_init(cfg.angle);
-	if (NULL == gui) {
+	params.gui = gui_init(cfg.angle);
+	if (NULL == params.gui) {
 		DPRINTF("Can't initialize GUI\n");
 		exit(-1);	/* FIXME dont exit while other UI exists */
 	}
-	params.gui = gui;
 #endif
 	
-	menu = build_menu(&params);
-	params.menu = menu;
+	params.menu = build_menu(&params);
 	params.bootcfg = NULL;
-	params.cfg = &cfg;
-
-	/* In: gui.bpp */
-	/* Out: bootcfg */
 	scan_devices(&params);
 
 	if (-1 == fill_menu(&params)) {
@@ -742,114 +898,22 @@ int main(int argc, char **argv)
 
 	scan_evdevs(&ev);	/* Look for event devices */
 
-	/* Event loop */
-	do {
-#ifdef USE_FBMENU
-		if (action != A_NONE) gui_show_menu(gui, menu);
-#endif
-		action = process_events(&ev);
-
-		if (A_SELECT == action) action = menu->current->current->id;
-
-		switch (action) {
-		case A_NONE:
-			break;
-		case A_UP:
-			menu_item_select(menu, -1);
-			break;
-		case A_DOWN:
-			menu_item_select(menu, 1);
-			break;
-		case A_SYSMENU:
-			menu->current = menu->current->current->submenu;
-			break;
-		case A_MAINMENU:
-			menu->current = menu->current->parent;
-			/* menu->current = menu->top; */
-			break;
-		case A_REBOOT:
-#ifdef USE_FBMENU
-			gui_show_text(gui, "Rebooting...");
-#endif
-#ifdef USE_HOST_DEBUG
-			sleep(1);
-#else
-			sync();
-			/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
-			if ( -1 == reboot(RB_AUTOBOOT) ) {
-				perror("Can't initiate reboot");
-			}
-#endif
-			break;
-		case A_SHUTDOWN:
-#ifdef USE_FBMENU
-			gui_show_text(gui, "Shutting down...");
-#endif
-#ifdef USE_HOST_DEBUG
-			sleep(1);
-#else
-			sync();
-			/* if ( -1 == reboot(LINUX_REBOOT_CMD_POWER_OFF) ) { */
-			if ( -1 == reboot(RB_POWER_OFF) ) {
-				perror("Can't initiate shutdown");
-			}
-#endif
-			break;
-		case A_RESCAN:
-			/* FIXME: audit this code */
-#ifdef USE_FBMENU
-			gui_show_text(gui, "Rescanning devices.\nPlease wait...");
-#endif
-			if (-1 == do_rescan(&params)) {
-				exit(-1);
-			}
-			menu = params.menu;
-
-			break;
-		case A_DEBUG:
-#ifdef USE_FBMENU
-			gui_show_text(gui, "Debug info dialog is not implemented yet...");
-#endif
-			sleep(1);
-			break;
-		case A_EXIT:
-			if (initmode) break;	// don't exit if we are init
-		case A_ERROR:
-			is_selected = 1;
-			break;
-#ifdef USE_TIMEOUT
-		case A_TIMEOUT:		// timeout was reached - boot 1st kernel if exists
-			if (menu->current->count > 1) {
-				menu_item_select(menu, 0);	/* choose first item */
-				menu_item_select(menu, 1);	/* and switch to next item */
-				is_selected = 1;
-			}
-			break;
-#endif
-		default:
-			if ( (action >= A_DEVICES) &&
-					(NULL != params.bootcfg) && (params.bootcfg->fill > 0)
-			) is_selected = 1;
-			break;
-		}
-
-	} while (!is_selected);
+	/* Run main event loop
+	 * Return values: <0 - error, >=0 - selected item id */
+	rc = do_main_loop(&params, &ev);
 
 #ifdef USE_FBMENU
-	gui_destroy(gui);
+	gui_destroy(params.gui);
 #endif
 	close_event_devices(ev.fd, ev.count);
 
-	if ( (A_EXIT == action) || (A_ERROR == action) ) {
-		exit(action);
-	}
-
-	action = menu->current->current->id;	/* action is used as temporary variable */
+	/* rc < 0 indicate error */
+	if (rc < 0) exit(rc);
 
 	menu_destroy(params.menu, 0);
 
-	if (action >= A_DEVICES) {
-		start_kernel(&params, action - A_DEVICES);
+	if (rc >= A_DEVICES) {
+		start_kernel(&params, rc - A_DEVICES);
 	}
 
 	/* When we reach this point then some error has occured */
