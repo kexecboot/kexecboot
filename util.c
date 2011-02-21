@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <termios.h>
 #include <limits.h>		/* LONG_MAX, INT_MAX */
+#include <stdarg.h>		/* va_start/va_end */
 
 #include "config.h"
 #include "util.h"
@@ -91,6 +92,52 @@ int in_charlist(struct charlist *cl, const char *str)
 	return -1;
 }
 
+
+kx_text *log_open(unsigned int size)
+{
+	kx_text *log;
+
+	log = malloc(sizeof(*log));
+	log->rows = create_charlist(size);
+	log->current_line_no = 0;
+
+	return log;
+}
+
+/* Log message */
+void log_msg(kx_text* log, char* fmt, ...)
+{
+	static char buf[512];
+	static va_list ap;
+	static int s;
+
+	/* Format string */
+	va_start(ap, fmt);
+	vsnprintf((char *)&buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	
+	s = strlen(buf);
+
+	/* Add to charlist */
+	if (log) addto_charlist(log->rows, buf);
+
+	/* Append '\n' */
+	if ((s + 1) < sizeof(buf)) {
+		buf[s] = '\n';
+		buf[s+1] = '\0';
+	}
+	
+	/* Print to stderr */
+	fputs(buf, stderr);
+}
+
+void log_close(kx_text *log)
+{
+	if (!log) return;
+
+	free_charlist(log->rows);
+	free(log);
+}
 
 /* Change string case. 'u' - uppercase, 'l'/'d' - lowercase */
 char *chcase(char ul, const char *src, char *dst)

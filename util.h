@@ -57,6 +57,8 @@ typedef uint32_t uint32;
  */
 #define ROWS(array) (sizeof(array)/sizeof(*array))
 
+/* Macro to get error description */
+#define ERRMSG (strerror(errno))
 
 /* Charlist structure */
 struct charlist {
@@ -65,6 +67,14 @@ struct charlist {
 	unsigned int fill;
 };
 
+/* Text structure */
+typedef struct {
+	unsigned int current_line_no;
+	struct charlist *rows;
+} kx_text;
+
+/* Global log structure */
+kx_text *lg;
 
 /*
  * FUNCTIONS
@@ -81,6 +91,17 @@ void addto_charlist(struct charlist *cl, const char *str);
 
 /* Return position of string 'str' in charlist 'cl' or (-1) when not found */
 int in_charlist(struct charlist *cl, const char *str);
+
+
+/* Create log structure of 'size' initial rows */
+kx_text *log_open(unsigned int size);
+
+/* Log message */
+void log_msg(kx_text *log, char *fmt, ...);
+
+/* Destroy log structure */
+void log_close(kx_text *log);
+
 
 /* Strip leading and trailing white-space */
 /* NOTE: this will modify str */
