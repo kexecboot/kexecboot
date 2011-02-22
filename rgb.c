@@ -86,7 +86,7 @@ int cname2rgb(char *cname, struct rgb_color *rgb)
 
 	color = strdup(cname);
 	if (NULL == color) {
-		DPRINTF("Can't allocate memory for color name copy (%s)\n", cname);
+		DPRINTF("Can't allocate memory for color name copy (%s)", cname);
 		return -1;
 	}
 	len = strlen(cname);
@@ -145,7 +145,7 @@ int cname2rgb(char *cname, struct rgb_color *rgb)
 	if (0 == len) {	/* Found */
 		xrgb2comp(cn->rgb, &rgb->r, &rgb->g, &rgb->b);
 	} else {		/* Not found */
-		DPRINTF("Color name '%s' not in colors database, returning red\n", color);
+		log_msg(lg, "Color name '%s' not in colors database, returning red", color);
 		/* Return 'red' color like libXpm does */
 		rgb->r = 0xFF;
 		rgb->g = 0;

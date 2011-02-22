@@ -80,7 +80,7 @@ struct gui_t *gui_init(int angle)
 
 	gui = malloc(sizeof(*gui));
 	if (NULL == gui) {
-		DPRINTF("Can't allocate memory for GUI structure\n");
+		DPRINTF("Can't allocate memory for GUI structure");
 		return NULL;
 	}
 
@@ -88,7 +88,7 @@ struct gui_t *gui_init(int angle)
 	fb = fb_new(angle);
 
 	if (NULL == fb) {
-		DPRINTF("Can't initialize framebuffer\n");
+		log_msg(lg, "Can't initialize framebuffer");
 		return NULL;
 	}
 
@@ -178,7 +178,7 @@ void draw_background(struct gui_t *gui, const char *text)
 	} else {
 		/* else draw bg */
 		draw_background_low(gui);
-		DPRINTF("bg_buffer is empty\n");
+		log_msg(lg, "bg_buffer is empty");
 	}
 #else
 	/* Have bg buffer disabled. Draw bg */

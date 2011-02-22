@@ -20,6 +20,7 @@
 #define _HAVE_CONFIGPARSER_H
 
 #include "config.h"
+#include "util.h"
 
 #define MOUNTPOINT	"/mnt"
 #define BOOTCFG_PATH MOUNTPOINT "/boot/boot.cfg"

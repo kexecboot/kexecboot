@@ -31,13 +31,13 @@ kx_menu *menu_create(kx_menu_dim size)
 
 	menu = malloc(sizeof(*menu));
 	if (NULL == menu) {
-		DPRINTF("Can't allocate menu\n");
+		DPRINTF("Can't allocate menu");
 		return NULL;
 	}
 
 	menu->list = malloc(size * sizeof(*(menu->list)));
 	if (NULL == menu->list) {
-		DPRINTF("Can't allocate menu levels array\n");
+		DPRINTF("Can't allocate menu levels array");
 		free(menu);
 		return NULL;
 	}
@@ -70,7 +70,7 @@ kx_menu_level *menu_level_create(kx_menu *menu, kx_menu_dim size,
 		new_size = menu->size * 2;
 		new_list = realloc(menu->list, new_size * sizeof(*(menu->list)));
 		if (NULL == new_list) {
-			DPRINTF("Can't resize menu levels list\n");
+			DPRINTF("Can't resize menu levels list");
 			return NULL;
 		}
 
@@ -80,13 +80,13 @@ kx_menu_level *menu_level_create(kx_menu *menu, kx_menu_dim size,
 	
 	level = malloc(sizeof(*level));
 	if (NULL == level) {
-		DPRINTF("Can't allocate menu level\n");
+		DPRINTF("Can't allocate menu level");
 		return NULL;
 	}
 
 	level->list = malloc(size * sizeof(*(level->list)));
 	if (NULL == level->list) {
-		DPRINTF("Can't allocate menu items array\n");
+		DPRINTF("Can't allocate menu items array");
 		free(level);
 		return NULL;
 	}
@@ -118,7 +118,7 @@ kx_menu_item *menu_item_add(kx_menu_level *level, kx_menu_id id,
 		new_size = level->size * 2;
 		new_list = realloc(level->list, new_size * sizeof(*(level->list)));
 		if (NULL == new_list) {
-			DPRINTF("Can't resize menu items list\n");
+			DPRINTF("Can't resize menu items list");
 			return NULL;
 		}
 
@@ -128,7 +128,7 @@ kx_menu_item *menu_item_add(kx_menu_level *level, kx_menu_id id,
 	
 	item = malloc(sizeof(*item));
 	if (NULL == item) {
-		DPRINTF("Can't allocate menu level\n");
+		DPRINTF("Can't allocate menu level");
 		return NULL;
 	}
 

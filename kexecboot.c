@@ -20,8 +20,6 @@
  */
 
 /*
- * TODO Show kexecboot version somewhere
- * TODO Create WARN/ERR/INFO functions in addition to DPRINTF
  * TODO Show debug info in special dialog
  * TODO Cleanup debug info
  */
@@ -132,7 +130,7 @@ char *get_machine_kernelpath() {
 		/* Search colon then skip it and space after */
 		hw = strchr(hw, ':');
 		if (NULL == hw) {	/* Should not happens but anyway */
-			DPRINTF("Can't find ':' in 'Hardware' line\n");
+			log_msg(lg, "Can't find ':' in 'Hardware' line");
 			return NULL;
 		}
 		hw += 2;	/* May be ltrim()? */
@@ -152,7 +150,7 @@ char *get_machine_kernelpath() {
 		/* Prepend "/mnt/boot/zImage-" to hw */
 		tmp = malloc(strlen(hw) + 17 + 1);	/* strlen("/mnt/boot/zImage-") */
 		if (NULL == tmp) {
-			DPRINTF("Can't allocate memory for machine-specific kernel path\n");
+			DPRINTF("Can't allocate memory for machine-specific kernel path");
 			return NULL;
 		}
 
@@ -162,7 +160,7 @@ char *get_machine_kernelpath() {
 		return tmp;
 	}
 
-	DPRINTF("Can't find 'Hardware' line in cpuinfo\n");
+	log_msg(lg, "Can't find 'Hardware' line in cpuinfo");
 	return NULL;
 }
 #endif	/* USE_MACHINE_KERNEL */
@@ -267,7 +265,7 @@ void start_kernel(struct params_t *params, int choice)
 	/* Append kernelpath as last arg of kexec */
 	load_argv[idx] = item->kernelpath;
 
-	DPRINTF("load_argv: %s, %s, %s, %s, %s\n", load_argv[0],
+	DPRINTF("load_argv: %s, %s, %s, %s, %s", load_argv[0],
 			load_argv[1], load_argv[2],
 			load_argv[3], load_argv[4]);
 
@@ -295,13 +293,13 @@ void start_kernel(struct params_t *params, int choice)
 		if (ENOENT == errno) {
 			/* We have no network, don't issue ifdown() while kexec'ing */
 			exec_argv[2] = "-x";
-			DPRINTF("No network is detected, disabling ifdown()\n");
+			DPRINTF("No network is detected, disabling ifdown()");
 		} else {
 			perror("Can't stat /proc/sys/net");
 		}
 	}
 
-	DPRINTF("exec_argv: %s, %s, %s\n", exec_argv[0],
+	DPRINTF("exec_argv: %s, %s, %s", exec_argv[0],
 			exec_argv[1], exec_argv[2]);
 
 	/* Boot new kernel */
@@ -327,13 +325,13 @@ int scan_devices(struct params_t *params)
 
 	bootconf = create_bootcfg(4);
 	if (NULL == bootconf) {
-		DPRINTF("Can't allocate bootconf structure\n");
+		DPRINTF("Can't allocate bootconf structure");
 		return -1;
 	}
 
 	f = devscan_open(&fl);
 	if (NULL == f) {
-		DPRINTF("Can't initiate device scan\n");
+		log_msg(lg, "Can't initiate device scan");
 		return -1;
 	}
 
@@ -355,7 +353,7 @@ int scan_devices(struct params_t *params)
 
 		/* Mount device */
 		if (-1 == mount(dev.device, MOUNTPOINT, dev.fstype, MS_RDONLY, NULL)) {
-			perror("mount");
+			log_msg(lg, "+ can't mount device: %s", ERRMSG);
 			goto free_device;
 		}
 
@@ -365,7 +363,6 @@ int scan_devices(struct params_t *params)
 		rc = get_bootinfo(&cfgdata);
 
 		if (-1 == rc) {	/* Error */
-			DPRINTF("Can't get device boot information\n");
 			goto umount;
 		}
 
@@ -376,13 +373,13 @@ int scan_devices(struct params_t *params)
 		if (NULL != cfgdata.iconpath) {
 			rows = xpm_load_image(&xpm_data, cfgdata.iconpath);
 			if (-1 == rows) {
-				DPRINTF("Can't load xpm icon %s\n", cfgdata.iconpath);
+				log_msg(lg, "+ can't load xpm icon %s", cfgdata.iconpath);
 				goto umount;
 			}
 
 			icon = xpm_parse_image(xpm_data, rows, bpp);
 			if (NULL == icon) {
-				DPRINTF("Can't parse xpm icon %s\n", cfgdata.iconpath);
+				log_msg(lg, "+ can't parse xpm icon %s", cfgdata.iconpath);
 				goto umount;
 			}
 			xpm_destroy_image(xpm_data, rows);
@@ -392,7 +389,7 @@ int scan_devices(struct params_t *params)
 umount:
 		/* Umount device */
 		if (-1 == umount(MOUNTPOINT)) {
-			perror("umount");
+			log_msg(lg, "+ can't umount device: %s", ERRMSG);
 			goto free_device;
 		}
 
@@ -403,7 +400,6 @@ umount:
 		/* Now we have something in cfgdata */
 		rc = addto_bootcfg(bootconf, &dev, &cfgdata);
 		if (-1 == rc) {
-			DPRINTF("Can't import config file data\n");
 			goto free_device;
 		}
 
@@ -411,7 +407,8 @@ umount:
 		if (icon) {
 			/* associate custom icon with bootconf item */
 			bootconf->list[rc]->icondata = icon;
-			DPRINTF("Added %d icon '%s' to %s\n",rc, cfgdata.iconpath, dev.device);
+			log_msg(lg, "+ icon '%s' added for %s [#%d]",
+					cfgdata.iconpath, dev.device, rc);
 		}
 #endif
 
@@ -420,10 +417,12 @@ umount:
 		/* HACK: mtdblock devices are hardcoded */
 		if (0 == zaurus_error) {
 			if (0 == strcmp(dev.device, "/dev/mtdblock2")) {	/* root */
-				DPRINTF("[Zaurus] Size of %s will be changed from %u to %u\n", dev.device, bootconf->list[rc]->blocks, pinfo.root);
+				log_msg(lg, "+ [zaurus root] size of %s will be changed from %lu to %lu",
+						dev.device, bootconf->list[rc]->blocks, pinfo.root);
 				bootconf->list[rc]->blocks = pinfo.root;
 			} else if (0 == strcmp(dev.device, "/dev/mtdblock3")) {	/* home */
-				DPRINTF("[Zaurus] Size of %s will be changed from %u to %u\n", dev.device, bootconf->list[rc]->blocks, pinfo.home);
+				log_msg(lg, "+ [zaurus home] size of %s will be changed from %lu to %lu",
+						dev.device, bootconf->list[rc]->blocks, pinfo.home);
 				bootconf->list[rc]->blocks = pinfo.home;
 			}
 		}
@@ -457,7 +456,7 @@ kx_menu *build_menu(struct params_t *params)
 	/* Create menu with 2 levels (main and system) */
 	menu = menu_create(2);
 	if (!menu) {
-		DPRINTF("Can't create menu\n");
+		DPRINTF("Can't create menu");
 		return NULL;
 	}
 	
@@ -467,7 +466,7 @@ kx_menu *build_menu(struct params_t *params)
 	/* Create system menu level */
 	ml = menu_level_create(menu, 6, menu->top);
 	if (!ml) {
-		DPRINTF("Can't create system menu\n");
+		DPRINTF("Can't create system menu");
 		return menu;
 	}
 
@@ -537,17 +536,17 @@ int fill_menu(struct params_t *params)
 	if ( (NULL != bl) && (bl->fill > 0) ) b_items = bl->fill;
 	else b_items = 0;
 
-	DPRINTF("Found %d items\n", b_items);
+	log_msg(lg, "Populating menu: %d item(s)", b_items);
 
 	desc = malloc(sizeof_desc);
 	if (NULL == desc) {
-		DPRINTF("Can't allocate place for item description\n");
+		DPRINTF("Can't allocate item description");
 		goto dirty_exit;
 	}
 
 	a = malloc(b_items * sizeof(*a));	/* Markers array */
 	if (NULL == a) {
-		DPRINTF("Can't allocate markers array\n");
+		DPRINTF("Can't allocate markers array");
 		goto dirty_exit;
 	}
 
@@ -561,7 +560,6 @@ int fill_menu(struct params_t *params)
 		for (i = 0; i < b_items; i++) {
 			if (0 == a[i]) {	/* Check that item is not processed yet */
 				tbi = bl->list[i];
-				DPRINTF("+ processing %d: %s\n", i, tbi->label);
 				if (tbi->priority > max_pri) {
 					max_pri = tbi->priority;	/* Max priority */
 					max_i = i;					/* Max priority item index */
@@ -571,14 +569,13 @@ int fill_menu(struct params_t *params)
 
 		if (max_pri >= 0) {
 			a[max_i] = 1;	/* Mark item as processed */
-			DPRINTF("* maximum priority %d found at %d\n", max_pri, max_i);
 			/* We have found new max priority - insert into menu */
 			tbi = bl->list[max_i];
 			snprintf(desc, sizeof_desc, "%s %s %luMb",
 					tbi->device, tbi->fstype, tbi->blocks/1024);
 			
 			/* FIXME: label should be filled properly already */
-			DPRINTF("+ [%s\n%s]\n", ( tbi->label ? tbi->label : tbi->kernelpath ), desc);
+			log_msg(lg, "+ [%s]", ( tbi->label ? tbi->label : tbi->kernelpath ));
 			mi = menu_item_add(params->menu->top, A_DEVICES + max_i, 
 					( tbi->label ? tbi->label : tbi->kernelpath ),
 					desc, NULL);
@@ -630,7 +627,7 @@ int do_init(void)
 		return 0;
 	}
 
-	DPRINTF("I'm the init-process!\n");
+	log_msg(lg, "I'm the init-process!");
 
 	/* Mount procfs */
 	if ( -1 == mount("proc", "/proc", "proc",
@@ -644,7 +641,7 @@ int do_init(void)
 	f = fopen("/proc/sys/kernel/printk", "w");
 	if (NULL == f) {
 		/* CONFIG_PRINTK may be disabled */
-		perror("/proc/sys/kernel/printk");
+		log_msg(lg, "/proc/sys/kernel/printk", ERRMSG);
 	} else {
 		fputs("0 4 1 7\n", f);
 		fclose(f);
@@ -729,7 +726,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 		sync();
 		/* if ( -1 == reboot(LINUX_REBOOT_CMD_RESTART) ) { */
 		if ( -1 == reboot(RB_AUTOBOOT) ) {
-			perror("Can't initiate reboot");
+			log_msg(lg, "Can't initiate reboot: %s", ERRMSG);
 		}
 #endif
 		break;
@@ -743,7 +740,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 		sync();
 		/* if ( -1 == reboot(LINUX_REBOOT_CMD_POWER_OFF) ) { */
 		if ( -1 == reboot(RB_POWER_OFF) ) {
-			perror("Can't initiate shutdown");
+			log_msg(lg, "Can't initiate shutdown: %s", ERRMSG);
 		}
 #endif
 		break;
@@ -753,6 +750,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 		gui_show_text(gui, "Rescanning devices.\nPlease wait...");
 #endif
 		if (-1 == do_rescan(params)) {
+			log_msg(lg, "Rescan failed");
 			return -1;
 		}
 		menu = params->menu;
@@ -854,7 +852,8 @@ int main(int argc, char **argv)
 	struct params_t params;
 	struct ev_params_t ev;
 
-	DPRINTF("%s starting\n", PACKAGE_STRING);
+	lg = log_open(16);
+	log_msg(lg, "%s starting", PACKAGE_STRING);
 
 	initmode = do_init();
 
@@ -869,7 +868,7 @@ int main(int argc, char **argv)
 	/* Setup function that will restore terminal when exit() will called */
 	atexit(atexit_restore_terminal);
 
-	DPRINTF("FB angle is %d, tty is %s\n", cfg.angle, cfg.ttydev);
+	log_msg(lg, "FB angle is %d, tty is %s", cfg.angle, cfg.ttydev);
 
 #ifdef USE_MACHINE_KERNEL
 	machine_kernel = get_machine_kernelpath();	/* FIXME should be passed as arg to get_bootinfo() */
@@ -883,7 +882,7 @@ int main(int argc, char **argv)
 #ifdef USE_FBMENU
 	params.gui = gui_init(cfg.angle);
 	if (NULL == params.gui) {
-		DPRINTF("Can't initialize GUI\n");
+		DPRINTF("Can't initialize GUI");
 		exit(-1);	/* FIXME dont exit while other UI exists */
 	}
 #endif
@@ -906,6 +905,9 @@ int main(int argc, char **argv)
 	gui_destroy(params.gui);
 #endif
 	close_event_devices(ev.fd, ev.count);
+
+	log_close(lg);
+	lg = NULL;
 
 	/* rc < 0 indicate error */
 	if (rc < 0) exit(rc);

@@ -112,12 +112,7 @@ void scan_logical(int fd, struct mtd_oob_buf *oob, unsigned long *log2phy, int b
 			log_no = nand_get_logical_no(oob->ptr);	/* NOTE: Here was oobbuf before */
 			if ( ((int)log_no >= 0) && (log_no < blocks) ) {
 				log2phy[log_no] = offset;
-// 				DPRINTF("NAND logical - %08X -> %04X\n", offset, log_no * erasesize);
-			} else {
-// 				DPRINTF("NAND logical - %08X - skip (%x)\n", offset, log_no);
 			}
-		} else {
-// 			DPRINTF("NAND logical - offset %x read OOB problem\n", offset);
 		}
 		offset += erasesize;
 	}
@@ -192,7 +187,7 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 			!(meminfo.oobsize == 16 && meminfo.writesize == 512) &&
 			!(meminfo.oobsize == 8 && meminfo.writesize == 256)
 	) {
-		DPRINTF("Unknown flash (not normal NAND)\n");
+		log_msg(lg, "[zaurus] Unknown flash (not normal NAND)");
 		goto closefd;
 	}
 
@@ -208,7 +203,7 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 
 	scan_logical(fd, &oob, log2phy, blocks, meminfo.erasesize);
 
-	DPRINTF("Start: %lx, End: %lx\n", start_addr, length);
+	log_msg(lg, "[zaurus] Start: %lx, End: %lx", start_addr, length);
 
 	end_addr = start_addr + length;
 	bs = meminfo.writesize;
@@ -219,13 +214,13 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	    int offset = log2phy[ofs / meminfo.erasesize];
 
 	    if ((int)offset < 0) {
-			DPRINTF("NAND logical - offset %08lX not found\n", ofs);
+			log_msg(lg, "[zaurus] NAND logical - offset %08lX not found", ofs);
 			goto closeall;
 	    }
 
 		offset += ofs % meminfo.erasesize;
 
-	    DPRINTF("Offset: %x\n", offset);
+		log_msg(lg, "[zaurus] Offset: %x", offset);
 
 		if (pread(fd, p, bs, offset) != bs) {
 			perror("pread");
@@ -238,25 +233,25 @@ int zaurus_read_partinfo(struct zaurus_partinfo_t *partinfo)
 	free(oob.ptr);
 
 	mtdsize += meminfo.size;
-	DPRINTF("Total MTD size: %X\n", mtdsize);
+	log_msg(lg, "[zaurus] Total MTD size: %X", mtdsize);
 
 	/* Calculating offsets. fd, bs and blocks are used as temporary variables */
 	fd = readbuf[0] + (readbuf[1] << 8) + (readbuf[2] << 16) + (readbuf[3] << 24);
-	DPRINTF("SMF offset: %X\n", fd);
+	log_msg(lg, "[zaurus] SMF offset: %X", fd);
 
 	bs = readbuf[16] + (readbuf[17] << 8) + (readbuf[18] << 16) + (readbuf[19] << 24);
-	DPRINTF("Root offset: %X\n", bs);
+	log_msg(lg, "[zaurus] Root offset: %X", bs);
 
 	blocks = readbuf[28] + (readbuf[29] << 8) + (readbuf[30] << 16) + (readbuf[31] << 24);
-	DPRINTF("Root[2] offset: %X\n", blocks);
+	log_msg(lg, "[zaurus] Root[2] offset: %X", blocks);
 
 	free(readbuf);
 
-	DPRINTF("Home size: %X\n", mtdsize - bs);
+	log_msg(lg, "[zaurus] Home size: %X", mtdsize - bs);
 
 	/* Try to check that we have original NAND flash content */
 	if (blocks != bs) {
-		DPRINTF("Original NAND content was changed. We can't use mtd partition info\n");
+		log_msg(lg, "[zaurus] Original NAND content was changed. We can't use mtd partition info");
 		return -1;
 	}
 
@@ -287,7 +282,7 @@ char *zaurus_mtdparts(struct zaurus_partinfo_t *partinfo)
 
 	tag = malloc(tag_size);
 	if (NULL == tag) {
-		DPRINTF("Can't allocate memory for mtdparts tag\n");
+		DPRINTF("Can't allocate memory for mtdparts tag");
 		return NULL;
 	}
 

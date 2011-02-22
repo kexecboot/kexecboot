@@ -46,7 +46,7 @@ typedef uint32_t uint32;
 /* #define DEBUG */
 #ifdef DEBUG
 #define DPRINTF(fmt, args...)	do { \
-		fprintf(stderr, fmt, ##args); \
+		fprintf(stderr, fmt "\n", ##args); \
 	} while (0)
 #else
 #define DPRINTF(fmt, args...)	do { } while (0)

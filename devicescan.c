@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "fstype/fstype.h"
 #include "util.h"
@@ -42,7 +43,7 @@ struct charlist *scan_filesystems()
 	FILE *f = fopen("/proc/filesystems", "r");
 
 	if (NULL == f) {
-		DPRINTF("Can't open /proc/filesystems\n");
+		log_msg(lg, "+ can't open /proc/filesystems: %s", ERRMSG);
 		free_charlist(fl);
 		return NULL;
 	}
@@ -107,7 +108,7 @@ int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
 
 	bi = malloc(sizeof(*bi));
 	if (NULL == bi) {
-		DPRINTF("Can't allocate memory for new bootconf item\n");
+		DPRINTF("Can't allocate memory for new bootconf item");
 		return -1;
 	}
 
@@ -145,7 +146,7 @@ int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
 		bc->size <<= 1;	/* size *= 2; */
 		new_list = realloc( bc->list, bc->size * sizeof(*(bc->list)) );
 		if (NULL == new_list) {
-			DPRINTF("Can't resize boot structure\n");
+			DPRINTF("Can't resize boot structure");
 			return -1;
 		}
 
@@ -180,21 +181,21 @@ void print_bootcfg(struct bootconf_t *bc)
 {
 	int i;
 
-	DPRINTF("== Bootconf (%d, %d)\n", bc->size, bc->fill);
-	DPRINTF(" + ui: %d\n", bc->ui);
-	DPRINTF(" + timeout: %d\n", bc->timeout);
-	DPRINTF(" + debug: %d\n", bc->debug);
+	log_msg(lg, "== Bootconf (%d, %d)", bc->size, bc->fill);
+	log_msg(lg, " + ui: %d", bc->ui);
+	log_msg(lg, " + timeout: %d", bc->timeout);
+	log_msg(lg, " + debug: %d", bc->debug);
 
 	for (i = 0; i < bc->fill; i++) {
-		DPRINTF(" [%d] device: '%s'\n", i, bc->list[i]->device);
-		DPRINTF(" [%d] fstype: '%s'\n", i, bc->list[i]->fstype);
-		DPRINTF(" [%d] blocks: '%lu'\n", i, bc->list[i]->blocks);
-		DPRINTF(" [%d] label: '%s'\n", i, bc->list[i]->label);
-		DPRINTF(" [%d] kernelpath: '%s'\n", i, bc->list[i]->kernelpath);
-		DPRINTF(" [%d] cmdline: '%s'\n", i, bc->list[i]->cmdline);
-		DPRINTF(" [%d] initrd: '%s'\n", i, bc->list[i]->initrd);
-		DPRINTF(" [%d] iconpath: '%s'\n", i, bc->list[i]->iconpath);
-		DPRINTF(" [%d] priority: '%d'\n", i, bc->list[i]->priority);
+		log_msg(lg, " [%d] device: '%s'", i, bc->list[i]->device);
+		log_msg(lg, " [%d] fstype: '%s'", i, bc->list[i]->fstype);
+		log_msg(lg, " [%d] blocks: '%lu'", i, bc->list[i]->blocks);
+		log_msg(lg, " [%d] label: '%s'", i, bc->list[i]->label);
+		log_msg(lg, " [%d] kernelpath: '%s'", i, bc->list[i]->kernelpath);
+		log_msg(lg, " [%d] cmdline: '%s'", i, bc->list[i]->cmdline);
+		log_msg(lg, " [%d] initrd: '%s'", i, bc->list[i]->initrd);
+		log_msg(lg, " [%d] iconpath: '%s'", i, bc->list[i]->iconpath);
+		log_msg(lg, " [%d] priority: '%d'", i, bc->list[i]->priority);
 	}
 }
 #endif
@@ -206,24 +207,24 @@ const char *detect_fstype(char *device, struct charlist *fl)
 	int fd;
 	const char *fstype;
 
-	DPRINTF("Probing %s\n",device);
 	fd = open(device, O_RDONLY);
 	if (fd < 0) {
-		DPRINTF("Can't open device %s\n", device);
+		log_msg(lg, "+ can't open device: %s", ERRMSG);
 		return NULL;
 	}
 
 	if ( 0 != identify_fs(fd, &fstype, NULL, 0) ) {
 		close(fd);
-		DPRINTF("FS could not be identified\n");
+		log_msg(lg, "+ can't identify FS type");
 		return NULL;
 	}
 	close(fd);
-	DPRINTF("+ FS on device is %s\n", fstype);
+
+	log_msg(lg, "+ FS type '%s' detected", fstype);
 
 	/* Check that FS is known */
 	if (in_charlist(fl, fstype) < 0) {
-		DPRINTF("FS is not supported by kernel\n");
+		log_msg(lg, "+ FS %s is not supported by kernel", fstype);
 		return NULL;
 	}
 
@@ -241,10 +242,11 @@ int get_bootinfo(struct cfgdata_t *cfgdata)
 
 	/* Parse config file */
 	if (0 == parse_cfgfile(BOOTCFG_PATH, cfgdata)) {	/* Found and parsed */
+		log_msg(lg, "+ config file found");
 		/* Check kernel presence */
 		if (0 == stat(cfgdata->kernelpath, &sinfo)) return 0;
 
-		DPRINTF("Config file points to non-existent kernel\n");
+		log_msg(lg, "+ config file points to non-existent kernel");
 		return -1;
 
 	} else {	/* No config file found. Check kernels. */
@@ -254,7 +256,7 @@ int get_bootinfo(struct cfgdata_t *cfgdata)
 		if (NULL != machine_kernel) {
 			if (0 == stat(machine_kernel, &sinfo)) {
 				cfgdata->kernelpath = machine_kernel;
-				DPRINTF("+ found machine kernel\n");
+				log_msg(lg, "+ found machine kernel '%s'", machine_kernel);
 				return 0;
 			}
 		}
@@ -265,14 +267,14 @@ int get_bootinfo(struct cfgdata_t *cfgdata)
 		for (kp = default_kernels; NULL != *kp; kp++) {
 			if (0 == stat(*kp, &sinfo)) {
 				cfgdata->kernelpath = strdup(*kp);
-				DPRINTF("+ found default kernel '%s'\n", *kp);
+				log_msg(lg, "+ found default kernel '%s'", *kp);
 				return 0;
 			}
 		}
 	}
 
 	/* We have no kernels */
-	DPRINTF("No kernels found\n");
+	log_msg(lg, "+ no config file nor any kernels found");
 	return -1;
 }
 
@@ -285,7 +287,6 @@ FILE *devscan_open(struct charlist **fslist)
     /* Get a list of all filesystems registered in the kernel */
 	fl = scan_filesystems();
 	if (NULL == fl) {
-		DPRINTF("Can't read filesystems\n");
 		return NULL;
 	}
 
@@ -293,7 +294,7 @@ FILE *devscan_open(struct charlist **fslist)
 	 * See kernel/block/genhd.c for details on interface */
 	f = fopen("/proc/partitions", "r");
 	if (NULL == f) {
-		DPRINTF("Unable to get list of available partitions\n");
+		log_msg(lg, "Can't open /proc/partitions: %s", ERRMSG);
 		goto free_fl;
 	}
 
@@ -318,7 +319,6 @@ int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev)
 	char line[80];
 
 	if (NULL == fgets(line, sizeof(line), fp)) {
-		DPRINTF("Can't read next device line\n");
 		return 0;
 	}
 
@@ -329,12 +329,7 @@ int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev)
 	tmp = get_word(p, &p);
 
 	if (major < 0 || minor < 0 || blocks < 0 || NULL == tmp) {
-		DPRINTF("Can't parse string: '%s'\n", line);
-		return -1;
-	}
-
-	if (blocks < 200) {
-		DPRINTF("Skipping little partition with size (%dk) < 200k\n", blocks);
+		log_msg(lg, "Can't parse partition string: '%s'", line);
 		return -1;
 	}
 
@@ -342,31 +337,36 @@ int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev)
 	len = p - tmp;
 	device = malloc(len + 5 + 1); /* 5 = strlen("/dev/") */
 	if (NULL == device) {
-		DPRINTF("Can't allocate memory for device name\n");
+		DPRINTF("Can't allocate memory for device name '%s'", tmp);
 		return -1;
 	}
 	strcpy(device, "/dev/");
 	strncat(device, tmp, len);
 
-	DPRINTF("Got device '%s' (%d, %d) of size %dMb\n", device, major, minor, blocks>>10);
+	log_msg(lg, "Found device '%s' (%d, %d) of size %dMb",
+			device, major, minor, blocks>>10);
+
+	if (blocks < 200) {
+		log_msg(lg, "+ %s is too small (%dk < 200k), skipped", device, blocks);
+		return -1;
+	}
 
 #ifdef USE_DEVICES_RECREATING
 	/* Remove old device node. We don't care about unlink() result. */
 	unlink(device);
 
 	/* Re-create device node */
-	DPRINTF("Recreating device node %s (%d, %d)\n", device, major, minor);
+	log_msg(lg, "+ creating device node");
 	if ( -1 == mknod( device,
 			(S_IFBLK | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH),
 			makedev(major, minor) ) )
 	{
-		perror("Can't create device node");
+		log_msg(lg, "+ mknod failed: %s", ERRMSG);
 	}
 #endif
 
 	dev->fstype = detect_fstype(device, fslist);
 	if (NULL == dev->fstype) {
-		DPRINTF("Can't detect FS type\n");
 		free(device);
 		return -1;
 	}

@@ -24,6 +24,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "config.h"
 #include "xpm.h"
@@ -87,25 +88,24 @@ int xpm_load_image(char ***xpm_data, const char *filename)
 	char qsbuf[640 * 4 + 1];	/* (640 px max width * 4 chars per pixel + '\0') */
 
 	if (NULL == xpm_data) {
-		DPRINTF("Nowhere to store xpm data pointer\n");
 		return -1;
 	}
 
 	f = open(filename, O_RDONLY);
-    if (f < 0) {
-		perror(filename);
+	if (f < 0) {
+		log_msg(lg, "Can't open %s: %s", filename, ERRMSG);
 		return -1;
 	}
 
 	if ( -1 == fstat(f, &sb) ) {
-		perror(filename);
+		log_msg(lg, "Can't stat %s: %s", filename, ERRMSG);
 		close(f);
 		return -1;
 	}
 
 	/* Check file size */
 	if (sb.st_size > MAX_XPM_FILE_SIZE) {
-		DPRINTF("%s is too big (%d bytes)\n", filename, (int)sb.st_size);
+		log_msg(lg, "%s is too big (%d bytes)", filename, (int)sb.st_size);
 		close(f);
 		return -1;
 	}
@@ -139,7 +139,7 @@ int xpm_load_image(char ***xpm_data, const char *filename)
 						/* End of quoted string found */
 						if ( (p - qstart + strlen(qsbuf) + 1 ) > sizeof(qsbuf) ) {
 							/* String is too long, we cant parse it */
-							DPRINTF("XPM data string is too long\n");
+							log_msg(lg, "XPM data string is too long");
 							fail = 2;
 							break;
 						}
@@ -163,7 +163,7 @@ int xpm_load_image(char ***xpm_data, const char *filename)
 								/* Create new copy to store */
 								qs = strdup(qsbuf);
 								if (NULL == qs) {
-									DPRINTF("Can't allocate memory for values\n");
+									DPRINTF("Can't allocate memory for values");
 									fail = 1;
 									break;
 								}
@@ -172,7 +172,7 @@ int xpm_load_image(char ***xpm_data, const char *filename)
 								data = malloc((ncolors + height + 1) * sizeof(*data));
 								if (NULL == data) {
 									free(qs);
-									DPRINTF("Can't allocate memory for values\n");
+									DPRINTF("Can't allocate memory for values");
 									fail = 1;
 									break;
 								}
@@ -195,14 +195,14 @@ int xpm_load_image(char ***xpm_data, const char *filename)
 								/* Create copy to store */
 								qs = strdup(qsbuf);
 								if (NULL == qs) {
-									DPRINTF("Can't allocate memory for colors or pixels\n");
+									DPRINTF("Can't allocate memory for colors or pixels");
 									fail = 2;
 									break;
 								}
 
 								/* Append string to array */
 								data[n] = qs;
-								/* DPRINTF("%d: %s\n", n, data[n]); */
+								/* DPRINTF("%d: %s", n, data[n]); */
 								++n;
 								break;
 							default:
@@ -244,7 +244,7 @@ int xpm_load_image(char ***xpm_data, const char *filename)
 		if (in_quotes) {
 			if ( (e - qstart + strlen(qsbuf) + 1) > sizeof(qsbuf) ) {
 				/* String is too long. We can't parse it */
-				DPRINTF("XPM data string is too long\n");
+				log_msg(lg, "XPM data string is too long");
 				fail = 2;
 				break;
 			}
@@ -421,7 +421,7 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 				color = colors[XPM_KEY_MONO];
 
 			if (NULL == color) {
-				DPRINTF("Wrong XPM format: wrong colors line '%s'\n", *data);
+				log_msg(lg, "Wrong XPM format: wrong colors line '%s'", *data);
 				return -1;
 			}
 		}
@@ -435,7 +435,7 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 		}
 
 		if ( -1 == rc ) {
-			DPRINTF("Can't parse color '%s'\n", color);
+			log_msg(lg, "Can't parse color '%s'", color);
 			return -1;
 		}
 
@@ -454,7 +454,7 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 			if ( (c1 < 32) || (c1 > 127) ||
 					( (2 == chpp) && ( (c2 < 32) || (c2 > 127) ) )
 			) {
-				DPRINTF("Pixel char is out of range [32-127]\n");
+				log_msg(lg, "Pixel char is out of range [32-127]");
 			} else {
 				c1 -= ' ';
 				if (1 == chpp) {
@@ -498,7 +498,7 @@ int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
 
 		dlen = strlen(*data);
 		if (dlen != (width * chpp)) {
-			DPRINTF("Wrong XPM format: pixel data length is not equal to width (%d != %d)\n",
+			log_msg(lg, "Wrong XPM format: pixel data length is not equal to width (%d != %d)",
 			dlen, width * chpp);
 		}
 
@@ -512,7 +512,7 @@ int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
 				if ( (c1 < 32) || (c1 > 127) ||
 						( (2 == chpp) && ( (c2 < 32) || (c2 > 127) ) )
 				) {
-					DPRINTF("Pixel char is out of range [32-127]\n");
+					log_msg(lg, "Pixel char is out of range [32-127]");
 					*xpm_pixel = NULL; 	/* Consider this pixel as transparent */
 				} else {
 					c1 -= ' ';
@@ -557,7 +557,7 @@ kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 	if (NULL == xpm_data) return NULL;
 
 	if (rows < 3) {
-		DPRINTF("XPM image array should have at least 3 rows!\n");
+		log_msg(lg, "XPM image array should have at least 3 rows!");
 		return NULL;
 	}
 
@@ -568,19 +568,19 @@ kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 	chpp = get_nni(p, &p);
 
 	if (width < 0 || height < 0 || ncolors < 0 || chpp < 0) {
-		DPRINTF("Wrong XPM format: wrong values (%d, %d, %d, %d)\n",
+		log_msg(lg, "Wrong XPM format: wrong values (%d, %d, %d, %d)",
 			width, height, ncolors, chpp);
 		goto free_nothing;
 	}
 
 	if ( rows != (1 + ncolors + height) ) {
-		DPRINTF("Wrong XPM format: passed and parsed sizes are not equal (%d != %d)\n",
+		log_msg(lg, "Wrong XPM format: passed and parsed sizes are not equal (%d != %d)",
 			rows, 1 + ncolors + height);
 		goto free_nothing;
 	}
 
 	if ( ncolors > (1 << (8 * chpp)) ) {
-		DPRINTF("Wrong XPM format: there are more colors than char_per_pixel can serve (%d > %d)\n",
+		log_msg(lg, "Wrong XPM format: there are more colors than char_per_pixel can serve (%d > %d)",
 			ncolors, 1 << (8 * chpp) );
 		goto free_nothing;
 	}
@@ -588,7 +588,7 @@ kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 	/* Prepare return values */
 	xpm_parsed = malloc(sizeof(*xpm_parsed));
 	if (NULL == xpm_parsed) {
-		DPRINTF("Can't allocate memory for return values\n");
+		DPRINTF("Can't allocate memory for return values");
 		goto free_nothing;
 	}
 
@@ -603,14 +603,14 @@ kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 	/* Allocate array of colors */
 	xpm_parsed->colors = malloc(sizeof(*(xpm_parsed->colors)) * ncolors);
 	if (NULL == xpm_parsed->colors) {
-		DPRINTF("Can't allocate memory for xpm colors array\n");
+		DPRINTF("Can't allocate memory for xpm colors array");
 		goto free_xpm_parsed;
 	}
 
 	/* Allocate place for pixel data */
 	xpm_meta.pixdata = malloc(ncolors * sizeof(*(xpm_meta.pixdata)));
 	if (NULL == xpm_meta.pixdata) {
-		DPRINTF("Can't allocate memory for pixel data array\n");
+		DPRINTF("Can't allocate memory for pixel data array");
 		goto free_xpm_parsed;	/* Colors are freed by same function */
 	}
 
@@ -621,7 +621,7 @@ kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 
 		xpm_meta.ctable = malloc(xpm_meta.ctable_size * sizeof(xpm_meta.ctable));
 		if (NULL == xpm_meta.ctable) {
-			DPRINTF("Can't allocate memory for colors lookup table\n");
+			DPRINTF("Can't allocate memory for colors lookup table");
 			xpm_meta.ctable_size = 0;
 		}
 		xpm_meta.pixnames = NULL;
@@ -634,7 +634,7 @@ kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 	if (NULL == xpm_meta.ctable) {
 		xpm_meta.pixnames = malloc(ncolors * (chpp + 1) * sizeof(char));
 		if (NULL == xpm_meta.pixnames) {
-			DPRINTF("Can't allocate memory for pixel names array\n");
+			DPRINTF("Can't allocate memory for pixel names array");
 			goto free_pixdata;
 		}
 	}
@@ -642,21 +642,21 @@ kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 	/* Parse colors data */
 	if ( -1 == xpm_parse_colors(xpm_data + 1, bpp, &xpm_meta) )
 	{
-		DPRINTF("Can't parse xpm colors\n");
+		log_msg(lg, "Can't parse xpm colors");
 		goto free_pixnames;
 	}
 
 	/* Allocate memory for pixels data */
 	xpm_parsed->pixels = malloc(width * chpp * height * sizeof(*(xpm_parsed->pixels)));
 	if (NULL == xpm_parsed->pixels) {
-		DPRINTF("Can't allocate memory for xpm pixels data\n");
+		DPRINTF("Can't allocate memory for xpm pixels data");
 		goto free_pixnames;
 	}
 
 	/* Parse pixels data */
 	if ( -1 == xpm_parse_pixels(xpm_data + 1 + ncolors, &xpm_meta) )
 	{
-		DPRINTF("Can't parse xpm pixels\n");
+		log_msg(lg, "Can't parse xpm pixels");
 		goto free_pixnames;
 	}
 

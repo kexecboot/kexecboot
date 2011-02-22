@@ -14,21 +14,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  TODO:
- *  * Submenu's.
- * 		- Add keyword "GROUP". Each group adds a new submenu.
- * 		  Only one nesting level is supported.
- * 		- When in submenu, add option "Back to main menu"
- * 		  Assign (Zaurus) left cursor key to "Back to main menu"
- * 		- Automatically add a submenu "System" supporting:
- * 			- System information
- * 			- Debug information
- * 			- Reboot & Rescan
- *  * Paging / Scrolling
- * 		- Different handling for GUI and Text modus
- *  * Advanced handling of "DEFAULT".
- * 		- Situation where default item is in submenu
- *
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,6 +22,7 @@
 #include <limits.h>
 #include <sys/mount.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "config.h"
 #include "util.h"
@@ -55,7 +41,7 @@ static int set_kernel(struct cfgdata_t *cfgdata, char *value)
 	/* Add our mountpoint, since the enduser won't know it */
 	cfgdata->kernelpath = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
 	if (NULL == cfgdata->kernelpath) {
-		DPRINTF("Can't allocate memory to store kernelpath '%s'\n", value);
+		DPRINTF("Can't allocate memory to store kernelpath '%s'", value);
 		return -1;
 	}
 
@@ -70,7 +56,7 @@ static int set_icon(struct cfgdata_t *cfgdata, char *value)
 	/* Add our mountpoint, since the enduser won't know it */
 	cfgdata->iconpath = malloc(sizeof(MOUNTPOINT)+strlen(value));
 	if (NULL == cfgdata->iconpath) {
-		DPRINTF("Can't allocate memory to store iconpath '%s'\n", value);
+		DPRINTF("Can't allocate memory to store iconpath '%s'", value);
 		return -1;
 	}
 
@@ -93,7 +79,7 @@ static int set_initrd(struct cfgdata_t *cfgdata, char *value)
 	/* Add our mountpoint, since the enduser won't know it */
 	cfgdata->initrd = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
 	if (NULL == cfgdata->initrd) {
-		DPRINTF("Can't allocate memory to store initrd '%s'\n", value);
+		DPRINTF("Can't allocate memory to store initrd '%s'", value);
 		return -1;
 	}
 
@@ -106,7 +92,7 @@ static int set_priority(struct cfgdata_t *cfgdata, char *value)
 {
 	cfgdata->priority = get_nni(value, NULL);
 	if (cfgdata->priority < 0) {
-		DPRINTF("Can't convert '%s' to integer\n", value);
+		log_msg(lg, "Can't convert '%s' to integer", value);
 		cfgdata->priority = 0;
 		return -1;
 	}
@@ -117,7 +103,7 @@ static int set_timeout(struct cfgdata_t *cfgdata, char *value)
 {
 	cfgdata->timeout = get_nni(value, NULL);
 	if (cfgdata->timeout < 0) {
-		DPRINTF("Can't convert '%s' to integer\n", value);
+		log_msg(lg, "Can't convert '%s' to integer", value);
 		cfgdata->timeout = 0;
 		return -1;
 	}
@@ -134,7 +120,7 @@ static int set_ui(struct cfgdata_t *cfgdata, char *value)
 		cfgdata->ui = GUI;
 		break;
 	default:
-		DPRINTF("Unknown value '%s' for UI keyword\n", value);
+		log_msg(lg, "Unknown value '%s' for UI keyword", value);
 		return -1;
 		break;
 	}
@@ -156,7 +142,7 @@ static int set_debug(struct cfgdata_t *cfgdata, char *value)
 		} else if ( (strcmp(v, "OFF") == 0) || (strcmp(v, "0") == 0) ) {
 			cfgdata->debug = 0;
 		} else {
-			DPRINTF("Unknown value '%s' for DEBUG keyword\n", value);
+			log_msg(lg, "Unknown value '%s' for DEBUG keyword", value);
 			return -1;
 		}
 	}
@@ -183,7 +169,7 @@ static int set_fbcon(struct cfgdata_t *cfgdata, char *value)
 
 	c = strchr(value, ':');
 	if (NULL == c) {
-		DPRINTF("Wrong 'rotate' value: %s\n", value);
+		log_msg(lg, "Wrong 'rotate' value: %s", value);
 		return -1;
 	}
 
@@ -193,7 +179,7 @@ static int set_fbcon(struct cfgdata_t *cfgdata, char *value)
 	++c;	/* Skip ':' */
 	i = get_nni(c, NULL);
 	if (i < 0) {
-		DPRINTF("Can't convert '%s' to integer\n", c);
+		log_msg(lg, "Can't convert '%s' to integer", c);
 		return -1;
 	}
 
@@ -237,7 +223,7 @@ static int set_ttydev(struct cfgdata_t *cfgdata, char *value)
 	/* Prepend '/dev/' to tty name (value) */
 	p = malloc(sizeof(str_dev)+strlen(value));
 	if (NULL == p) {
-		DPRINTF("Can't allocate memory to store tty device name '/dev/%s'\n", value);
+		DPRINTF("Can't allocate memory to store tty device name '/dev/%s'", value);
 		return -1;
 	}
 
@@ -294,7 +280,7 @@ int process_keyword(enum cfg_type_t cfg_type, struct cfgdata_t *cfgdata, char *k
 		if (cfg_type != kf->type) continue;
 		if (0 == strcmp(ukey, kf->keyword)) {
 			if ( (1 == kf->has_value) && (NULL == value) ) {
-				DPRINTF("Keyword '%s' should have value\n", ukey);
+				log_msg(lg, "+ keyword '%s' should have value", ukey);
 				return -1;
 			}
 			return kf->keyfunc(cfgdata, value);
@@ -302,7 +288,6 @@ int process_keyword(enum cfg_type_t cfg_type, struct cfgdata_t *cfgdata, char *k
 	}
 
 	/* Coming this far, keyword was not found */
-	DPRINTF("Unknown keyword: '%s'\n", ukey);
 	return -1;
 }
 
@@ -321,7 +306,7 @@ int parse_cfgfile(char *path, struct cfgdata_t *cfgdata)
 	/* Open the config file */
 	f = fopen(path, "r");
 	if (NULL == f) {
-		DPRINTF("Can't open config file '%s'\n", path);
+		log_msg(lg, "+ can't open config file: %s", ERRMSG);
 		return -1;
 	}
 
@@ -351,7 +336,7 @@ int parse_cfgfile(char *path, struct cfgdata_t *cfgdata)
 
 		/* Process keyword and value */
 		if (-1 == process_keyword(CFG_FILE, cfgdata, keyword, value)) {
-			DPRINTF("Can't parse line %d (%s)!\n", linenr, keyword);
+			log_msg(lg, "Can't parse keyword '%s'", keyword);
 		}
 	}
 
@@ -370,17 +355,19 @@ int parse_cmdline(struct cfgdata_t *cfgdata)
 	/* Open /proc/cmdline and read cmdline */
 	f = fopen("/proc/cmdline", "r");
 	if (NULL == f) {
-		perror("Can't open /proc/cmdline");
+		log_msg(lg, "Can't open /proc/cmdline: %s", ERRMSG);
 		return -1;
 	}
 
 	if ( NULL == fgets(line, sizeof(line), f) ) {
-		perror("Can't read /proc/cmdline");
+		log_msg(lg, "Can't read /proc/cmdline: %s", ERRMSG);
 		fclose(f);
 		return -1;
 	}
 
 	fclose(f);
+
+	log_msg(lg, "Kernel cmdline: %s", line);
 
 	c = line;
 	/* Split string to words */
@@ -402,9 +389,7 @@ int parse_cmdline(struct cfgdata_t *cfgdata)
 		}
 
 		/* Process keyword and value */
-		if (-1 == process_keyword(CFG_CMDLINE, cfgdata, keyword, value)) {
-			DPRINTF("Can't parse keyword %s!\n", keyword);
-		}
+		process_keyword(CFG_CMDLINE, cfgdata, keyword, value);
 	}
 
 	return 0;

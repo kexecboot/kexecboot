@@ -22,6 +22,8 @@
  * NOTE: Modes 1bpp, 2bpp, 4bpp and 18bpp should be tested.
  */
 
+#include <errno.h>
+
 #include "config.h"
 #include "fb.h"
 
@@ -569,12 +571,10 @@ attempt_to_change_pixel_format(FB * fb, struct fb_var_screeninfo *fb_var)
 	fb_var->transp.length = 0;
 
 	if (ioctl(fb->fd, FBIOPUT_VSCREENINFO, fb_var) == 0) {
-		fprintf(stdout,
-			"Switched to a 32 bpp 8,8,8 frame buffer\n");
+		log_msg(lg, "Switched to a 32 bpp 8,8,8 frame buffer");
 		return 1;
 	} else {
-		fprintf(stderr,
-			"Error, failed to switch to a 32 bpp 8,8,8 frame buffer\n");
+		log_msg(lg, "Error, failed to switch to a 32 bpp 8,8,8 frame buffer");
 	}
 
 	/* Otherwise try a 16bpp 5,6,5 format */
@@ -594,12 +594,10 @@ attempt_to_change_pixel_format(FB * fb, struct fb_var_screeninfo *fb_var)
 	fb_var->transp.length = 0;
 
 	if (ioctl(fb->fd, FBIOPUT_VSCREENINFO, fb_var) == 0) {
-		fprintf(stdout,
-			"Switched to a 16 bpp 5,6,5 frame buffer\n");
+		log_msg(lg, "Switched to a 16 bpp 5,6,5 frame buffer");
 		return 1;
 	} else {
-		fprintf(stderr,
-			"Error, failed to switch to a 16 bpp 5,6,5 frame buffer\n");
+		log_msg(lg, "Error, failed to switch to a 16 bpp 5,6,5 frame buffer");
 	}
 
 	return 0;
@@ -608,22 +606,22 @@ attempt_to_change_pixel_format(FB * fb, struct fb_var_screeninfo *fb_var)
 #ifdef DEBUG
 void print_fb(FB *fb)
 {
-	DPRINTF("Framebuffer structure\n");
-	DPRINTF("Descriptor: %d\n", fb->fd);
-	DPRINTF("Type: %d\n", fb->type);
-	DPRINTF("Visual: %d\n", fb->visual);
-	DPRINTF("Width: %d, height: %d\n", fb->width, fb->height);
-	DPRINTF("Real width: %d, real height: %d\n", fb->real_width, fb->real_height);
-	DPRINTF("BPP: %d, depth: %d\n", fb->bpp, fb->depth);
-	DPRINTF("Stride: %d\n", fb->stride);
+	log_msg(lg, "Framebuffer structure");
+	log_msg(lg, "Descriptor: %d", fb->fd);
+	log_msg(lg, "Type: %d", fb->type);
+	log_msg(lg, "Visual: %d", fb->visual);
+	log_msg(lg, "Width: %d, height: %d", fb->width, fb->height);
+	log_msg(lg, "Real width: %d, real height: %d", fb->real_width, fb->real_height);
+	log_msg(lg, "BPP: %d, depth: %d", fb->bpp, fb->depth);
+	log_msg(lg, "Stride: %d", fb->stride);
 
-	DPRINTF("Screensize: %d\n", fb->screensize);
-	DPRINTF("Angle: %d\n", fb->angle);
+	log_msg(lg, "Screensize: %d", fb->screensize);
+	log_msg(lg, "Angle: %d", fb->angle);
 
-	DPRINTF("RGBmode: %d\n", fb->rgbmode);
-	DPRINTF("Red offset: %d, red length: %d\n", fb->red_offset, fb->red_length);
-	DPRINTF("Green offset: %d, green length: %d\n", fb->green_offset, fb->green_length);
-	DPRINTF("Blue offset: %d, blue length: %d\n", fb->blue_offset, fb->blue_length);
+	log_msg(lg, "RGBmode: %d", fb->rgbmode);
+	log_msg(lg, "Red offset: %d, red length: %d", fb->red_offset, fb->red_length);
+	log_msg(lg, "Green offset: %d, green length: %d", fb->green_offset, fb->green_length);
+	log_msg(lg, "Blue offset: %d, blue length: %d", fb->blue_offset, fb->blue_length);
 }
 #endif
 
@@ -650,28 +648,28 @@ FB *fb_new(int angle)
 	fb->fd = -1;
 
 	if ((fb->fd = open(fbdev, O_RDWR)) < 0) {
-		perror("Error opening /dev/fb0");
+		log_msg(lg, "Error opening /dev/fb0: %s", ERRMSG);
 		goto fail;
 	}
 
 	if (ioctl(fb->fd, FBIOGET_VSCREENINFO, &fb_var) == -1) {
-		perror("Error getting variable framebuffer info");
+		log_msg(lg, "Error getting variable framebuffer info: %s", ERRMSG);
 		goto fail;
 	}
 
 	if (fb_var.bits_per_pixel != 1 && fb_var.bits_per_pixel != 2
 		&& fb_var.bits_per_pixel < 16)
 	{
-		fprintf(stderr,
+		log_msg(lg,
 			"Error, no support currently for %i bpp frame buffers\n"
-			"Trying to change pixel format...\n",
+			"Trying to change pixel format...",
 			fb_var.bits_per_pixel);
 		if (!attempt_to_change_pixel_format(fb, &fb_var))
 			goto fail;
 	}
 	if (ioctl (fb->fd, FBIOGET_VSCREENINFO, &fb_var) == -1)
 	{
-		perror ("Error getting variable framebuffer info (2)");
+		log_msg(lg, "Error getting variable framebuffer info (2): %s", ERRMSG);
 		goto fail;
 	}
 
@@ -679,7 +677,7 @@ FB *fb_new(int angle)
 	 * broken. The line_length is part of the fixed info but it can be changed
 	 * if you set a new pixel format. */
 	if (ioctl(fb->fd, FBIOGET_FSCREENINFO, &fb_fix) == -1) {
-		perror("Error getting fixed framebuffer info");
+		log_msg(lg, "Error getting fixed framebuffer info: %s", ERRMSG);
 		goto fail;
 	}
 
@@ -719,7 +717,7 @@ FB *fb_new(int angle)
 				 MAP_SHARED, fb->fd, 0);
 
 	if (fb->base == (char *) -1) {
-		perror("Error cannot mmap framebuffer ");
+		log_msg(lg, "Error cannot mmap framebuffer: %s", ERRMSG);
 		goto fail;
 	}
 
@@ -808,7 +806,7 @@ FB *fb_new(int angle)
 #endif
 	default:
 		/* We have no drawing functions for this mode ATM */
-		DPRINTF("Sorry, your bpp (%d) and/or depth (%d) are not supported yet.\n", fb->bpp, fb->depth);
+		log_msg(lg, "Sorry, your bpp (%d) and/or depth (%d) are not supported yet", fb->bpp, fb->depth);
 		fb_destroy(fb);
 		return NULL;
 		break;

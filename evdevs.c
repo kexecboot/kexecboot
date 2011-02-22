@@ -52,8 +52,7 @@ int is_suitable_evdev(char *path)
 	uint8_t evtype_bitmask[(EV_MAX>>3) + 1];
 
 	if ((fd = open(path, O_RDONLY)) < 0) {
-		DPRINTF("Can't open evdev device '%s'", path);
-/*		perror("");*/
+		log_msg(lg, "+ can't open evdev '%s': %s", path, ERRMSG);
 		return 0;
 	}
 
@@ -62,8 +61,7 @@ int is_suitable_evdev(char *path)
 
 	/* Ask device features */
 	if (ioctl(fd, EVIOCGBIT(0, EV_MAX), evtype_bitmask) < 0) {
-		DPRINTF("Can't get evdev features");
-/*		perror("");*/
+		log_msg(lg, "+ can't get evdev features: %s", ERRMSG);
 		return 0;
 	}
 
@@ -71,47 +69,46 @@ int is_suitable_evdev(char *path)
 
 #ifdef DEBUG
 	int yalv;
-	DPRINTF("Supported event types:\n");
+	log_msg(lg, "+ supported event types:");
 	for (yalv = 0; yalv < EV_MAX; yalv++) {
 		if (test_bit(yalv, evtype_bitmask)) {
 			/* this means that the bit is set in the event types list */
-			DPRINTF("  Event type 0x%02x ", yalv);
 			switch (yalv) {
 			case EV_KEY:
-				DPRINTF(" (Keys or Buttons)\n");
+				log_msg(lg, " + Keys or Buttons");
 				break;
 			case EV_REL:
-				DPRINTF(" (Relative Axes)\n");
+				log_msg(lg, " + Relative Axes");
 				break;
 			case EV_ABS:
-				DPRINTF(" (Absolute Axes)\n");
+				log_msg(lg, " + Absolute Axes");
 				break;
 			case EV_MSC:
-				DPRINTF(" (Something miscellaneous)\n");
+				log_msg(lg, " + Something miscellaneous");
 				break;
 			case EV_SW:
-				DPRINTF(" (Switch)\n");
+				log_msg(lg, " + Switch");
 				break;
 			case EV_LED:
-				DPRINTF(" (LEDs)\n");
+				log_msg(lg, " + LEDs");
 				break;
 			case EV_SND:
-				DPRINTF(" (Sounds)\n");
+				log_msg(lg, " + Sounds");
 				break;
 			case EV_REP:
-				DPRINTF(" (Repeat)\n");
+				log_msg(lg, " + Repeat");
 				break;
 			case EV_FF:
-				DPRINTF(" (Force Feedback)\n");
+				log_msg(lg, " + Force Feedback");
 				break;
 			case EV_PWR:
-				DPRINTF(" (Power)\n");
+				log_msg(lg, " + Power");
 				break;
 			case EV_FF_STATUS:
-				DPRINTF(" (Force Feedback Status)\n");
+				log_msg(lg, " + Force Feedback Status");
 				break;
 			default:
-				DPRINTF(" (Unknown event type: 0x%04hx)\n", yalv);
+				log_msg(lg, " + Unknown event type: 0x%04hx", yalv);
 				break;
 			}
 		}
@@ -122,7 +119,7 @@ int is_suitable_evdev(char *path)
 	if (test_bit(EV_KEY, evtype_bitmask)) return 1;
 
 	/* device is not suitable */
-	DPRINTF("Event device %s have no EV_KEY bit\n", path);
+	log_msg(lg, "+ evdev %s have no EV_KEY bit, skipped", path);
 	return 0;
 }
 
@@ -140,7 +137,7 @@ struct charlist *scan_event_dir(char *path)
 
 	d = opendir(path);
 	if (NULL == d) {
-		DPRINTF("Can't open directory '%s'\n", path);
+		log_msg(lg, "+ can't open directory '%s': %s", path, ERRMSG);
 		return NULL;
 	}
 
@@ -156,10 +153,10 @@ struct charlist *scan_event_dir(char *path)
 	/* Loop through directory and look for pattern */
 	while ((dp = readdir(d)) != NULL) {
 		if (0 == strncmp(dp->d_name, pattern, len)) {
-			DPRINTF("+ found evdev: %s\n", dp->d_name);
 			strcat(p, dp->d_name);
 			if (is_suitable_evdev(device)) {
 				addto_charlist(evlist, device);
+				log_msg(lg, "+ Added evdev '%s'", dp->d_name);
 			}
 			*p = '\0';	/* Reset device name */
 		}
@@ -187,7 +184,7 @@ struct charlist *scan_event_devices()
 	if (NULL == evlist) return NULL;
 	if (0 != evlist->fill) return evlist;
 
-	DPRINTF("We have not found any event device\n");
+	log_msg(lg, "No evdevs found");
 	return NULL;
 }
 
@@ -199,17 +196,16 @@ int *open_event_devices(struct charlist *evlist)
 
 	ev_fds = malloc(evlist->fill * sizeof(*ev_fds));
 	if (NULL == ev_fds) {
-		DPRINTF("Can't allocate memory for descriptors array\n");
+		DPRINTF("Can't allocate memory for descriptors array");
 		return NULL;
 	}
 
 	for(i = 0; i < evlist->fill; i++) {
 		ev_fds[i] = open(evlist->list[i], O_RDONLY);
 		if (-1 == ev_fds[i]) {
-			DPRINTF("Can't open event device '%s'", evlist->list[i]);
-/*			perror("");*/
+			log_msg(lg, "+ can't open evdev '%s': %s", evlist->list[i], ERRMSG);
 		}
-		DPRINTF("+ opened event device '%s', fd: %d\n", evlist->list[i], ev_fds[i]);
+		log_msg(lg, "+ evdev '%s' is opened (%d)", evlist->list[i], ev_fds[i]);
 	}
 
 	return ev_fds;
@@ -233,14 +229,12 @@ int scan_evdevs(struct ev_params_t *ev)
 	/* Search for keyboard/touchscreen/mouse/joystick/etc.. */
 	evlist = scan_event_devices();
 	if (NULL == evlist) {
-		DPRINTF("Can't get event devices list\n");
 		return -1;
 	}
 
 	/* Open event devices */
 	ev_fds = open_event_devices(evlist);
 	if (NULL == ev_fds) {
-		DPRINTF("Can't open event devices\n");
 		exit(-1);
 	}
 
@@ -311,12 +305,12 @@ enum actions_t process_events(struct ev_params_t *ev)
 	if (-1 == nready) {
 		if (errno == EINTR) return A_NONE;
 		else {
-			DPRINTF("Error %d occured in select() call\n", errno);
+			log_msg(lg, "Error occured in select() call", ERRMSG);
 			return A_ERROR;
 		}
 	} else if (0 == nready) {	// timeout reached
 #ifdef USE_TIMEOUT
-		DPRINTF("Timeout reached!\n");
+		log_msg(lg, "Timeout reached!");
 		return A_TIMEOUT;
 #else
 		return A_NONE;
@@ -329,19 +323,19 @@ enum actions_t process_events(struct ev_params_t *ev)
 		if (FD_ISSET(efd, &fds)) {
 			nready = read(efd, evt, sizeof(struct input_event) * evt_size);	/* Read events */
 			if ( nready < (int) sizeof(struct input_event) ) {
-				DPRINTF("Short read of event structure (%d bytes)\n", nready);
+				log_msg(lg, "Short read of event structure (%d bytes)", nready);
 				continue;
 			}
 
 			/* NOTE: debug
 			if ( nready > (int) sizeof(struct input_event) )
-				DPRINTF("Have more than one event here (%d bytes, %d events)\n",
+				DPRINTF("Have more than one event here (%d bytes, %d events)",
 						nready, (int) (nready / sizeof(struct input_event)) );
 			*/
 
 			for (e = 0; e < (int) (nready / sizeof(struct input_event)); e++) {
 
-				/* DPRINTF("+ event on %d, type: %d, code: %d, value: %d\n",
+				/* DPRINTF("+ event on %d, type: %d, code: %d, value: %d",
 						efd, evt[e].type, evt[e].code, evt[e].value); */
 
 				if ((EV_KEY == evt[e].type) && (0 != evt[e].value)) {

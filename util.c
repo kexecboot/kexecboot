@@ -70,7 +70,7 @@ void addto_charlist(struct charlist *cl, const char *str)
 		cl->size <<= 1;	/* size *= 2; */
 		new_list = realloc(cl->list, cl->size * sizeof(char *));
 		if (NULL == new_list) {
-			DPRINTF("Can't resize menu list\n");
+			DPRINTF("Can't resize menu list");
 			return;
 		}
 
@@ -236,17 +236,17 @@ int get_nni(const char *str, char **endptr)
 	/* Check for various possible errors */
 	if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN))
 		|| (errno != 0 && val == 0)) {
-		perror("get_nni");
+		log_msg(lg, "get_nni: %s", ERRMSG);
 		return -1;
 	}
 
 	if (val > INT_MAX) {
-		DPRINTF("get_nni: Value too big for unsigned int\n");
+		log_msg(lg, "get_nni: Value too big for unsigned int");
 		return -1;
 	}
 
 	if ((NULL != endptr) && (*endptr == str)) {
-		DPRINTF("get_nni: No digits were found\n");
+		log_msg(lg, "get_nni: No digits were found");
 		return -1;
 	}
 
@@ -278,7 +278,7 @@ void setup_terminal(char *ttydev, int *echo_state, int mode)
 	tcsetattr(fileno(stdin), TCSANOW, &tc);
 
 	if (NULL == ttydev) {
-		DPRINTF("We have no tty\n");
+		log_msg(lg, "We have no tty");
 		return;
 	}
 
@@ -286,7 +286,7 @@ void setup_terminal(char *ttydev, int *echo_state, int mode)
 	if (NULL != ttydev) {
 		f = fopen(ttydev, "r+");
 		if (NULL == f) {
-			DPRINTF("Can't open '%s' for writing\n", ttydev);
+			log_msg(lg, "Can't open '%s' for writing: %s", ttydev, ERRMSG);
 			return;
 		}
 	} else {
