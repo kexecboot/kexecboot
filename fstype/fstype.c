@@ -10,39 +10,33 @@
  * "imagetype images" (in the order they are listed).
  */
 
-#define _XOPEN_SOURCE 500
 #include <sys/types.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <endian.h>
 #include <netinet/in.h>
+#include <sys/utsname.h>
 #include <sys/vfs.h>
-#include <linux/types.h>
-#include <asm/byteorder.h>
+
 #define cpu_to_be32(x) __cpu_to_be32(x)	/* Needed by romfs_fs.h */
 
-#include "romfs_fs.h"
+#include "btrfs.h"
 #include "cramfs_fs.h"
-#include "minix_fs.h"
 #include "ext2_fs.h"
 #include "ext3_fs.h"
-#include "ext4_fs.h"
-#include "xfs_sb.h"
+#include "gfs2_fs.h"
+#include "iso9660_sb.h"
 #include "luks_fs.h"
 #include "lvm2_sb.h"
-#include "iso9660_sb.h"
-
-#if __BYTE_ORDER == __BIG_ENDIAN
-#include <linux/byteorder/big_endian.h>
-#else
-#include <linux/byteorder/little_endian.h>
-#endif
-#include "squashfs_fs.h"
-#include "gfs2_fs.h"
-#include "ocfs2_fs.h"
+#include "minix_fs.h"
 #include "nilfs_fs.h"
+#include "ocfs2_fs.h"
+#include "romfs_fs.h"
+#include "squashfs_fs.h"
+#include "xfs_sb.h"
 
 /*
  * Slightly cleaned up version of jfs_superblock to
@@ -65,26 +59,6 @@
 
 /* Swap needs the definition of block size */
 #include "swap_fs.h"
-
-static int jffs2_image(const void *buf, unsigned long long *bytes)
-{
-	const unsigned char *p = buf;
-	// Very sloppy! ;-E
-	if (*p == 0x85 && p[1] == 0x19)
-		return 1;
-
-	return 0;
-}
-
-static int vfat_image(const void *buf, unsigned long long *bytes)
-{
-	if (!strncmp(buf + 54, "FAT12   ", 8)
-	    || !strncmp(buf + 54, "FAT16   ", 8)
-	    || !strncmp(buf + 82, "FAT32   ", 8))
-		return 1;
-
-	return 0;
-}
 
 static int gzip_image(const void *buf, unsigned long long *bytes)
 {
@@ -139,20 +113,132 @@ static int minix_image(const void *buf, unsigned long long *bytes)
 	return 0;
 }
 
-static int ext4_image(const void *buf, unsigned long long *bytes)
+/*
+ * Check to see if a filesystem is in /proc/filesystems.
+ * Returns 1 if found, 0 if not
+ */
+static int fs_proc_check(const char *fs_name)
 {
-	const struct ext4_super_block *sb =
-	    (const struct ext4_super_block *) buf;
+	FILE	*f;
+	char	buf[80], *cp, *t;
 
-	if (sb->s_magic == __cpu_to_le16(EXT4_SUPER_MAGIC) &&
-	    sb->s_feature_compat & __cpu_to_le32(EXT4_FEATURE_COMPAT_HAS_JOURNAL) &&
-		sb->s_feature_incompat & __cpu_to_le32(EXT4_FEATURE_INCOMPAT_EXTENTS)) {
-		*bytes =
-		    (unsigned long long) __le32_to_cpu(sb->s_blocks_count_lo)
-		    << (10 + __le32_to_cpu(sb->s_log_block_size));
+	f = fopen("/proc/filesystems", "r");
+	if (!f)
+		return (0);
+	while (fgets(buf, sizeof(buf), f)) {
+		cp = buf;
+		if (!isspace(*cp)) {
+			while (*cp && !isspace(*cp))
+				cp++;
+		}
+		while (*cp && isspace(*cp))
+			cp++;
+		if ((t = strchr(cp, '\n')) != NULL)
+			*t = 0;
+		if ((t = strchr(cp, '\t')) != NULL)
+			*t = 0;
+		if ((t = strchr(cp, ' ')) != NULL)
+			*t = 0;
+		if (!strcmp(fs_name, cp)) {
+			fclose(f);
+			return (1);
+		}
+	}
+	fclose(f);
+	return (0);
+}
+
+/*
+ * Check to see if a filesystem is available as a module
+ * Returns 1 if found, 0 if not
+ */
+static int check_for_modules(const char *fs_name)
+{
+	struct utsname	uts;
+	FILE		*f;
+	char		buf[1024], *cp, *t;
+	int		i;
+
+	if (uname(&uts))
+		return (0);
+	snprintf(buf, sizeof(buf), "/lib/modules/%s/modules.dep", uts.release);
+
+	f = fopen(buf, "r");
+	if (!f)
+		return (0);
+	while (fgets(buf, sizeof(buf), f)) {
+		if ((cp = strchr(buf, ':')) != NULL)
+			*cp = 0;
+		else
+			continue;
+		if ((cp = strrchr(buf, '/')) != NULL)
+			cp++;
+		i = strlen(cp);
+		if (i > 3) {
+			t = cp + i - 3;
+			if (!strcmp(t, ".ko"))
+				*t = 0;
+		}
+		if (!strcmp(cp, fs_name)) {
+			fclose(f);
+			return (1);
+		}
+	}
+	fclose(f);
+	return (0);
+}
+
+static int base_ext4_image(const void *buf, unsigned long long *bytes,
+			   int *test_fs)
+{
+	const struct ext3_super_block *sb =
+		(const struct ext3_super_block *)buf;
+
+	if (sb->s_magic != __cpu_to_le16(EXT2_SUPER_MAGIC))
+		return 0;
+
+	/* There is at least one feature not supported by ext3 */
+	if ((sb->s_feature_incompat
+	     & __cpu_to_le32(EXT3_FEATURE_INCOMPAT_UNSUPPORTED)) ||
+	    (sb->s_feature_ro_compat
+	     & __cpu_to_le32(EXT3_FEATURE_RO_COMPAT_UNSUPPORTED))) {
+		*bytes = (unsigned long long)__le32_to_cpu(sb->s_blocks_count)
+			<< (10 + __le32_to_cpu(sb->s_log_block_size));
+		*test_fs = (sb->s_flags &
+			    __cpu_to_le32(EXT2_FLAGS_TEST_FILESYS)) != 0;
 		return 1;
 	}
 	return 0;
+}
+
+static int ext4_image(const void *buf, unsigned long long *bytes)
+{
+	int ret, test_fs, ext4dev_present, ext4_present;
+
+	ret = base_ext4_image(buf, bytes, &test_fs);
+	if (ret == 0)
+		return 0;
+	ext4dev_present = (fs_proc_check("ext4dev") ||
+			   check_for_modules("ext4dev"));
+	ext4_present = (fs_proc_check("ext4") || check_for_modules("ext4"));
+	if ((test_fs || !ext4_present) && ext4dev_present)
+		return 0;
+	return 1;
+}
+
+static int ext4dev_image(const void *buf, unsigned long long *bytes)
+{
+	int ret, test_fs, ext4dev_present, ext4_present;
+
+	ret = base_ext4_image(buf, bytes, &test_fs);
+	if (ret == 0)
+		return 0;
+	ext4dev_present = (fs_proc_check("ext4dev") ||
+			   check_for_modules("ext4dev"));
+	ext4_present = (fs_proc_check("ext4") || check_for_modules("ext4"));
+	if ((!test_fs || !ext4dev_present) && ext4_present)
+		return 0;
+	return 1;
 }
 
 static int ext3_image(const void *buf, unsigned long long *bytes)
@@ -368,6 +454,18 @@ static int nilfs2_image(const void *buf, unsigned long long *bytes)
 	return 0;
 }
 
+static int btrfs_image(const void *buf, unsigned long long *bytes)
+{
+	const struct btrfs_super_block *sb =
+	    (const struct btrfs_super_block *)buf;
+
+	if (!memcmp(sb->magic, BTRFS_MAGIC, BTRFS_MAGIC_L)) {
+		*bytes = (unsigned long long)__le64_to_cpu(sb->total_bytes);
+		return 1;
+	}
+	return 0;
+}
+
 struct imagetype {
 	off_t block;
 	const char name[12];
@@ -391,19 +489,19 @@ static struct imagetype images[] = {
 	{0, "cramfs", cramfs_image},
 	{0, "romfs", romfs_image},
 	{0, "xfs", xfs_image},
-	{1, "ext4", ext4_image},
 	{0, "squashfs", squashfs_image},
+	{1, "ext4dev", ext4dev_image},
+	{1, "ext4", ext4_image},
 	{1, "ext3", ext3_image},
 	{1, "ext2", ext2_image},
 	{1, "minix", minix_image},
-	{0, "jffs2", jffs2_image},
-	{0, "vfat", vfat_image},
 	{1, "nilfs2", nilfs2_image},
 	{2, "ocfs2", ocfs2_image},
 	{8, "reiserfs", reiserfs_image},
 	{64, "reiserfs", reiserfs_image},
 	{64, "reiser4", reiser4_image},
 	{64, "gfs2", gfs2_image},
+	{64, "btrfs", btrfs_image},
 	{32, "jfs", jfs_image},
 	{32, "iso9660", iso_image},
 	{0, "luks", luks_image},

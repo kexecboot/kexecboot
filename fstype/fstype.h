@@ -12,7 +12,6 @@
 #ifndef FSTYPE_H
 #define FSTYPE_H
 
-#define _XOPEN_SOURCE 500
 #include <unistd.h>
 
 int identify_fs(int fd, const char **fstype,
