@@ -20,7 +20,7 @@
 #include <netinet/in.h>
 #include <sys/utsname.h>
 #include <sys/vfs.h>
-
+#include <linux/types.h>
 #define cpu_to_be32(x) __cpu_to_be32(x)	/* Needed by romfs_fs.h */
 
 #include "btrfs.h"
@@ -37,6 +37,12 @@
 #include "romfs_fs.h"
 #include "squashfs_fs.h"
 #include "xfs_sb.h"
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+#include <linux/byteorder/big_endian.h>
+#else
+#include <linux/byteorder/little_endian.h>
+#endif
 
 /*
  * Slightly cleaned up version of jfs_superblock to
@@ -59,6 +65,30 @@
 
 /* Swap needs the definition of block size */
 #include "swap_fs.h"
+
+static int jffs2_image(const void *buf, unsigned long long *blocks)
+{
+	const unsigned char *p = buf;
+
+	if (p[0] == 0x85 && p[1] == 0x19) {
+		*blocks=0;
+		return 1;
+	}
+	return 0;
+}
+
+static int vfat_image(const void *buf, unsigned long long *blocks)
+{
+	const char *p = buf;
+
+	if (!strncmp(p + 54, "FAT12   ", 8)
+	 || !strncmp(p + 54, "FAT16   ", 8)
+	 || !strncmp(p + 82, "FAT32   ", 8)) {
+		*blocks=0;
+		return 1;
+	}
+	return 0;
+}
 
 static int gzip_image(const void *buf, unsigned long long *bytes)
 {
@@ -495,6 +525,8 @@ static struct imagetype images[] = {
 	{1, "ext3", ext3_image},
 	{1, "ext2", ext2_image},
 	{1, "minix", minix_image},
+	{0, "jffs2", jffs2_image},
+	{0, "vfat", vfat_image},
 	{1, "nilfs2", nilfs2_image},
 	{2, "ocfs2", ocfs2_image},
 	{8, "reiserfs", reiserfs_image},
