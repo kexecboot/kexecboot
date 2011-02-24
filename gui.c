@@ -296,6 +296,33 @@ void gui_show_menu(struct gui_t *gui, kx_menu *menu)
 }
 
 
+void gui_show_text(struct gui_t *gui, kx_text *text)
+{
+	int i, y;
+	int max_x, max_y;
+
+	draw_background(gui, "KEXECBOOT - Linux Soft-bootloader");
+
+	/* No text to show */
+	if ((!text) || (text->rows->fill <= 1)) return;
+
+	/* Size constraints */
+	max_x = gui->x + LYT_MENU_AREA_LEFT + LYT_MENU_AREA_WIDTH;
+	max_y = gui->y + LYT_MENU_AREA_TOP + LYT_MENU_AREA_HEIGHT;
+
+	for (i = text->current_line_no, y = gui->y + LYT_MENU_AREA_TOP;
+		( (i < text->rows->fill) && (y < max_y) );
+		 i++
+	) {
+		y += fb_draw_constrained_text(gui->fb, gui->x + LYT_MENU_AREA_LEFT, y,
+				max_x, max_y,
+				CLR_MNI_TEXT, DEFAULT_FONT,
+				text->rows->list[i]);
+	}
+	fb_render(gui->fb);
+}
+
+
 /* Display custom text near logo */
 void gui_show_msg(struct gui_t *gui, const char *text)
 {
