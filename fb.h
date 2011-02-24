@@ -105,6 +105,11 @@ void
 fb_text_size(FB * fb, int *width, int *height,
 		const Font * font, const char *text);
 
+int
+fb_draw_constrained_text(FB * fb, int x, int y,
+		int max_x, int max_y, uint32 rgb,
+		const Font * font, const char *text);
+
 void
 fb_draw_text(FB * fb, int x, int y, uint32 rgb,
 		const Font * font, const char *text);

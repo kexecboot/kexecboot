@@ -936,7 +936,9 @@ void fb_text_size(FB * fb, int *width, int *height, const Font * font,
 	*height = h;
 }
 
-void fb_draw_text(FB * fb, int x, int y, uint32 rgb,
+
+int fb_draw_constrained_text(FB * fb, int x, int y,
+		int max_x, int max_y, uint32 rgb,
 		const Font * font, const char *text)
 {
 	int h, w, n, cx, cy, dx, dy;
@@ -964,6 +966,17 @@ void fb_draw_text(FB * fb, int x, int y, uint32 rgb,
 		if (glyph == NULL)
 			continue;
 
+		/* Wrap by max width if any and if we are not on first char *
+		if ( (max_x > 0) && (dx > x) && (dx + w > max_x) ) {
+			dy += h;
+			dx = x;
+		}*/
+
+		/* Stop if max height exceeded */
+		if ( (max_y > 0) && (dy + h > max_y) ) {
+			break;
+		}
+
 		for (cy = 0; cy < h; cy++) {
 			gl = *glyph++;
 
@@ -977,7 +990,17 @@ void fb_draw_text(FB * fb, int x, int y, uint32 rgb,
 
 		dx += w;
 	}
+
+	return dy - y + h;
 }
+
+
+void fb_draw_text(FB * fb, int x, int y, uint32 rgb,
+		const Font * font, const char *text)
+{
+	fb_draw_constrained_text(fb, x, y, 0, 0, rgb, font, text);
+}
+
 
 /* Draw picture on framebuffer */
 void fb_draw_picture(FB * fb, int x, int y, kx_picture *pic)
