@@ -55,7 +55,7 @@ struct gui_t *gui_init(int angle);
 
 void gui_show_menu(struct gui_t *gui, kx_menu *menu);
 
-void gui_show_text(struct gui_t *gui, const char *text);
+void gui_show_msg(struct gui_t *gui, const char *text);
 
 void gui_destroy(struct gui_t *gui);
 

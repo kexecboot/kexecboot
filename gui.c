@@ -297,7 +297,7 @@ void gui_show_menu(struct gui_t *gui, kx_menu *menu)
 
 
 /* Display custom text near logo */
-void gui_show_text(struct gui_t *gui, const char *text)
+void gui_show_msg(struct gui_t *gui, const char *text)
 {
 	draw_background(gui, text);
 	fb_render(gui->fb);

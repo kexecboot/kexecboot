@@ -721,7 +721,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 
 	case A_REBOOT:
 #ifdef USE_FBMENU
-		gui_show_text(gui, "Rebooting...");
+		gui_show_msg(gui, "Rebooting...");
 #endif
 #ifdef USE_HOST_DEBUG
 		sleep(1);
@@ -735,7 +735,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 		break;
 	case A_SHUTDOWN:
 #ifdef USE_FBMENU
-		gui_show_text(gui, "Shutting down...");
+		gui_show_msg(gui, "Shutting down...");
 #endif
 #ifdef USE_HOST_DEBUG
 		sleep(1);
@@ -750,7 +750,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 
 	case A_RESCAN:
 #ifdef USE_FBMENU
-		gui_show_text(gui, "Rescanning devices.\nPlease wait...");
+		gui_show_msg(gui, "Rescanning devices.\nPlease wait...");
 #endif
 		if (-1 == do_rescan(params)) {
 			log_msg(lg, "Rescan failed");
@@ -764,7 +764,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 		params->context = KX_CTX_TEXTVIEW;
 #else
 #ifdef USE_FBMENU
-		gui_show_text(gui, "Debug info dialog is not implemented yet...");
+		gui_show_msg(gui, "Debug info dialog is not implemented yet...");
 #endif
 		sleep(1);
 #endif
