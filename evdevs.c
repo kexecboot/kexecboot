@@ -251,6 +251,8 @@ int scan_evdevs(struct ev_params_t *ev)
 			if (efd > maxfd) maxfd = efd;	/* Find maximum fd no */
 			/* Set repeat rate on device */
 			ioctl(efd, EVIOCSREP, rep);	/* We don't care about result */
+			/* Grab device exclusively */
+			ioctl(efd, EVIOCGRAB, (void *)1);	/* We don't care about result */
 		}
 	}
 	++maxfd;	/* Increase maxfd according to select() manual */
