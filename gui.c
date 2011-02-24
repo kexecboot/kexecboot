@@ -195,7 +195,7 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 {
 	static FB *fb;
 	static uint32 cbg, cpad, ctext, cline;
-	static int slot_top, w, h;
+	static int slot_top, w, h, h2;
 	static kx_picture *icon;
 	
 	fb = gui->fb;
@@ -236,18 +236,25 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 	/* Calculate text size */
 	fb_text_size(fb, &w, &h, DEFAULT_FONT, item->label);
 
-	/* Draw text */
+	/* Draw label text. Align middle unless description exists */
 	fb_draw_text(fb,
 			gui->x + LYT_MNI_TEXT_LEFT,
-			slot_top + (height - h)/2,
+			slot_top + (item->description ? LYT_MNI_PAD_TOP : (height - h)/2),
 			ctext, DEFAULT_FONT, item->label);
 
-	
-	/* Draw description if available *
-	if (NULL != item->description) {
+	/* Draw description if available */
+	if (item->description) {
+		h2 = h;	/* Save label's height */
+		/* Calculate text size */
+		fb_text_size(fb, &w, &h, DEFAULT_FONT, item->description);
+
+		/* Draw description right aligned */
+		fb_draw_text(fb,
+				gui->x + LYT_MENU_AREA_LEFT + LYT_MENU_AREA_WIDTH - w - 3,
+				slot_top + LYT_MNI_PAD_TOP + h2 + 1,
+				cline, DEFAULT_FONT, item->description);
 	}
-	*/
-	
+
 	/* Draw something to show that here is submenu available *
 	if (NULL != item->submenu) {
 	}
