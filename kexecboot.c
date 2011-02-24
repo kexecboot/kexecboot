@@ -523,7 +523,7 @@ int fill_menu(struct params_t *params)
 	struct boot_item_t *tbi;
 	struct bootconf_t *bl;
 	const int sizeof_desc = 160;
-	char *desc;
+	char *desc, *label;
 #ifdef USE_FBMENU
 	kx_picture *icon;
 	struct gui_t *gui;
@@ -576,12 +576,11 @@ int fill_menu(struct params_t *params)
 			tbi = bl->list[max_i];
 			snprintf(desc, sizeof_desc, "%s %s %luMb",
 					tbi->device, tbi->fstype, tbi->blocks/1024);
-			
-			/* FIXME: label should be filled properly already */
-			log_msg(lg, "+ [%s]", ( tbi->label ? tbi->label : tbi->kernelpath ));
-			mi = menu_item_add(params->menu->top, A_DEVICES + max_i, 
-					( tbi->label ? tbi->label : tbi->kernelpath ),
-					desc, NULL);
+
+			label = ( tbi->label ? tbi->label : tbi->kernelpath );
+			log_msg(lg, "+ [%s]", label);
+			mi = menu_item_add(params->menu->top, A_DEVICES + max_i,
+					label, desc, NULL);
 
 #ifdef USE_FBMENU
 			/* Search associated with boot item icon if any */
