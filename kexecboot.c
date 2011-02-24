@@ -760,14 +760,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 		break;
 
 	case A_DEBUG:
-#if 0
 		params->context = KX_CTX_TEXTVIEW;
-#else
-#ifdef USE_FBMENU
-		gui_show_msg(gui, "Debug info dialog is not implemented yet...");
-#endif
-		sleep(1);
-#endif
 		break;
 
 	case A_EXIT:
@@ -803,6 +796,41 @@ void draw_ctx_menu(struct params_t *params)
 }
 
 
+/* Process text view context
+ * Return 0 to select, <0 to raise error, >0 to continue
+ */
+int process_ctx_textview(struct params_t *params, int action) {
+	static int rc;
+
+	rc = 1;
+	switch (action) {
+	case A_UP:
+		if (lg->current_line_no > 0) --lg->current_line_no;
+		break;
+	case A_DOWN:
+		if (lg->current_line_no + 1 < lg->rows->fill) ++lg->current_line_no;
+		break;
+	case A_SELECT:
+		params->context = KX_CTX_MENU;
+		break;
+	case A_EXIT:
+		if (initmode) break;	// don't exit if we are init
+	case A_ERROR:
+		rc = -1;
+		break;
+	}
+	return rc;
+}
+
+/* Draw text view context */
+void draw_ctx_textview(struct params_t *params)
+{
+#ifdef USE_FBMENU
+	gui_show_text(params->gui, lg);
+#endif
+}
+
+
 /* Main event loop */
 int do_main_loop(struct params_t *params, struct ev_params_t *ev)
 {
@@ -824,7 +852,7 @@ int do_main_loop(struct params_t *params, struct ev_params_t *ev)
 			rc = process_ctx_menu(params, action);
 			break;
 		case KX_CTX_TEXTVIEW:
-			rc = -1;
+			rc = process_ctx_textview(params, action);
 		}
 
 		/* Draw current context */
@@ -834,6 +862,7 @@ int do_main_loop(struct params_t *params, struct ev_params_t *ev)
 				draw_ctx_menu(params);
 				break;
 			case KX_CTX_TEXTVIEW:
+				draw_ctx_textview(params);
 				break;
 			}
 		}
