@@ -534,7 +534,10 @@ int fill_menu(struct params_t *params)
 	bl = params->bootcfg;
 
 	if ( (NULL != bl) && (bl->fill > 0) ) b_items = bl->fill;
-	else b_items = 0;
+	else {
+		log_msg(lg, "No items for menu found");
+		return 0;
+	}
 
 	log_msg(lg, "Populating menu: %d item(s)", b_items);
 
