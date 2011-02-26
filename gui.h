@@ -20,6 +20,8 @@
 #define _HAVE_GUI_H_
 
 #include "config.h"
+
+#ifdef USE_FBMENU
 #include "fb.h"
 #include "xpm.h"
 #include "menu.h"
@@ -61,4 +63,5 @@ void gui_show_msg(struct gui_t *gui, const char *text);
 
 void gui_destroy(struct gui_t *gui);
 
+#endif /* USE_FBMENU */
 #endif /* _HAVE_GUI_H_*/

@@ -16,11 +16,13 @@
  *
  */
 
+#include "config.h"
+#ifdef USE_FBMENU
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "config.h"
 #include "fb.h"
 #include "xpm.h"
 #include "gui.h"
@@ -337,3 +339,4 @@ void gui_show_msg(struct gui_t *gui, const char *text)
 	fb_render(gui->fb);
 }
 
+#endif /* USE_FBMENU */
