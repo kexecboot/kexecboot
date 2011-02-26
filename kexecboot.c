@@ -48,6 +48,10 @@
 #include "gui.h"
 #endif
 
+#ifdef USE_TEXTUI
+#include "tui.h"
+#endif
+
 #ifdef USE_ZAURUS
 #include "machine/zaurus.h"
 #endif
@@ -93,6 +97,9 @@ struct params_t {
 	kx_context context;
 #ifdef USE_FBMENU
 	struct gui_t *gui;
+#endif
+#ifdef USE_TEXTUI
+	kx_tui *tui;
 #endif
 };
 
@@ -722,6 +729,9 @@ int process_ctx_menu(struct params_t *params, int action) {
 #ifdef USE_FBMENU
 		gui_show_msg(gui, "Rebooting...");
 #endif
+#ifdef USE_TEXTUI
+		tui_show_msg(params->tui, "Rebooting...");
+#endif
 #ifdef USE_HOST_DEBUG
 		sleep(1);
 #else
@@ -735,6 +745,9 @@ int process_ctx_menu(struct params_t *params, int action) {
 	case A_SHUTDOWN:
 #ifdef USE_FBMENU
 		gui_show_msg(gui, "Shutting down...");
+#endif
+#ifdef USE_TEXTUI
+		tui_show_msg(params->tui, "Shutting down...");
 #endif
 #ifdef USE_HOST_DEBUG
 		sleep(1);
@@ -750,6 +763,9 @@ int process_ctx_menu(struct params_t *params, int action) {
 	case A_RESCAN:
 #ifdef USE_FBMENU
 		gui_show_msg(gui, "Rescanning devices.\nPlease wait...");
+#endif
+#ifdef USE_TEXTUI
+		tui_show_msg(params->tui, "Rescanning devices.\nPlease wait...");
 #endif
 		if (-1 == do_rescan(params)) {
 			log_msg(lg, "Rescan failed");
@@ -792,6 +808,9 @@ void draw_ctx_menu(struct params_t *params)
 #ifdef USE_FBMENU
 	gui_show_menu(params->gui, params->menu);
 #endif
+#ifdef USE_TEXTUI
+	tui_show_menu(params->tui, params->menu);
+#endif
 }
 
 
@@ -826,6 +845,9 @@ void draw_ctx_textview(struct params_t *params)
 {
 #ifdef USE_FBMENU
 	gui_show_text(params->gui, lg);
+#endif
+#ifdef USE_TEXTUI
+	tui_show_text(params->tui, lg);
 #endif
 }
 
@@ -917,6 +939,13 @@ int main(int argc, char **argv)
 		exit(-1);	/* FIXME dont exit while other UI exists */
 	}
 #endif
+#ifdef USE_TEXTUI
+	params.tui = tui_init(stdout);
+	if (NULL == params.tui) {
+		DPRINTF("Can't initialize TUI");
+		exit(-1);	/* FIXME dont exit while other UI exists */
+	}
+#endif
 	
 	params.menu = build_menu(&params);
 	params.bootcfg = NULL;
@@ -934,6 +963,9 @@ int main(int argc, char **argv)
 
 #ifdef USE_FBMENU
 	gui_destroy(params.gui);
+#endif
+#ifdef USE_TEXTUI
+	tui_destroy(params.tui);
 #endif
 	close_event_devices(ev.fd, ev.count);
 
