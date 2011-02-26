@@ -15,6 +15,9 @@
  *
  */
 
+#include "../config.h"
+
+#ifdef USE_ICONS
 /** Icons **/
 #include "icons/logo.xpm"
 #include "icons/system.xpm"
@@ -29,7 +32,9 @@
 #include "icons/storage.xpm"
 #include "icons/mmc.xpm"
 #include "icons/memory.xpm"
+#endif /* USE_ICONS */
 
+#ifdef USE_FBMENU
 /** Font **/
 #include "fonts/ter-u16n-ascii.h"
 #define DEFAULT_FONT	(&ter_u16n_ascii_font)
@@ -117,3 +122,44 @@
 /* Layout: menu item text */
 //#define LYT_MNI_TEXT_TOP		5			/* Menu item text top pos - middle */
 #define LYT_MNI_TEXT_LEFT		LYT_MNI_PAD_LEFT + LYT_MNI_PAD_WIDTH + 3
+#endif	/* USE_FBMENU */
+
+
+#ifdef USE_TEXTUI
+/** TEXT UI colors **/
+#include "../termseq.h"
+
+/* Background color pair */
+#define TUI_CLR_BG		TERM_CSI TERM_BG_BLACK ";" TERM_FG_WHITE TERM_SGR
+
+/* Menu background */
+#define TUI_CLR_MENU	TERM_CSI TERM_BG_BLACK ";" TERM_FG_WHITE TERM_SGR
+
+/* Menu items */
+#define TUI_CLR_MNI		TERM_CSI TERM_BG_BLACK ";" TERM_FG_WHITE TERM_SGR
+
+/* Selected menu item */
+#define TUI_CLR_SMNI	TERM_CSI TERM_BG_WHITE ";" TERM_FG_BLACK TERM_SGR
+
+/** TEXT UI layout **/
+#define TUI_LYT_HEIGHT			(tui->height)
+#define TUI_LYT_WIDTH			(tui->width)
+
+#define TUI_LYT_HDR_TOP			1
+#define TUI_LYT_HDR_HEIGHT		3
+#define TUI_LYT_FTR_HEIGHT		1
+#define TUI_LYT_FTR_TOP			TUI_LYT_HEIGHT - TUI_LYT_FTR_HEIGHT
+
+#define TUI_LYT_MENU_TOP		TUI_LYT_HDR_HEIGHT
+#define TUI_LYT_MENU_LEFT		1
+#define TUI_LYT_MENU_WIDTH		TUI_LYT_WIDTH - TUI_LYT_MENU_LEFT - TUI_LYT_MENU_LEFT
+#define TUI_LYT_MENU_HEIGHT		TUI_LYT_FTR_TOP - TUI_LYT_MENU_TOP
+
+#define TUI_LYT_MNI_LEFT		TUI_LYT_MENU_LEFT
+#define TUI_LYT_MNI_WIDTH		TUI_LYT_MENU_WIDTH \
+										- (TUI_LYT_MNI_LEFT - TUI_LYT_MENU_LEFT)*2
+#define TUI_LYT_MNI_HEIGHT		2
+
+#define TUI_LYT_MNI_TEXT_LEFT	1
+#define TUI_LYT_MNI_TEXT_WIDTH	TUI_LYT_MNI_WIDTH - TUI_LYT_MNI_TEXT_LEFT*2
+#endif /* USE_TEXTUI */
