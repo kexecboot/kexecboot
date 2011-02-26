@@ -7,6 +7,7 @@ AM_MAINTAINER_MODE
 
 AC_ARG_ENABLE([static-linking],[AS_HELP_STRING([--enable-static-linking],[compiles kexecboot as a static executable @<:@default=no@:>@])],[],[enable_static_linking=no])
 AC_ARG_ENABLE([fbui],[AS_HELP_STRING([--enable-fbui],[support framebuffer user interface @<:@default=yes@:>@])],[],[enable_fbui=yes])
+AC_ARG_ENABLE([textui],[AS_HELP_STRING([--enable-textui],[support console text user interface @<:@default=no@:>@])],[],[enable_textui=no])
 AC_ARG_ENABLE([cfgfiles],[AS_HELP_STRING([--enable-cfgfiles],[support config files @<:@default=yes@:>@])],[],[enable_cfgfiles=yes])
 AC_ARG_ENABLE([icons],[AS_HELP_STRING([--enable-icons],[support custom icons (depends on fbui) @<:@default=yes@:>@])],[],[enable_icons=yes])
 AC_ARG_ENABLE([zaurus],[AS_HELP_STRING([--enable-zaurus],[compile Sharp Zaurus specific code @<:@default=no@:>@])],[],[enable_zaurus=no])
@@ -99,6 +100,11 @@ AS_IF([test "x$enable_fbui" != xno],
 			AC_DEFINE([USE_1BPP],  [1], [Define if you want to support this bpp mode])
 			],[])
 		],[])
+
+AS_IF([test "x$enable_textui" = xyes],
+		[
+		AC_DEFINE([USE_TEXTUI], [1], [Define if you wish to enable text-mode UI support])
+		], [])
 
 AS_IF([test "x$enable_cfgfiles" != xno],
 		[
