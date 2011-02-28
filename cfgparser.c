@@ -28,74 +28,201 @@
 #include "util.h"
 #include "cfgparser.h"
 
+kx_cfg_section *cfg_section_new(struct cfgdata_t *cfgdata)
+{
+	kx_cfg_section *sc;
+
+	if (!cfgdata) return NULL;
+
+	/* Resize list when needed before adding item */
+	if (cfgdata->count >= cfgdata->size) {
+		kx_cfg_section **new_list;
+		unsigned int new_size;
+
+		new_size = cfgdata->size * 2;
+		new_list = realloc(cfgdata->list, new_size * sizeof(*(cfgdata->list)));
+		if (NULL == new_list) {
+			DPRINTF("Can't resize cfgdata sections list");
+			return NULL;
+		}
+
+		cfgdata->size = new_size;
+		cfgdata->list = new_list;
+	}
+
+	sc = malloc(sizeof(*sc));
+	if (NULL == sc) {
+		DPRINTF("Can't allocate new cfgdata section");
+		return NULL;
+	}
+
+	sc->label = NULL;
+	sc->kernelpath = NULL;
+	sc->cmdline = NULL;
+	sc->initrd = NULL;
+	sc->iconpath = NULL;
+	sc->icondata = NULL;
+	sc->priority = 0;
+	sc->is_default = 0;
+
+	cfgdata->list[cfgdata->count++] = sc;
+	cfgdata->current = sc;
+
+	return sc;
+}
+
+void init_cfgdata(struct cfgdata_t *cfgdata)
+{
+	cfgdata->timeout = 0;
+	cfgdata->ui = GUI;
+	cfgdata->debug = 0;
+	cfgdata->current = NULL;
+
+	cfgdata->size = 2;	/* NOTE: hardcoded value */
+	cfgdata->count = 0;
+
+	cfgdata->list = malloc(cfgdata->size * sizeof(*(cfgdata->list)));
+	if (NULL == cfgdata->list) {
+		DPRINTF("Can't allocate cfgdata sections array");
+		cfgdata->list = NULL;
+		return;
+	}
+
+	cfgdata->angle = 0;
+	cfgdata->mtdparts = NULL;
+	cfgdata->fbcon = NULL;
+	cfgdata->ttydev = NULL;
+}
+
+void destroy_cfgdata(struct cfgdata_t *cfgdata)
+{
+	int i;
+
+	if (!cfgdata) return;
+	if (!cfgdata->list) return;
+
+	for(i = 0; i < cfgdata->count; i++) {
+		if (cfgdata->list[i]) {
+			dispose(cfgdata->list[i]->iconpath);
+			free(cfgdata->list[i]);
+		}
+	}
+	free(cfgdata->list);
+
+	cfgdata->current = NULL;
+}
+
+
 static int set_label(struct cfgdata_t *cfgdata, char *value)
 {
-	dispose(cfgdata->label);
-	cfgdata->label = strdup(value);
+	kx_cfg_section *sc;
+
+	sc = cfgdata->current;
+	if (!sc) return -1;
+
+	dispose(sc->label);
+	sc->label = strdup(value);
 	return 0;
 }
 
 static int set_kernel(struct cfgdata_t *cfgdata, char *value)
 {
-	dispose(cfgdata->kernelpath);
+	kx_cfg_section *sc;
+	
+	/* Allocate new section */
+	sc = cfg_section_new(cfgdata);
+
+	if (!sc) return -1;
+	
 	/* Add our mountpoint, since the enduser won't know it */
-	cfgdata->kernelpath = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
-	if (NULL == cfgdata->kernelpath) {
+	sc->kernelpath = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
+	if (NULL == sc->kernelpath) {
 		DPRINTF("Can't allocate memory to store kernelpath '%s'", value);
 		return -1;
 	}
 
-	strcpy(cfgdata->kernelpath, "/mnt");
-	strcat(cfgdata->kernelpath, value);
+	strcpy(sc->kernelpath, "/mnt");
+	strcat(sc->kernelpath, value);
 	return 0;
 }
 
 static int set_icon(struct cfgdata_t *cfgdata, char *value)
 {
-	dispose(cfgdata->iconpath);
+	kx_cfg_section *sc;
+
+	sc = cfgdata->current;
+	if (!sc) return -1;
+
+	dispose(sc->iconpath);
 	/* Add our mountpoint, since the enduser won't know it */
-	cfgdata->iconpath = malloc(sizeof(MOUNTPOINT)+strlen(value));
-	if (NULL == cfgdata->iconpath) {
+	sc->iconpath = malloc(sizeof(MOUNTPOINT)+strlen(value));
+	if (NULL == sc->iconpath) {
 		DPRINTF("Can't allocate memory to store iconpath '%s'", value);
 		return -1;
 	}
 
-	strcpy(cfgdata->iconpath, MOUNTPOINT);
-	strcat(cfgdata->iconpath, value);
+	strcpy(sc->iconpath, MOUNTPOINT);
+	strcat(sc->iconpath, value);
 
 	return 0;
 }
 
 static int set_cmdline(struct cfgdata_t *cfgdata, char *value)
 {
-	dispose(cfgdata->cmdline);
-	cfgdata->cmdline = strdup(value);
+	kx_cfg_section *sc;
+
+	sc = cfgdata->current;
+	if (!sc) return -1;
+
+	dispose(sc->cmdline);
+	sc->cmdline = strdup(value);
 	return 0;
 }
 
 static int set_initrd(struct cfgdata_t *cfgdata, char *value)
 {
-	dispose(cfgdata->initrd);
+	kx_cfg_section *sc;
+
+	sc = cfgdata->current;
+	if (!sc) return -1;
+
+	dispose(sc->initrd);
 	/* Add our mountpoint, since the enduser won't know it */
-	cfgdata->initrd = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
-	if (NULL == cfgdata->initrd) {
+	sc->initrd = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
+	if (NULL == sc->initrd) {
 		DPRINTF("Can't allocate memory to store initrd '%s'", value);
 		return -1;
 	}
 
-	strcpy(cfgdata->initrd, "/mnt");
-	strcat(cfgdata->initrd, value);
+	strcpy(sc->initrd, "/mnt");
+	strcat(sc->initrd, value);
 	return 0;
 }
 
 static int set_priority(struct cfgdata_t *cfgdata, char *value)
 {
-	cfgdata->priority = get_nni(value, NULL);
-	if (cfgdata->priority < 0) {
+	kx_cfg_section *sc;
+
+	sc = cfgdata->current;
+	if (!sc) return -1;
+
+	sc->priority = get_nni(value, NULL);
+	if (sc->priority < 0) {
 		log_msg(lg, "Can't convert '%s' to integer", value);
-		cfgdata->priority = 0;
+		sc->priority = 0;
 		return -1;
 	}
+	return 0;
+}
+
+static int set_default(struct cfgdata_t *cfgdata, char *value)
+{
+	kx_cfg_section *sc;
+
+	sc = cfgdata->current;
+	if (!sc) return -1;
+
+	sc->is_default = 1;
 	return 0;
 }
 
@@ -146,12 +273,6 @@ static int set_debug(struct cfgdata_t *cfgdata, char *value)
 			return -1;
 		}
 	}
-	return 0;
-}
-
-static int set_default(struct cfgdata_t *cfgdata, char *value)
-{
-	cfgdata->is_default = 1;
 	return 0;
 }
 
@@ -395,22 +516,15 @@ int parse_cmdline(struct cfgdata_t *cfgdata)
 	return 0;
 }
 
-void init_cfgdata(struct cfgdata_t *cfgdata)
+/* Set kernelpath only (may be used when no config file found) */
+int cfgdata_add_kernel(struct cfgdata_t *cfgdata, char *kernelpath)
 {
-	cfgdata->timeout = 0;
-	cfgdata->ui = GUI;
-	cfgdata->debug = 0;
+	kx_cfg_section *sc;
 
-	cfgdata->is_default = 0;
-	cfgdata->label = NULL;
-	cfgdata->kernelpath = NULL;
-	cfgdata->cmdline = NULL;
-	cfgdata->initrd = NULL;
-	cfgdata->iconpath = NULL;
-	cfgdata->priority = 0;
+	/* Allocate new section */
+	sc = cfg_section_new(cfgdata);
+	if (!sc) return -1;
 
-	cfgdata->angle = 0;
-	cfgdata->mtdparts = NULL;
-	cfgdata->fbcon = NULL;
-	cfgdata->ttydev = NULL;
+	sc->kernelpath = strdup(kernelpath);
+	return 0;
 }

@@ -105,56 +105,65 @@ int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
 {
 	struct boot_item_t *bi;
 	struct dtypes_t *dt;
+	int i;
+	kx_cfg_section *sc;
 
-	bi = malloc(sizeof(*bi));
-	if (NULL == bi) {
-		DPRINTF("Can't allocate memory for new bootconf item");
-		return -1;
-	}
+	/* Go through all found config file sections */
+	for (i = 0; i < cfgdata->count; i++) {
+		sc = cfgdata->list[i];
+		if (!sc) continue;
 
-	bi->device = dev->device;
-	bi->fstype = dev->fstype;
-	bi->blocks = dev->blocks;
-
-	bi->dtype = DVT_UNKNOWN;
-	for (dt = dtypes; dt->dtype != DVT_UNKNOWN; dt++) {
-		if ( !strncmp(bi->device, dt->device, dt->device_len) ) {
-			bi->dtype = dt->dtype;
-		}
-	}
-
-	bi->label = cfgdata->label;
-	bi->kernelpath = cfgdata->kernelpath;
-	bi->cmdline = cfgdata->cmdline;
-	bi->initrd = cfgdata->initrd;
-	bi->iconpath = cfgdata->iconpath;
-	bi->priority = cfgdata->priority;
-
-	bc->list[bc->fill] = bi;
-
-	if (cfgdata->is_default)	bc->default_item = bi;
-	if (cfgdata->ui != bc->ui)	bc->ui = cfgdata->ui;
-	if (cfgdata->timeout > 0)	bc->timeout = cfgdata->timeout;
-	if (cfgdata->debug > 0)		bc->debug = cfgdata->debug;
-
-	++bc->fill;
-
-	/* Resize list when needed */
-	if (bc->fill >= bc->size) {
-		struct boot_item_t **new_list;
-
-		bc->size <<= 1;	/* size *= 2; */
-		new_list = realloc( bc->list, bc->size * sizeof(*(bc->list)) );
-		if (NULL == new_list) {
-			DPRINTF("Can't resize boot structure");
+		bi = malloc(sizeof(*bi));
+		if (NULL == bi) {
+			DPRINTF("Can't allocate memory for new bootconf item");
 			return -1;
 		}
 
-		bc->list = new_list;
-	}
+		bi->device = strdup(dev->device);
+		bi->fstype = dev->fstype;
+		bi->blocks = dev->blocks;
 
-	/* Return item No. */
-	return bc->fill - 1;
+		bi->dtype = DVT_UNKNOWN;
+		for (dt = dtypes; dt->dtype != DVT_UNKNOWN; dt++) {
+			if ( !strncmp(bi->device, dt->device, dt->device_len) ) {
+				bi->dtype = dt->dtype;
+			}
+		}
+
+		/* Section-dependent data */
+		bi->label = sc->label;
+		bi->kernelpath = sc->kernelpath;
+		bi->cmdline = sc->cmdline;
+		bi->initrd = sc->initrd;
+		bi->icondata = sc->icondata;
+		bi->priority = sc->priority;
+		if (sc->is_default) bc->default_item = bi;
+
+		bc->list[bc->fill] = bi;
+
+		if (cfgdata->ui != bc->ui)	bc->ui = cfgdata->ui;
+		if (cfgdata->timeout > 0)	bc->timeout = cfgdata->timeout;
+		if (cfgdata->debug > 0)		bc->debug = cfgdata->debug;
+
+		++bc->fill;
+
+		/* Resize list when needed */
+		if (bc->fill >= bc->size) {
+			struct boot_item_t **new_list;
+
+			bc->size <<= 1;	/* size *= 2; */
+			new_list = realloc( bc->list, bc->size * sizeof(*(bc->list)) );
+			if (NULL == new_list) {
+				DPRINTF("Can't resize boot structure");
+				return -1;
+			}
+
+			bc->list = new_list;
+		}
+
+	} /* for */
+
+	return 0;
 }
 
 
@@ -168,7 +177,6 @@ void free_bootcfg(struct bootconf_t *bc)
 		dispose(bc->list[i]->cmdline);
 		dispose(bc->list[i]->initrd);
 		dispose(bc->list[i]->label);
-		dispose(bc->list[i]->iconpath);
 		free(bc->list[i]);
 	}
 	free(bc->list);
@@ -243,11 +251,14 @@ int get_bootinfo(struct cfgdata_t *cfgdata)
 	/* Parse config file */
 	if (0 == parse_cfgfile(BOOTCFG_PATH, cfgdata)) {	/* Found and parsed */
 		log_msg(lg, "+ config file found");
-		/* Check kernel presence */
+		/* Check kernel presence
+		 * FIXME: we should stat every kernel or shouldn't stat at all
 		if (0 == stat(cfgdata->kernelpath, &sinfo)) return 0;
 
 		log_msg(lg, "+ config file points to non-existent kernel");
 		return -1;
+		*/
+		return 0;
 
 	} else {	/* No config file found. Check kernels. */
 
@@ -255,7 +266,7 @@ int get_bootinfo(struct cfgdata_t *cfgdata)
 		/* Check machine kernel if set */
 		if (NULL != machine_kernel) {
 			if (0 == stat(machine_kernel, &sinfo)) {
-				cfgdata->kernelpath = machine_kernel;
+				cfgdata_add_kernel(cfgdata, machine_kernel);
 				log_msg(lg, "+ found machine kernel '%s'", machine_kernel);
 				return 0;
 			}
@@ -266,7 +277,7 @@ int get_bootinfo(struct cfgdata_t *cfgdata)
 		char **kp;
 		for (kp = default_kernels; NULL != *kp; kp++) {
 			if (0 == stat(*kp, &sinfo)) {
-				cfgdata->kernelpath = strdup(*kp);
+				cfgdata_add_kernel(cfgdata, *kp);
 				log_msg(lg, "+ found default kernel '%s'", *kp);
 				return 0;
 			}
@@ -348,6 +359,7 @@ int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev)
 
 	if (blocks < 200) {
 		log_msg(lg, "+ %s is too small (%dk < 200k), skipped", device, blocks);
+		free(device);
 		return -1;
 	}
 

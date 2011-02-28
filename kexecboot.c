@@ -320,12 +320,13 @@ int scan_devices(struct params_t *params)
 	struct bootconf_t *bootconf;
 	struct device_t dev;
 	struct cfgdata_t cfgdata;
+	kx_cfg_section *sc;
+	int i;
 	int rc;
 	FILE *f;
 #ifdef USE_FBMENU
 	int rows, bpp;
 	char **xpm_data;
-	kx_picture *icon = NULL;
 
 	bpp = params->gui->fb->bpp;
 #endif
@@ -373,23 +374,27 @@ int scan_devices(struct params_t *params)
 			goto umount;
 		}
 
-#ifdef USE_FBMENU
-		icon = NULL;
+#ifdef USE_ICONS
+		/* Iterate over sections found */
+		for (i = 0; i < cfgdata.count; i++) {
+			sc = cfgdata.list[i];
+			if (!sc) continue;
 
-		/* Load custom icon */
-		if (NULL != cfgdata.iconpath) {
-			rows = xpm_load_image(&xpm_data, cfgdata.iconpath);
-			if (-1 == rows) {
-				log_msg(lg, "+ can't load xpm icon %s", cfgdata.iconpath);
-				goto umount;
-			}
+			/* Load custom icon */
+			if (sc->iconpath) {
+				rows = xpm_load_image(&xpm_data, sc->iconpath);
+				if (-1 == rows) {
+					log_msg(lg, "+ can't load xpm icon %s", sc->iconpath);
+					continue;
+				}
 
-			icon = xpm_parse_image(xpm_data, rows, bpp);
-			if (NULL == icon) {
-				log_msg(lg, "+ can't parse xpm icon %s", cfgdata.iconpath);
-				goto umount;
+				sc->icondata = xpm_parse_image(xpm_data, rows, bpp);
+				if (!sc->icondata) {
+					log_msg(lg, "+ can't parse xpm icon %s", sc->iconpath);
+					continue;
+				}
+				xpm_destroy_image(xpm_data, rows);
 			}
-			xpm_destroy_image(xpm_data, rows);
 		}
 #endif
 
@@ -397,27 +402,12 @@ umount:
 		/* Umount device */
 		if (-1 == umount(MOUNTPOINT)) {
 			log_msg(lg, "+ can't umount device: %s", ERRMSG);
-			goto free_device;
+			goto free_cfgdata;
 		}
 
 		if (-1 == rc) {	/* Error */
-			goto free_device;
+			goto free_cfgdata;
 		}
-
-		/* Now we have something in cfgdata */
-		rc = addto_bootcfg(bootconf, &dev, &cfgdata);
-		if (-1 == rc) {
-			goto free_device;
-		}
-
-#ifdef USE_FBMENU
-		if (icon) {
-			/* associate custom icon with bootconf item */
-			bootconf->list[rc]->icondata = icon;
-			log_msg(lg, "+ icon '%s' added for %s [#%d]",
-					cfgdata.iconpath, dev.device, rc);
-		}
-#endif
 
 #ifdef USE_ZAURUS
 		/* Fix partition sizes. We can have kernel in root and home partitions on NAND */
@@ -425,18 +415,21 @@ umount:
 		if (0 == zaurus_error) {
 			if (0 == strcmp(dev.device, "/dev/mtdblock2")) {	/* root */
 				log_msg(lg, "+ [zaurus root] size of %s will be changed from %lu to %lu",
-						dev.device, bootconf->list[rc]->blocks, pinfo.root);
-				bootconf->list[rc]->blocks = pinfo.root;
+						dev.device, dev->blocks, pinfo.root);
+				dev->blocks = pinfo.root;
 			} else if (0 == strcmp(dev.device, "/dev/mtdblock3")) {	/* home */
 				log_msg(lg, "+ [zaurus home] size of %s will be changed from %lu to %lu",
-						dev.device, bootconf->list[rc]->blocks, pinfo.home);
-				bootconf->list[rc]->blocks = pinfo.home;
+						dev.device, dev->blocks, pinfo.home);
+				dev->blocks = pinfo.home;
 			}
 		}
 #endif
 
-		continue;
+		/* Now we have something in cfgdata */
+		rc = addto_bootcfg(bootconf, &dev, &cfgdata);
 
+free_cfgdata:
+		destroy_cfgdata(&cfgdata);
 free_device:
 		free(dev.device);
 	}
