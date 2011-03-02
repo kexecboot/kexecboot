@@ -220,9 +220,10 @@ int scan_evdevs(struct ev_params_t *ev)
 	fd_set fds0;
 	int i, maxfd, nev, efd;
 
-	int rep[2];		/* Repeat rate array (milliseconds) */
-	rep[0] = 1000;	/* Delay before first repeat */
-	rep[1] = 250;	/* Repeating delay */
+#ifdef USE_EVDEV_RATE
+	/* Repeat rate array (milliseconds) */
+	int rep[2] = { USE_EVDEV_RATE };
+#endif
 
 	ev->count = 0;
 
@@ -249,8 +250,10 @@ int scan_evdevs(struct ev_params_t *ev)
 		if (efd > 0) {
 			FD_SET(efd, &fds0);
 			if (efd > maxfd) maxfd = efd;	/* Find maximum fd no */
+#ifdef USE_EVDEV_RATE
 			/* Set repeat rate on device */
 			ioctl(efd, EVIOCSREP, rep);	/* We don't care about result */
+#endif
 			/* Grab device exclusively */
 			ioctl(efd, EVIOCGRAB, (void *)1);	/* We don't care about result */
 		}

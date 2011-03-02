@@ -48,6 +48,11 @@ AC_ARG_ENABLE([bpp], [AS_HELP_STRING([--enable-bpp@<:@=list@:>@],[enable support
 ],
 [enable_all_bpp=yes])
 
+AC_ARG_ENABLE([evdev-rate],[AS_HELP_STRING([--enable-evdev-rate@<:@=first_delay,repeat_delay@:>@],[change evdev (keyboard/mouse) repeat rate (in milliseconds) @<:@default=no@:>@])], [
+	test "x$enable_evdev_rate" = xyes && enable_evdev_rate="1000,250"
+],[enable_evdev_rate=no])
+
+
 AC_ARG_WITH([kexec-binary],[AS_HELP_STRING([--with-kexec-binary="path"],[look for kexec binary at path @<:@default="/usr/sbin/kexec"@:>@])],[
 test "x$with_kexec_binary" = xyes && with_kexec_binary="/usr/sbin/kexec"
 ],[with_kexec_binary="/usr/sbin/kexec"])
@@ -170,6 +175,12 @@ AS_IF([test "x$with_kexec_binary" != "xno"],
 		[
 		AC_DEFINE_UNQUOTED([KEXEC_PATH], ["${with_kexec_binary}"], [Where to look for kexec binary])
 		], [])
+
+AS_IF([test "x$enable_evdev_rate" != xno],
+		[
+		AC_DEFINE_UNQUOTED([USE_EVDEV_RATE], [${enable_evdev_rate}], [Define evdev (keyboard/mouse) repeat rate to use in milliseconds (first_delay, repeat_delay)])
+		], [])
+
 
 AC_ISC_POSIX
 AC_PROG_CC
