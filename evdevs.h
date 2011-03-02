@@ -40,27 +40,42 @@ enum actions_t {
 	A_DEVICES
 };
 
-/* Event devices parameters */
-struct ev_params_t {
-	int count;		/* Count of event descriptors */
-	int *fd;		/* Array of event devices file descriptors */
-	fd_set fds;		/* FD set of file descriptors for select() */
-	int maxfd;		/* Maximum fd number for select() */
-};
+typedef enum {
+	KX_IT_EVDEV,
+	KX_IT_TTY,
+	KX_IT_SOCKET
+} kx_input_type;
 
-/* Return list of found event devices */
-struct charlist *scan_event_devices();
+typedef struct {
+	unsigned int size;
+	unsigned int count;
+	int *fds;
+	kx_input_type *fdtypes;
+	fd_set fdset;
+	int maxfd;
+} kx_inputs;
 
-/* Open event devices and return array of descriptors */
-int *open_event_devices(struct charlist *evlist);
 
-/* Close opened devices */
-void close_event_devices(int *ev_fds, int size);
+/* Initialize inputs structure */
+int inputs_init(kx_inputs *inputs, unsigned int size);
 
-/* Scan for event devices */
-int scan_evdevs(struct ev_params_t *ev);
+/* Cleanup inputs structure */
+void inputs_clean(kx_inputs *inputs);
+
+/* Add input */
+int inputs_add_fd(kx_inputs *inputs, int fd, kx_input_type type);
+
+/* Scan for possible inputs and open them */
+int inputs_open(kx_inputs *inputs);
+
+/* Close opened inputs */
+void inputs_close(kx_inputs *inputs);
+
+/* Prepare inputs for processing */
+int inputs_preprocess(kx_inputs *inputs);
 
 /* Read and process events */
-enum actions_t process_events(struct ev_params_t *ev);
+enum actions_t inputs_process(kx_inputs *inputs);
+
 
 #endif //_HAVE_EVDEVS_H_

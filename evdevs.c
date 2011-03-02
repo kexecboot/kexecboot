@@ -15,13 +15,6 @@
  *
  */
 
-/*
- * *** TODO ***
- * 1. is_suitable_evdev open and close device. But later we are opening
- * devices again. Idea is open device, do all checks, if it is suitable,
- * pass descriptor to upper layer, close otherwise.
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,15 +39,9 @@
  */
 #define test_bit(bit, array)    (array[bit>>3] & (1<<(bit%8)))
 
-int is_suitable_evdev(char *path)
+int evdev_is_suitable(int fd)
 {
-	int fd;
 	uint8_t evtype_bitmask[(EV_MAX>>3) + 1];
-
-	if ((fd = open(path, O_RDONLY)) < 0) {
-		log_msg(lg, "+ can't open evdev '%s': %s", path, ERRMSG);
-		return 0;
-	}
 
 	/* Clean evtype_bitmask structure */
 	memset(evtype_bitmask, 0, sizeof(evtype_bitmask));
@@ -65,11 +52,8 @@ int is_suitable_evdev(char *path)
 		return 0;
 	}
 
-	close(fd);
-
 #ifdef DEBUG
 	int yalv;
-	log_msg(lg, "+ supported event types:");
 	for (yalv = 0; yalv < EV_MAX; yalv++) {
 		if (test_bit(yalv, evtype_bitmask)) {
 			/* this means that the bit is set in the event types list */
@@ -119,26 +103,96 @@ int is_suitable_evdev(char *path)
 	if (test_bit(EV_KEY, evtype_bitmask)) return 1;
 
 	/* device is not suitable */
-	log_msg(lg, "+ evdev %s have no EV_KEY bit, skipped", path);
+	log_msg(lg, "+ evdev have no EV_KEY bit, skipped");
 	return 0;
 }
 
-
-/* Search all event devices in specified directory */
-struct charlist *scan_event_dir(char *path)
+/* Prepare event device */
+void evdev_prepare_fd(int fd)
 {
-	int len;
+#ifdef USE_EVDEV_RATE
+	/* Repeat rate array (milliseconds) */
+	int rep[2] = { USE_EVDEV_RATE };
+	/* Set repeat rate on device */
+	ioctl(fd, EVIOCSREP, rep);	/* We don't care about result */
+#endif
+	/* Grab device exclusively */
+	ioctl(fd, EVIOCGRAB, (void *)1);	/* We don't care about result */
+}
+
+/* Initialize inputs structure */
+int inputs_init(kx_inputs *inputs, unsigned int size)
+{
+	inputs->size = size;
+	inputs->count = 0;
+	FD_ZERO(&(inputs->fdset));
+	inputs->maxfd = -1;
+
+	inputs->fdtypes = malloc(size * sizeof(*(inputs->fdtypes)));
+	inputs->fds = malloc(size * sizeof(*(inputs->fds)));
+
+	if ( (NULL == inputs->fdtypes) || (NULL == inputs->fds) ) {
+		DPRINTF("Can't allocate memory for fd array");
+		return -1;
+	}
+
+	return 0;
+}
+
+/* Cleanup inputs structure */
+void inputs_clean(kx_inputs *inputs)
+{
+	dispose(inputs->fdtypes);
+	dispose(inputs->fds);
+	inputs->size = 0;
+}
+
+/* Add input */
+int inputs_add_fd(kx_inputs *inputs, int fd, kx_input_type type)
+{
+	/* Resize arrays when needed before adding item */
+	if (inputs->count >= inputs->size) {
+		kx_input_type *new_fdtypes;
+		int *new_fds;
+		unsigned int new_size;
+
+		new_size = inputs->size * 2;
+		new_fdtypes = realloc(inputs->fdtypes, new_size * sizeof(*(inputs->fdtypes)));
+		new_fds = realloc(inputs->fds, new_size * sizeof(*(inputs->fds)));
+		if ( (NULL == new_fdtypes) || (NULL == new_fds) ) {
+			DPRINTF("Can't resize fd's array");
+			return -1;
+		}
+
+		inputs->size = new_size;
+		inputs->fdtypes = new_fdtypes;
+		inputs->fds = new_fds;
+	}
+
+	inputs->fdtypes[inputs->count] = type;
+	inputs->fds[inputs->count] = fd;
+	++inputs->count;
+
+	if (fd > inputs->maxfd) inputs->maxfd = fd;
+	FD_SET(fd, &(inputs->fdset));
+
+	return inputs->count - 1;
+}
+
+/* Scan dir for evdev's and add them */
+int inputs_open_evdir(kx_inputs *inputs, char *path)
+{
+	int fd, len;
 	DIR *d;
 	struct dirent *dp;
-	struct charlist *evlist;
 	char *p;
 	const char *pattern = "event";
-	char device[strlen(path) + 1 + strlen(pattern) + 3];
+	char device[strlen(path) + 1 + strlen(pattern) + 4];
 
 	d = opendir(path);
 	if (NULL == d) {
 		log_msg(lg, "+ can't open directory '%s': %s", path, ERRMSG);
-		return NULL;
+		return -1;
 	}
 
 	/* Prepare placeholder */
@@ -148,148 +202,127 @@ struct charlist *scan_event_dir(char *path)
 	*p = '\0';
 
 	len = strlen(pattern);
-	evlist = create_charlist(4);
 
 	/* Loop through directory and look for pattern */
 	while ((dp = readdir(d)) != NULL) {
 		if (0 == strncmp(dp->d_name, pattern, len)) {
-			strcat(p, dp->d_name);
-			if (is_suitable_evdev(device)) {
-				addto_charlist(evlist, device);
-				log_msg(lg, "+ Added evdev '%s'", dp->d_name);
+			strcat(p, dp->d_name);	/* Prepare full path to device */
+
+			log_msg(lg, "+ Trying evdev '%s'", dp->d_name);
+			if ((fd = open(device, O_RDONLY)) < 0) {
+				log_msg(lg, "+ can't open evdev '%s': %s", path, ERRMSG);
+			} else {
+				/* Check that device have right capabilities */
+				if (evdev_is_suitable(fd)) {
+					evdev_prepare_fd(fd);
+					inputs_add_fd(inputs, fd, KX_IT_EVDEV);
+					log_msg(lg, "+ Added evdev '%s'", dp->d_name);
+				} else {
+					close(fd);
+				}
 			}
-			*p = '\0';	/* Reset device name */
+
+			*p = '\0';	/* Reset device name from path */
 		}
 	}
 	closedir(d);
 
-	return evlist;
-}
-
-
-/* Return list of found event devices */
-struct charlist *scan_event_devices()
-{
-	struct charlist *evlist;
-
-	/* Check /dev for event devices */
-	evlist = scan_event_dir("/dev");
-	if (NULL == evlist) return NULL;
-	if (0 != evlist->fill) return evlist;
-
-	/* We have not found any device. Search in /dev/input */
-	free_charlist(evlist);
-
-	evlist = scan_event_dir("/dev/input");
-	if (NULL == evlist) return NULL;
-	if (0 != evlist->fill) return evlist;
-
-	log_msg(lg, "No evdevs found");
-	return NULL;
-}
-
-
-/* Open event devices and return array of descriptors */
-int *open_event_devices(struct charlist *evlist)
-{
-	int i, *ev_fds;
-
-	ev_fds = malloc(evlist->fill * sizeof(*ev_fds));
-	if (NULL == ev_fds) {
-		DPRINTF("Can't allocate memory for descriptors array");
-		return NULL;
-	}
-
-	for(i = 0; i < evlist->fill; i++) {
-		ev_fds[i] = open(evlist->list[i], O_RDONLY);
-		if (-1 == ev_fds[i]) {
-			log_msg(lg, "+ can't open evdev '%s': %s", evlist->list[i], ERRMSG);
-		}
-		log_msg(lg, "+ evdev '%s' is opened (%d)", evlist->list[i], ev_fds[i]);
-	}
-
-	return ev_fds;
-}
-
-
-/* Scan for event devices */
-int scan_evdevs(struct ev_params_t *ev)
-{
-	struct charlist *evlist;
-	int *ev_fds;
-	fd_set fds0;
-	int i, maxfd, nev, efd;
-
-#ifdef USE_EVDEV_RATE
-	/* Repeat rate array (milliseconds) */
-	int rep[2] = { USE_EVDEV_RATE };
-#endif
-
-	ev->count = 0;
-
-	/* Search for keyboard/touchscreen/mouse/joystick/etc.. */
-	evlist = scan_event_devices();
-	if (NULL == evlist) {
-		return -1;
-	}
-
-	/* Open event devices */
-	ev_fds = open_event_devices(evlist);
-	if (NULL == ev_fds) {
-		exit(-1);
-	}
-
-	nev = evlist->fill;
-	free_charlist(evlist);	/* Move this part to scan_event_devices ? */
-
-	maxfd = -1;
-	/* Fill FS set with descriptors and search maximum fd number */
-	FD_ZERO(&fds0);
-	for (i = 0; i < nev; i++) {
-		efd = ev_fds[i];
-		if (efd > 0) {
-			FD_SET(efd, &fds0);
-			if (efd > maxfd) maxfd = efd;	/* Find maximum fd no */
-#ifdef USE_EVDEV_RATE
-			/* Set repeat rate on device */
-			ioctl(efd, EVIOCSREP, rep);	/* We don't care about result */
-#endif
-			/* Grab device exclusively */
-			ioctl(efd, EVIOCGRAB, (void *)1);	/* We don't care about result */
-		}
-	}
-	++maxfd;	/* Increase maxfd according to select() manual */
-
-	ev->count = nev;
-	ev->fd = ev_fds;
-	ev->fds = fds0;
-	ev->maxfd = maxfd;
 	return 0;
 }
 
+/* Scan and open all possible inputs */
+int inputs_open(kx_inputs *inputs)
+{
+	/* Check /dev and /dev/input for event devices */
+	if (-1 == inputs_open_evdir(inputs, "/dev/input")) {
+		if (-1 == inputs_open_evdir(inputs, "/dev")) {
+			log_msg(lg, "No evdevs found");
+			return -1;
+		}
+	}
 
-/* Close opened devices */
-void close_event_devices(int *ev_fds, int size)
+	/* Here we may open other file descriptors as well (sockets e.g.) */
+
+	return 0;
+}
+
+/* Close opened inputs */
+void inputs_close(kx_inputs *inputs)
 {
 	int i;
 
-	if (size <= 0) return;
+	for (i=0; i < inputs->count; i++) {
+		close(inputs->fds[i]);
+	}
+	inputs->count = 0;
+}
 
-	for(i = 0; i < size; i++) {
-		if (ev_fds > 0) close(ev_fds[i]);
+/* Prepare inputs for processing */
+int inputs_preprocess(kx_inputs *inputs)
+{
+	++inputs->maxfd;
+	return 0;
+}
+
+int inputs_process_evdev(int fd)
+{
+	int nready;
+	enum actions_t action = A_NONE;
+	struct input_event evt;
+
+	/* Read one event */
+	nready = read(fd, &evt, sizeof(evt));
+	if ( nready < (int) sizeof(evt) ) {
+		log_msg(lg, "Short read of event structure (%d bytes)", nready);
+		return A_ERROR;
 	}
 
-	free(ev_fds);
+	/* EV_KEY event actions */
+	if ((EV_KEY == evt.type) && (0 != evt.value)) {
+		switch (evt.code) {
+		case KEY_UP:
+			action = A_UP;
+			break;
+		case KEY_DOWN:
+		case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
+			action = A_DOWN;
+			break;
+#ifndef USE_HOST_DEBUG
+		case KEY_R:
+			action = A_REBOOT;
+			break;
+#endif
+		case KEY_S:	/* reScan */
+			action = A_RESCAN;
+			break;
+		case KEY_Q:	/* Quit (when not in initmode) */
+			action = A_EXIT;
+			break;
+		case KEY_ENTER:
+		case KEY_SPACE:
+		case KEY_HIRAGANA:	/* Zaurus SL-6000 */
+		case KEY_HENKAN:	/* Zaurus SL-6000 */
+		case 87:			/* Zaurus: OK (remove?) */
+		case 63:			/* Zaurus: Enter (remove?) */
+		case KEY_POWER:		/* GTA02: Power (116) */
+		case KEY_PHONE:		/* GTA02: AUX (169) */
+			action = A_SELECT;
+			break;
+		default:
+			action = A_NONE;
+			break;
+		}
+	}
+
+	return action;
 }
 
 
 /* Read and process events */
-enum actions_t process_events(struct ev_params_t *ev)
+enum actions_t inputs_process(kx_inputs *inputs)
 {
 	fd_set fds;
-	int i, e, nready, efd;
-	const int evt_size = 4;
-	struct input_event evt[evt_size];
+	int i, fd, nready;
 	enum actions_t action = A_NONE;
 	struct timeval timeout;
 
@@ -300,12 +333,12 @@ enum actions_t process_events(struct ev_params_t *ev)
 	timeout.tv_sec = 60;	// exit after timeout to allow to do something above
 #endif
 
-	if (0 == ev->count) return A_ERROR;		/* A_EXIT ? */
+	if (0 == inputs->count) return A_ERROR;		/* A_EXIT ? */
 
-	fds = ev->fds;
+	fds = inputs->fdset;
 
 	/* Wait for some input */
-	nready = select(ev->maxfd, &fds, NULL, NULL, &timeout);	/* Wait for input or timeout */
+	nready = select(inputs->maxfd, &fds, NULL, NULL, &timeout);	/* Wait for input or timeout */
 
 	if (-1 == nready) {
 		if (errno == EINTR) return A_NONE;
@@ -323,76 +356,21 @@ enum actions_t process_events(struct ev_params_t *ev)
 	}
 
 	/* Check fds */
-	for (i = 0; i < ev->count; i++) {
-		efd = ev->fd[i];
-		if (FD_ISSET(efd, &fds)) {
-			nready = read(efd, evt, sizeof(struct input_event) * evt_size);	/* Read events */
-			if ( nready < (int) sizeof(struct input_event) ) {
-				log_msg(lg, "Short read of event structure (%d bytes)", nready);
-				continue;
-			}
-
-			/* NOTE: debug
-			if ( nready > (int) sizeof(struct input_event) )
-				DPRINTF("Have more than one event here (%d bytes, %d events)",
-						nready, (int) (nready / sizeof(struct input_event)) );
-			*/
-
-			for (e = 0; e < (int) (nready / sizeof(struct input_event)); e++) {
-
-				/* DPRINTF("+ event on %d, type: %d, code: %d, value: %d",
-						efd, evt[e].type, evt[e].code, evt[e].value); */
-
-				if ((EV_KEY == evt[e].type) && (0 != evt[e].value)) {
-					/* EV_KEY event actions */
-
-					switch (evt[e].code) {
-					case KEY_UP:
-						action = A_UP;
-						break;
-					case KEY_DOWN:
-					case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
-						action = A_DOWN;
-						break;
-#ifndef USE_HOST_DEBUG
-					case KEY_R:
-						action = A_REBOOT;
-						break;
-#endif
-					case KEY_S:	/* reScan */
-						action = A_RESCAN;
-						break;
-					case KEY_Q:	/* Quit (when not in initmode) */
-						action = A_EXIT;
-						break;
-					case KEY_ENTER:
-					case KEY_SPACE:
-					case KEY_HIRAGANA:	/* Zaurus SL-6000 */
-					case KEY_HENKAN:	/* Zaurus SL-6000 */
-					case 87:			/* Zaurus: OK (remove?) */
-					case 63:			/* Zaurus: Enter (remove?) */
-					case KEY_POWER:		/* GTA02: Power (116) */
-					case KEY_PHONE:		/* GTA02: AUX (169) */
-						action = A_SELECT;
-						break;
-					default:
-						action = A_NONE;
-						break;
-					}
-#if 0
-				} else if ((EV_ABS == evt.type) && (0 != evt.value)) {
-					/* EV_KEY event actions */
-					suitable_event = 1;
-					switch (evt.code) {
-					case ABS_PRESSURE:	/* Touchscreen touch */
-						if (choice < (bl->fill - 1)) choice++;
-						else choice = 0;
-						break;
-					default:
-						suitable_event = 0;
-					}
-#endif
-				}
+	for (i = 0; i < inputs->count; i++) {
+		fd = inputs->fds[i];
+		if (FD_ISSET(fd, &fds)) {
+			switch (inputs->fdtypes[i]) {
+			case KX_IT_EVDEV:
+				/* Process input from event device */
+				action = inputs_process_evdev(fd);
+				if (A_ERROR == action) continue; /* continue on short read */
+				break;
+			case KX_IT_TTY:
+				/* Process input from tty */
+				break;
+			case KX_IT_SOCKET:
+				/* Process input from sockets */
+				break;
 			}
 		}
 	}
