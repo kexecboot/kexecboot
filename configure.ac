@@ -48,6 +48,11 @@ AC_ARG_ENABLE([bpp], [AS_HELP_STRING([--enable-bpp@<:@=list@:>@],[enable support
 ],
 [enable_all_bpp=yes])
 
+AC_ARG_WITH([kexec-binary],[AS_HELP_STRING([--with-kexec-binary="path"],[look for kexec binary at path @<:@default="/usr/sbin/kexec"@:>@])],[
+test "x$with_kexec_binary" = xyes && with_kexec_binary="/usr/sbin/kexec"
+],[with_kexec_binary="/usr/sbin/kexec"])
+
+
 AS_IF([test "x$enable_fbui" != xno],
 		[
 		AC_DEFINE([USE_FBMENU], [1], [Define if you use the framebuffer user interface])
@@ -159,6 +164,11 @@ AS_IF([test "x$enable_timeout" != xno],
 AS_IF([test "x$enable_delay" != xno],
 		[
 		AC_DEFINE_UNQUOTED([USE_DELAY], [${enable_delay}], [Define delay to sleep before scanning devices])
+		], [])
+
+AS_IF([test "x$with_kexec_binary" != "xno"],
+		[
+		AC_DEFINE_UNQUOTED([KEXEC_PATH], ["${with_kexec_binary}"], [Where to look for kexec binary])
 		], [])
 
 AC_ISC_POSIX

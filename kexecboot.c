@@ -179,7 +179,7 @@ void start_kernel(struct params_t *params, int choice)
 #ifdef USE_HOST_DEBUG
 	const char kexec_path[] = "/bin/echo";
 #else
-	const char kexec_path[] = "/usr/sbin/kexec";
+	const char kexec_path[] = KEXEC_PATH;
 #endif
 	const char mount_point[] = MOUNTPOINT;
 
