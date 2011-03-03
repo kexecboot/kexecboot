@@ -415,12 +415,12 @@ umount:
 		if (0 == zaurus_error) {
 			if (0 == strcmp(dev.device, "/dev/mtdblock2")) {	/* root */
 				log_msg(lg, "+ [zaurus root] size of %s will be changed from %lu to %lu",
-						dev.device, dev->blocks, pinfo.root);
-				dev->blocks = pinfo.root;
+						dev.device, dev.blocks, pinfo.root);
+				dev.blocks = pinfo.root;
 			} else if (0 == strcmp(dev.device, "/dev/mtdblock3")) {	/* home */
 				log_msg(lg, "+ [zaurus home] size of %s will be changed from %lu to %lu",
-						dev.device, dev->blocks, pinfo.home);
-				dev->blocks = pinfo.home;
+						dev.device, dev.blocks, pinfo.home);
+				dev.blocks = pinfo.home;
 			}
 		}
 #endif
