@@ -202,7 +202,7 @@ void print_bootcfg(struct bootconf_t *bc)
 		log_msg(lg, " [%d] kernelpath: '%s'", i, bc->list[i]->kernelpath);
 		log_msg(lg, " [%d] cmdline: '%s'", i, bc->list[i]->cmdline);
 		log_msg(lg, " [%d] initrd: '%s'", i, bc->list[i]->initrd);
-		log_msg(lg, " [%d] iconpath: '%s'", i, bc->list[i]->iconpath);
+		log_msg(lg, " [%d] icondata: '%p'", i, bc->list[i]->icondata);
 		log_msg(lg, " [%d] priority: '%d'", i, bc->list[i]->priority);
 	}
 }
