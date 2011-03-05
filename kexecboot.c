@@ -320,11 +320,11 @@ int scan_devices(struct params_t *params)
 	struct bootconf_t *bootconf;
 	struct device_t dev;
 	struct cfgdata_t cfgdata;
-	kx_cfg_section *sc;
-	int i;
 	int rc;
 	FILE *f;
-#ifdef USE_FBMENU
+#ifdef USE_ICONS
+	kx_cfg_section *sc;
+	int i;
 	int rows, bpp;
 	char **xpm_data;
 
