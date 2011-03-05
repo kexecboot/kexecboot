@@ -22,7 +22,19 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __KLIBC__
+/* KLIBC have no TIOCGWINSZ and struct winsize */
+#define TIOCGWINSZ 0x5413
+struct winsize {
+	unsigned short ws_row;
+	unsigned short ws_col;
+	unsigned short ws_xpixel;
+	unsigned short ws_ypixel;
+};
+#else
 #include <sys/ioctl.h>	/* struct winsize */
+#endif 
+
 #include <signal.h>
 
 #include "tui.h"
