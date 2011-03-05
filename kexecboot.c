@@ -933,9 +933,15 @@ int main(int argc, char **argv)
 	}
 #endif
 #ifdef USE_TEXTUI
-	params.tui = tui_init(stdout);
+	FILE *ttyfp;
+
+	if (cfg.ttydev) ttyfp = fopen(cfg.ttydev, "w");
+	else ttyfp = stdout;
+
+	params.tui = tui_init(ttyfp);
 	if (NULL == params.tui) {
 		DPRINTF("Can't initialize TUI");
+		if (ttyfp != stdout) fclose(ttyfp);
 		exit(-1);	/* FIXME dont exit while other UI exists */
 	}
 #endif
@@ -959,6 +965,7 @@ int main(int argc, char **argv)
 #endif
 #ifdef USE_TEXTUI
 	tui_destroy(params.tui);
+	if (ttyfp != stdout) fclose(ttyfp);
 #endif
 	close_event_devices(ev.fd, ev.count);
 
