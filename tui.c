@@ -130,7 +130,7 @@ void tui_show_menu(kx_tui *tui, kx_menu *menu)
 
 	/* Goto 1,1; switch color; draw 3 lines */
 	fprintf(tui->ts, TERM_CSI_ED TERM_CSI "1;1" TERM_CUP TUI_CLR_BG TERM_CSI_EL "\n"
-		" KEXECBOOT - Linux Soft-bootloader" TERM_CSI_EEL "\n" TERM_CSI_EL "\n");
+		" KEXECBOOT" TERM_CSI_EEL "\n" TERM_CSI_EL "\n");
 
 	ml = menu->current;			/* active menu level */
 	cur_no = ml->current_no;	/* active menu item index */
@@ -161,7 +161,7 @@ void tui_show_text(kx_tui *tui, kx_text *text)
 	
 	/* Goto 1,1; switch color; draw 3 lines */
 	fprintf(tui->ts, TERM_CSI_ED TERM_CSI "1;1" TERM_CUP TUI_CLR_BG TERM_CSI_EL "\n"
-		" KEXECBOOT - Linux Soft-bootloader" TERM_CSI_EEL "\n" TERM_CSI_EL "\n");
+		" KEXECBOOT" TERM_CSI_EEL "\n" TERM_CSI_EL "\n");
 
 	/* No text to show */
 	if ((!text) || (text->rows->fill <= 1)) return;

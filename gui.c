@@ -287,9 +287,9 @@ void gui_show_menu(struct gui_t *gui, kx_menu *menu)
 	/* FIXME: shouldn't be done here */
 	if (1 == ml->count) {
 		/* Only system menu in list */
-		draw_background(gui, "No bootable devices found.\nR: Reboot  S: Rescan devices");
+		draw_background(gui, "No boot devices found.\nR: Reboot  S: Rescan");
 	} else {
-		draw_background(gui, "KEXECBOOT - Linux Soft-bootloader");
+		draw_background(gui, "KEXECBOOT");
 	}
 
 	if(cur_no < firstslot)
@@ -310,7 +310,7 @@ void gui_show_text(struct gui_t *gui, kx_text *text)
 	int i, y;
 	int max_x, max_y;
 
-	draw_background(gui, "KEXECBOOT - Linux Soft-bootloader");
+	draw_background(gui, "KEXECBOOT");
 
 	/* No text to show */
 	if ((!text) || (text->rows->fill <= 1)) return;
