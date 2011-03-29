@@ -846,7 +846,7 @@ void draw_ctx_textview(struct params_t *params)
 
 
 /* Main event loop */
-int do_main_loop(struct params_t *params, struct ev_params_t *ev)
+int do_main_loop(struct params_t *params, kx_inputs *inputs)
 {
 	int rc = 0;
 	int action;
@@ -858,7 +858,7 @@ int do_main_loop(struct params_t *params, struct ev_params_t *ev)
 	/* Event loop */
 	do {
 		/* Read events */
-		action = process_events(ev);
+		action = inputs_process(inputs);
 
 		/* Process events in current context */
 		switch (params->context) {
@@ -896,7 +896,7 @@ int main(int argc, char **argv)
 	int rc = 0;
 	struct cfgdata_t cfg;
 	struct params_t params;
-	struct ev_params_t ev;
+	kx_inputs inputs;
 
 	lg = log_open(16);
 	log_msg(lg, "%s starting", PACKAGE_STRING);
@@ -954,11 +954,14 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	scan_evdevs(&ev);	/* Look for event devices */
+	/* Collect input devices */
+	inputs_init(&inputs, 8);
+	inputs_open(&inputs);
+	inputs_preprocess(&inputs);
 
 	/* Run main event loop
 	 * Return values: <0 - error, >=0 - selected item id */
-	rc = do_main_loop(&params, &ev);
+	rc = do_main_loop(&params, &inputs);
 
 #ifdef USE_FBMENU
 	gui_destroy(params.gui);
@@ -967,7 +970,8 @@ int main(int argc, char **argv)
 	tui_destroy(params.tui);
 	if (ttyfp != stdout) fclose(ttyfp);
 #endif
-	close_event_devices(ev.fd, ev.count);
+	inputs_close(&inputs);
+	inputs_clean(&inputs);
 
 	log_close(lg);
 	lg = NULL;
