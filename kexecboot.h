@@ -20,16 +20,4 @@
 #ifndef _HAVE_KEXECBOOT_H
 #define _HAVE_KEXECBOOT_H
 
-#include "config.h"
-
-/* Default event interface. Can be redefined */
-#ifndef KXB_EVENTIF
-#define KXB_EVENTIF "/dev/event0"
-#endif
-
-/* Default FB angle. Can be redefined */
-#ifndef KXB_FBANGLE
-#define KXB_FBANGLE 0
-#endif
-
 #endif	/* _HAVE_KEXECBOOT_H */

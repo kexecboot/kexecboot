@@ -906,7 +906,7 @@ int main(int argc, char **argv)
 	/* Get cmdline parameters */
 	params.cfg = &cfg;
 	init_cfgdata(&cfg);
-	cfg.angle = KXB_FBANGLE;
+	cfg.angle = 0;	/* No rotation by default */
 	parse_cmdline(&cfg);
 
 	kxb_ttydev = cfg.ttydev;
