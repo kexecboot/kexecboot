@@ -7,6 +7,8 @@ AM_MAINTAINER_MODE
 
 AC_ARG_ENABLE([static-linking],[AS_HELP_STRING([--enable-static-linking],[compiles kexecboot as a static executable @<:@default=no@:>@])],[],[enable_static_linking=no])
 AC_ARG_ENABLE([fbui],[AS_HELP_STRING([--enable-fbui],[support framebuffer user interface @<:@default=yes@:>@])],[],[enable_fbui=yes])
+AC_ARG_ENABLE([fbui-width],[AS_HELP_STRING([--enable-fbui-width],[limit FB UI width to specified value @<:@default=no@:>@])],[],[enable_fbui_width=no])
+AC_ARG_ENABLE([fbui-height],[AS_HELP_STRING([--enable-fbui-height],[limit FB UI height to specified value @<:@default=no@:>@])],[],[enable_fbui_height=no])
 AC_ARG_ENABLE([textui],[AS_HELP_STRING([--enable-textui],[support console text user interface @<:@default=no@:>@])],[],[enable_textui=no])
 AC_ARG_ENABLE([cfgfiles],[AS_HELP_STRING([--enable-cfgfiles],[support config files @<:@default=yes@:>@])],[],[enable_cfgfiles=yes])
 AC_ARG_ENABLE([icons],[AS_HELP_STRING([--enable-icons],[support custom icons (depends on fbui) @<:@default=yes@:>@])],[],[enable_icons=yes])
@@ -69,6 +71,15 @@ AS_IF([test "x$enable_fbui" != xno],
 		AS_IF([test "x$enable_bg_buffer" = xyes],
 			[
 			AC_DEFINE([USE_BG_BUFFER], [1], [Define if you want to use special buffer to hold pre-drawed background])
+			],[])
+
+		AS_IF([test "x$enable_fbui_width" != xno],
+			[
+			AC_DEFINE_UNQUOTED([USE_FBUI_WIDTH], [${enable_fbui_width}], [Define if you want to limit FB UI width to specified value])
+			],[])
+		AS_IF([test "x$enable_fbui_height" != xno],
+			[
+			AC_DEFINE_UNQUOTED([USE_FBUI_HEIGHT], [${enable_fbui_height}], [Define if you want to limit FB UI height to specified value])
 			],[])
 
 		AS_IF([test "x$enable_32bpp" == xyes],

@@ -67,8 +67,6 @@
 
 
 /** Layout **/
-#define LYT_MAX_HEIGHT		640			/* Maximum GUI height & width */
-#define LYT_MAX_WIDTH		480
 #define LYT_HEIGHT			(gui->height)	/* Real GUI height & width */
 #define LYT_WIDTH			(gui->width)
 

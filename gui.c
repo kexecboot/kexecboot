@@ -97,14 +97,18 @@ struct gui_t *gui_init(int angle)
 	gui->fb = fb;
 
 	/* Tune GUI size */
-	if (fb->width > LYT_MAX_WIDTH)
-		gui->width = LYT_MAX_WIDTH;
+#ifdef USE_FBUI_WIDTH
+	if (fb->width > USE_FBUI_WIDTH)
+		gui->width = USE_FBUI_WIDTH;
 	else
+#endif
 		gui->width = fb->width;
 
-	if (fb->height > LYT_MAX_HEIGHT)
-		gui->height = LYT_MAX_HEIGHT;
+#ifdef USE_FBUI_HEIGHT
+	if (fb->height > USE_FBUI_HEIGHT)
+		gui->height = USE_FBUI_HEIGHT;
 	else
+#endif
 		gui->height = fb->height;
 
 	gui->x = (fb->width - gui->width)/2;
