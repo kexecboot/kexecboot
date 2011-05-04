@@ -212,6 +212,30 @@ kx_menu_dim menu_item_select(kx_menu *menu, int direction)
 	return 0;
 }
 
+/* Select no'th item in current level */
+kx_menu_dim menu_item_select_by_no(kx_menu *menu, int no)
+{
+	static kx_menu_level *ml;
+	static kx_menu_dim i, j;
+
+	ml = menu->current;
+
+	if (no >= ml->count) {
+		return -1;
+	}
+
+	/* Rewind to item no */
+	for (i=0, j=0; (i < ml->count) && (j < no); i++) {
+		if (ml->list[i]) ++j;
+	}
+
+	menu_item_set_current_and_return(ml, i);
+
+	/* we shouldn't reach this point */
+	return -1;
+}
+
+
 inline void menu_item_set_data(kx_menu_item *item, void *data)
 {
 	item->data = data;

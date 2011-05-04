@@ -308,6 +308,19 @@ int inputs_process_evdev(int fd)
 		case KEY_PHONE:		/* GTA02: AUX (169) */
 			action = A_SELECT;
 			break;
+#ifdef USE_NUMKEYS
+		/* Return keys 0-9 */
+		case KEY_0: action = A_KEY0; break;
+		case KEY_1: action = A_KEY1; break;
+		case KEY_2: action = A_KEY2; break;
+		case KEY_3: action = A_KEY3; break;
+		case KEY_4: action = A_KEY4; break;
+		case KEY_5: action = A_KEY5; break;
+		case KEY_6: action = A_KEY6; break;
+		case KEY_7: action = A_KEY7; break;
+		case KEY_8: action = A_KEY8; break;
+		case KEY_9: action = A_KEY9; break;
+#endif
 		default:
 			action = A_NONE;
 			break;

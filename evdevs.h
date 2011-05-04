@@ -37,6 +37,18 @@ enum actions_t {
 #ifdef USE_TIMEOUT
 	A_TIMEOUT,
 #endif
+#ifdef USE_NUMKEYS
+	A_KEY0,
+	A_KEY1,
+	A_KEY2,
+	A_KEY3,
+	A_KEY4,
+	A_KEY5,
+	A_KEY6,
+	A_KEY7,
+	A_KEY8,
+	A_KEY9,
+#endif
 	A_DEVICES
 };
 

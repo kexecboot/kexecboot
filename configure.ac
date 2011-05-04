@@ -20,6 +20,7 @@ AC_ARG_ENABLE([devices-recreating],[AS_HELP_STRING([--enable-devices-recreating]
 AC_ARG_ENABLE([debug],[AS_HELP_STRING([--enable-debug],[enable debug output @<:@default=no@:>@])], [],[enable_debug=\"no\"])
 AC_ARG_ENABLE([host-debug],[AS_HELP_STRING([--enable-host-debug],[allow for non-destructive executing of kexecboot on host system @<:@default=no@:>@])], [],[enable_host_debug=no])
 AC_ARG_ENABLE([bg-buffer],[AS_HELP_STRING([--enable-bg-buffer],[enable special buffer to hold pre-drawed FB GUI background @<:@default=no@:>@])], [],[enable_bg_buffer=no])
+AC_ARG_ENABLE([numkeys],[AS_HELP_STRING([--enable-numkeys],[allow to choose menu item by 0-9 keys @<:@default=yes@:>@])], [],[enable_numkeys=yes])
 
 AC_ARG_ENABLE([timeout],[AS_HELP_STRING([--enable-timeout@<:@=sec@:>@],[allow to boot 1st kernel after timeout in seconds @<:@default=no@:>@])], [
 	test "x$enable_timeout" = xyes && enable_timeout=10
@@ -192,6 +193,10 @@ AS_IF([test "x$enable_evdev_rate" != xno],
 		AC_DEFINE_UNQUOTED([USE_EVDEV_RATE], [${enable_evdev_rate}], [Define evdev (keyboard/mouse) repeat rate to use in milliseconds (first_delay, repeat_delay)])
 		], [])
 
+AS_IF([test "x$enable_numkeys" = xyes],
+		[
+		AC_DEFINE([USE_NUMKEYS], [1], [Define if you wish to allow to choose menu items by 0-9 keys])
+		], [])
 
 AC_ISC_POSIX
 AC_PROG_CC

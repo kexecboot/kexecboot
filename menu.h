@@ -63,6 +63,9 @@ kx_menu_id menu_get_next_id(kx_menu *menu);
 /* Select next/prev/first item in current level */
 kx_menu_dim menu_item_select(kx_menu *menu, int direction);
 
+/* Select no'th item in current level */
+kx_menu_dim menu_item_select_by_no(kx_menu *menu, int no);
+
 /* Create menu level (submenu) of 'size' items */
 kx_menu_level *menu_level_create(kx_menu *menu, kx_menu_dim size, 
 		kx_menu_level *parent);

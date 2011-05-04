@@ -700,9 +700,23 @@ int process_ctx_menu(struct params_t *params, int action) {
 	gui = params->gui;
 #endif
 
-	rc = 1;
 	menu = params->menu;
+
+#ifdef USE_NUMKEYS
+	/* Some hacks to allow menu items selection by keys 0-9 */
+	if ((action >= A_KEY0) && (action <= A_KEY9)) {
+		rc = action - A_KEY0;
+		if (-1 == menu_item_select_by_no(menu, rc)) {
+			/* There is no item with such number - do nothing */
+			return 1;
+		} else {
+			action = A_SELECT;
+		}
+	}
+#endif
+
 	menu_action = (A_SELECT == action ? menu->current->current->id : action);
+	rc = 1;
 
 	switch (menu_action) {
 	case A_UP:
