@@ -39,31 +39,31 @@
 #include "fonts/ter-u16n-ascii.h"
 #define DEFAULT_FONT	(&ter_u16n_ascii_font)
 
-/** Colors **/
-#define COLOR_BG		0xECECE1
-#define COLOR_BRDR		0xFF0000
-#define COLOR_TEXT		0x000000
+/** Colors (RRGGBBAA) **/
+#define COLOR_BG		0xECECE100
+#define COLOR_BRDR		0xFF000000
+#define COLOR_TEXT		0x00000000
 
 /* Colors for new layout */
-#define CLR_BG			0x000000
+#define CLR_BG			0x00000000
 #define CLR_BG_PAD		CLR_BG
-#define CLR_BG_TEXT		0xFFFFFF
+#define CLR_BG_TEXT		0xFFFFFF00
 
 /* Menu */
-#define CLR_MENU_BG		0xCCCCCC
-#define CLR_MENU_FRAME	0xFFFFFF
+#define CLR_MENU_BG		0xCCCCCC00
+#define CLR_MENU_FRAME	0xFFFFFF00
 
 /* Menu item */
-#define CLR_MNI_BG		0xCCCCCC
-#define CLR_MNI_PAD		0xCCCCCC
-#define CLR_MNI_LINE	0x999999
-#define CLR_MNI_TEXT	0x000000
+#define CLR_MNI_BG		0xCCCCCC00
+#define CLR_MNI_PAD		0xCCCCCC00
+#define CLR_MNI_LINE	0x99999900
+#define CLR_MNI_TEXT	0x00000000
 
 /* Selected menu item */
-#define CLR_SMNI_BG		0xFFFFFF
-#define CLR_SMNI_PAD	0xCCCCCC
-#define CLR_SMNI_LINE	0x999999
-#define CLR_SMNI_TEXT	0x000000
+#define CLR_SMNI_BG		0xFFFFFF00
+#define CLR_SMNI_PAD	0xCCCCCC00
+#define CLR_SMNI_LINE	0x99999900
+#define CLR_SMNI_TEXT	0x00000000
 
 
 /** Layout **/

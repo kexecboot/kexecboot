@@ -21,13 +21,6 @@
 #include "config.h"
 #include "util.h"
 
-/* Colors triplet structure */
-struct rgb_color {
-	uint8 r;
-	uint8 g;
-	uint8 b;
-};
-
 /* RGB ordering */
 enum RGBMode {
     BGR,
@@ -35,14 +28,35 @@ enum RGBMode {
     GENERIC
 };
 
-/* Convert XRGB uint32 to red/green/blue components */
+/* Color packed into uint32_t (RGBA) */
+typedef uint32_t kx_rgba;
+
+/* Color component */
+typedef uint8_t kx_ccomp;
+
+/* Pack color components into uint32_t */
+#define comp2rgba(r,g,b,a) \
+	((kx_rgba)(r)<<24|(kx_rgba)(g)<<16|(kx_rgba)(b)<<8|(kx_rgba)(a))
+
+/* Get alpha-channel from rgba color */
+#define rgba2a(rgba) \
+	((kx_rgba)(rgba) & (kx_rgba)0x000000FF)
+
+/* Named color structure */
+typedef struct {
+	char *name;
+	kx_rgba rgba;
+} kx_named_color;
+
+/* Convert RGBA uint32 to red/green/blue/alpha components */
 inline void
-xrgb2comp(uint32 rgb, uint8 *red, uint8 *green, uint8 *blue);
+rgba2comp(kx_rgba rgba, kx_ccomp *red, kx_ccomp *green,
+		kx_ccomp *blue, kx_ccomp *alpha);
 
-/* Convert hex rgb color to rgb structure */
-int hex2rgb(char *hex, struct rgb_color *rgb);
+/* Convert hex rgb color to rgba color */
+kx_rgba hex2rgba(char *hex);
 
-/* Convert color name to rgb structure */
-int cname2rgb(char *cname, struct rgb_color *rgb);
+/* Convert color name to rgba color */
+kx_rgba cname2rgba(char *cname);
 
 #endif	/* HAVE_RGB_H */

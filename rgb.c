@@ -25,15 +25,17 @@
 #include "rgbtab.h"
 
 inline void
-xrgb2comp(uint32 rgb, uint8 *red, uint8 *green, uint8 *blue)
+rgba2comp(kx_rgba rgba, kx_ccomp *red, kx_ccomp *green,
+		kx_ccomp *blue, kx_ccomp *alpha)
 {
-	*blue =  rgb & 0x000000FF;
-	*green = (rgb & 0x0000FF00) >> 8;
-	*red = rgb >> 16;
+	*alpha = (kx_ccomp) (rgba & 0x000000FF);
+	*blue =  (kx_ccomp)((rgba & 0x0000FF00) >> 8);
+	*green = (kx_ccomp)((rgba & 0x00FF0000) >> 16);
+	*red =   (kx_ccomp)((rgba & 0xFF000000) >> 24);
 }
 
 
-static int hchar2int(unsigned char c)
+kx_ccomp hchar2int(unsigned char c)
 {
 	static int r;
 
@@ -49,40 +51,50 @@ static int hchar2int(unsigned char c)
 	return (r);
 }
 
-/* Convert hex rgb color to rgb structure */
-int hex2rgb(char *hex, struct rgb_color *rgb)
+/* Convert hex rgb color to rgb color */
+kx_rgba hex2rgba(char *hex)
 {
+	static kx_ccomp r, g, b, a;
 	switch (strlen(hex)) {
 	case 3 + 1:		/* #abc */
-		rgb->r = hchar2int(hex[1]);
-		rgb->g = hchar2int(hex[2]);
-		rgb->b = hchar2int(hex[3]);
+		r = hchar2int(hex[1]);
+		g = hchar2int(hex[2]);
+		b = hchar2int(hex[3]);
+		a = 0;
 		break;
 	case 6 + 1:		/* #abcdef */
-		rgb->r = hchar2int(hex[1]) << 4 | hchar2int(hex[2]);
-		rgb->g = hchar2int(hex[3]) << 4 | hchar2int(hex[4]);
-		rgb->b = hchar2int(hex[5]) << 4 | hchar2int(hex[6]);
+		r = hchar2int(hex[1]) << 4 | hchar2int(hex[2]);
+		g = hchar2int(hex[3]) << 4 | hchar2int(hex[4]);
+		b = hchar2int(hex[5]) << 4 | hchar2int(hex[6]);
+		a = 0;
+		break;
+	case 8 + 1:		/* #abcdefaa */
+		r = hchar2int(hex[1]) << 4 | hchar2int(hex[2]);
+		g = hchar2int(hex[3]) << 4 | hchar2int(hex[4]);
+		b = hchar2int(hex[5]) << 4 | hchar2int(hex[6]);
+		a = hchar2int(hex[7]) << 4 | hchar2int(hex[8]);
 		break;
 	case 12 + 1:	/* #32329999CCCC */
 		/* so for now only take two digits */
-		rgb->r = hchar2int(hex[1]) << 4 | hchar2int(hex[2]);
-		rgb->g = hchar2int(hex[5]) << 4 | hchar2int(hex[6]);
-		rgb->b = hchar2int(hex[9]) << 4 | hchar2int(hex[10]);
+		r = hchar2int(hex[1]) << 4 | hchar2int(hex[2]);
+		g = hchar2int(hex[5]) << 4 | hchar2int(hex[6]);
+		b = hchar2int(hex[9]) << 4 | hchar2int(hex[10]);
+		a = 0;
 		break;
 	default:
-		return -1;
+		/* Return black transparent color */
+		return comp2rgba(0, 0, 0, 255);
 	}
-	return 0;
+	return comp2rgba(r, g, b, a);
 }
 
-/* Convert color name to rgb structure */
-int cname2rgb(char *cname, struct rgb_color *rgb)
+/* Convert color name to rgb color */
+kx_rgba cname2rgba(char *cname)
 {
 	char *tmp, *color;
 	int len, half, rest;
 	unsigned char c;
-	/* Named color structure */
-	struct named_rgb_color *cn;
+	kx_named_color *cn;
 
 	color = strdup(cname);
 	if (NULL == color) {
@@ -107,10 +119,8 @@ int cname2rgb(char *cname, struct rgb_color *rgb)
 	/* Check for transparent color */
 	if( 0 == strcmp(color, "none") ) {
 		free(color);
-		rgb->r = 0;
-		rgb->g = 0;
-		rgb->b = 0;
-		return 1;
+		/* Return black transparent color */
+		return comp2rgba(0, 0, 0, 255);
 	}
 
 	/* check for "grey" */
@@ -142,16 +152,13 @@ int cname2rgb(char *cname, struct rgb_color *rgb)
 		rest -= half;
 	}
 
-	if (0 == len) {	/* Found */
-		xrgb2comp(cn->rgb, &rgb->r, &rgb->g, &rgb->b);
-	} else {		/* Not found */
-		log_msg(lg, "Color name '%s' not in colors database, returning red", color);
-		/* Return 'red' color like libXpm does */
-		rgb->r = 0xFF;
-		rgb->g = 0;
-		rgb->b = 0;
-	}
 	free(color);
-	return 0;
+	if (0 == len) {	/* Found */
+		return cn->rgba;
+	} else {		/* Not found */
+		log_msg(lg, "Color name '%s' not in colors database, returning transparent red", cname);
+		/* Return 'red' color like libXpm does */
+		return comp2rgba(255, 0, 0, 255);
+	}
 }
 

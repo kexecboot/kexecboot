@@ -39,10 +39,10 @@
 typedef struct FB *FBPTR;
 
 typedef void (*plot_pixel_func)(FBPTR fb, int x, int y,
-		uint8 red, uint8 green, uint8 blue);
+		kx_ccomp red, kx_ccomp green, kx_ccomp blue);
 
 typedef void (*draw_hline_func)(FBPTR fb, int x, int y, int length,
-		uint8 red, uint8 green, uint8 blue);
+		kx_ccomp red, kx_ccomp green, kx_ccomp blue);
 
 typedef struct FB {
 	int fd;
@@ -78,8 +78,7 @@ typedef struct FB {
 typedef struct {
 	unsigned int width;		/* picture width */
 	unsigned int height;	/* picture height */
-	struct rgb_color *colors;	/* colors array */
-	struct rgb_color **pixels;/* pixels array (pointers to colors) */
+	kx_rgba *pixels;		/* RGBA array */
 } kx_picture;
 
 
@@ -93,11 +92,11 @@ void print_fb(FB *fb);
 
 void
 fb_draw_rect(FB * fb, int x, int y,
-		int width, int height, uint32 rgb);
+		int width, int height, kx_rgba rgba);
 
 void
 fb_draw_rounded_rect(FB * fb, int x, int y,
-		int width, int height, uint32 rgb);
+		int width, int height, kx_rgba rgba);
 
 
 /* Return text width and height in pixels. Will return 0,0 for empty text */
@@ -107,11 +106,11 @@ fb_text_size(FB * fb, int *width, int *height,
 
 int
 fb_draw_constrained_text(FB * fb, int x, int y,
-		int max_x, int max_y, uint32 rgb,
+		int max_x, int max_y, kx_rgba rgba,
 		const Font * font, const char *text);
 
 void
-fb_draw_text(FB * fb, int x, int y, uint32 rgb,
+fb_draw_text(FB * fb, int x, int y, kx_rgba rgba,
 		const Font * font, const char *text);
 
 /* Move backbuffer contents to videomemory */
