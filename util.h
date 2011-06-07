@@ -129,6 +129,9 @@ char *get_word(char *str, char **endptr);
 /* Return non-negative integer from string 'str' and end of number in 'endptr' */
 int get_nni(const char *str, char **endptr);
 
+/* Return unsigned long long from string 'str' and end of number in 'endptr' */
+unsigned long long get_nnll(const char *str, char **endptr, int *error_flag);
+
 /* Change terminal settings */
 void setup_terminal(char *ttydev, int *echo_state, int mode);
 

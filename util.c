@@ -225,35 +225,55 @@ char *ltrim(char *str)
 }
 
 
+/* Get unsigned long-long integer */
+unsigned long long get_nnll(const char *str, char **endptr, int *error_flag)
+{
+	static unsigned long long val;
+
+	errno = 0;
+	val = strtoull(str, endptr, 10);
+
+	/* Check for various possible errors */
+	if ((errno == ERANGE && (val == ULLONG_MAX))
+		|| (errno != 0 && val == 0)
+	) {
+		if (error_flag) *error_flag = -2;
+		return 0;
+	}
+
+	/* Check that we have found any digits */
+	if ((NULL != endptr) && (*endptr == str)) {
+		if (error_flag) *error_flag = -3;
+		return 0;
+	}
+
+	/* If we got here, strtoll() successfully parsed a number */
+	if (error_flag) *error_flag = 0;
+	return val;
+}
+
 /* Get non-negative integer */
 int get_nni(const char *str, char **endptr)
 {
-	long val;
+	static unsigned long long val;
+	static int eflag;
 
-	errno = 0;
-	val = strtoul(str, endptr, 10);
+	eflag = 0;
+	val = get_nnll(str, endptr, &eflag);
 
-	/* Check for various possible errors */
-	if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN))
-		|| (errno != 0 && val == 0)) {
-		log_msg(lg, "get_nni: %s", ERRMSG);
+	switch (eflag) {
+	case 0:
+		if (val > INT_MAX)	/* Too big to return as int */
+			return -3;
+		else
+			return (int)val;
+	case -2:
+	case -3:
+		return eflag;
+	default:
 		return -1;
 	}
-
-	if (val > INT_MAX) {
-		log_msg(lg, "get_nni: Value too big for unsigned int");
-		return -1;
-	}
-
-	if ((NULL != endptr) && (*endptr == str)) {
-		log_msg(lg, "get_nni: No digits were found");
-		return -1;
-	}
-
-	/* If we got here, strtol() successfully parsed a number */
-	return (int)val;
 }
-
 
 
 /*
