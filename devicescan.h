@@ -26,7 +26,7 @@
 struct device_t {
 	char *device;		/* Device path (/dev/mmcblk0p1) */
 	const char *fstype;	/* Filesystem (ext2) */
-	int blocks;			/* Device size in 1K blocks */
+	unsigned long long blocks;	/* Device size in 1K blocks */
 };
 
 enum dtype_t {
@@ -40,7 +40,7 @@ enum dtype_t {
 struct boot_item_t {
 	char *device;		/* Device path (/dev/mmcblk0p1) */
 	const char *fstype;	/* Filesystem (ext2) */
-	unsigned long blocks;	/* Device size in 1K blocks */
+	unsigned long long blocks;	/* Device size in 1K blocks */
 	char *label;		/* Partition label (name) */
 	char *kernelpath;	/* Found kernel (/boot/zImage) */
 	char *cmdline;		/* Kernel cmdline (logo.nologo debug) */

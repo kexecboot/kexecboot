@@ -324,7 +324,8 @@ free_fl:
 
 int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev)
 {
-	int major, minor, blocks, len;
+	int major, minor, len;
+	unsigned long long blocks;
 	char *tmp, *p;
 	char *device;
 	char line[80];
@@ -334,13 +335,20 @@ int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev)
 	}
 
 	/* Get major, minor, blocks and device name */
+	len = 0;
 	major = get_nni(line, &p);
 	minor = get_nni(p, &p);
-	blocks = get_nni(p, &p);
+	blocks = get_nnll(p, &p, &len);	/* len is used as temp variable */
 	tmp = get_word(p, &p);
 
-	if (major < 0 || minor < 0 || blocks < 0 || NULL == tmp) {
+	if (major < 0 || minor < 0 || NULL == tmp) {
 		log_msg(lg, "Can't parse partition string: '%s'", line);
+		return -1;
+	}
+
+	/* FIXME: 200k is hardcoded below */
+	if ((0 == len) && (blocks < 200)) {
+		log_msg(lg, "+ device (%d, %d) is too small (%dk < 200k), skipped", major, minor, blocks);
 		return -1;
 	}
 
@@ -356,12 +364,6 @@ int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev)
 
 	log_msg(lg, "Found device '%s' (%d, %d) of size %dMb",
 			device, major, minor, blocks>>10);
-
-	if (blocks < 200) {
-		log_msg(lg, "+ %s is too small (%dk < 200k), skipped", device, blocks);
-		free(device);
-		return -1;
-	}
 
 #ifdef USE_DEVICES_RECREATING
 	/* Remove old device node. We don't care about unlink() result. */
