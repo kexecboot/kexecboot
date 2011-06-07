@@ -414,11 +414,11 @@ umount:
 		/* HACK: mtdblock devices are hardcoded */
 		if (0 == zaurus_error) {
 			if (0 == strcmp(dev.device, "/dev/mtdblock2")) {	/* root */
-				log_msg(lg, "+ [zaurus root] size of %s will be changed from %lu to %lu",
+				log_msg(lg, "+ [zaurus root] size of %s will be changed from %llu to %lu",
 						dev.device, dev.blocks, pinfo.root);
 				dev.blocks = pinfo.root;
 			} else if (0 == strcmp(dev.device, "/dev/mtdblock3")) {	/* home */
-				log_msg(lg, "+ [zaurus home] size of %s will be changed from %lu to %lu",
+				log_msg(lg, "+ [zaurus home] size of %s will be changed from %llu to %lu",
 						dev.device, dev.blocks, pinfo.home);
 				dev.blocks = pinfo.home;
 			}
@@ -574,7 +574,7 @@ int fill_menu(struct params_t *params)
 			a[max_i] = 1;	/* Mark item as processed */
 			/* We have found new max priority - insert into menu */
 			tbi = bl->list[max_i];
-			snprintf(desc, sizeof_desc, "%s %s %luMb",
+			snprintf(desc, sizeof_desc, "%s %s %lluMb",
 					tbi->device, tbi->fstype, tbi->blocks/1024);
 
 			label = ( tbi->label ? tbi->label : tbi->kernelpath );
