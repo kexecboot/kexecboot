@@ -836,6 +836,10 @@ int process_ctx_textview(struct params_t *params, int action) {
 		if (lg->current_line_no + 1 < lg->rows->fill) ++lg->current_line_no;
 		break;
 	case A_SELECT:
+		/* Rewind log view to top. This should make log view usable
+		 * on devices with 2 buttons only (DOWN and SELECT)
+		 */
+		lg->current_line_no = 0;
 		params->context = KX_CTX_MENU;
 		break;
 	case A_EXIT:
