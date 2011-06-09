@@ -577,7 +577,11 @@ int fill_menu(struct params_t *params)
 			snprintf(desc, sizeof_desc, "%s %s %lluMb",
 					tbi->device, tbi->fstype, tbi->blocks/1024);
 
-			label = ( tbi->label ? tbi->label : tbi->kernelpath );
+			if (tbi->label)
+				label = tbi->label;
+			else
+				label = tbi->kernelpath + sizeof(MOUNTPOINT) - 1;
+
 			log_msg(lg, "+ [%s]", label);
 			mi = menu_item_add(params->menu->top, A_DEVICES + max_i,
 					label, desc, NULL);
