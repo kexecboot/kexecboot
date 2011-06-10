@@ -61,6 +61,9 @@ void gui_show_text(struct gui_t *gui, kx_text *text);
 
 void gui_show_msg(struct gui_t *gui, const char *text);
 
+/* Clear screen */
+void gui_clear(struct gui_t *gui);
+
 void gui_destroy(struct gui_t *gui);
 
 #endif /* USE_FBMENU */

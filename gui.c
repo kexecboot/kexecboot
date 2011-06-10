@@ -158,6 +158,14 @@ void gui_destroy(struct gui_t *gui)
 	free(gui);
 }
 
+
+/* Clear screen */
+void gui_clear(struct gui_t *gui) {
+	fb_draw_rect(gui->fb, 0, 0, gui->fb->width, gui->fb->height, CLR_BG);
+	fb_render(gui->fb);
+}
+
+
 /* Draw text */
 void draw_bg_text(struct gui_t *gui, const char *text)
 {

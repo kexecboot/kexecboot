@@ -986,6 +986,7 @@ int main(int argc, char **argv)
 	rc = do_main_loop(&params, &inputs);
 
 #ifdef USE_FBMENU
+	if (rc < 0) gui_clear(params.gui);
 	gui_destroy(params.gui);
 #endif
 #ifdef USE_TEXTUI
