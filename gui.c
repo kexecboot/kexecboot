@@ -200,7 +200,7 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 		int iscurrent)
 {
 	static FB *fb;
-	static uint32 cbg, cpad, ctext, cline;
+	static kx_rgba cbg, cpad, ctext, cline;
 	static int slot_top, w, h, h2;
 	static kx_picture *icon;
 	

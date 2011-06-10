@@ -337,7 +337,7 @@ fb_draw_hline_16bpp(FB *fb, int x, int y, int length, kx_ccomp red, kx_ccomp gre
 {
 	static char *offset;
 	static int ox, oy, nx;
-	static uint16 color;
+	static uint16_t color;
 
 	fb_respect_angle(fb, x, y, &ox, &oy, &nx);
 	offset = fb->backbuffer + ((oy * fb->real_width + ox) << 1);
@@ -355,7 +355,7 @@ fb_draw_hline_16bpp(FB *fb, int x, int y, int length, kx_ccomp red, kx_ccomp gre
 		oy = length;
 
 	for(; oy > 0; oy--) {
-		*(volatile uint16 *) offset = color;
+		*(volatile uint16_t *) offset = color;
 		offset += nx;
 	}
 }
