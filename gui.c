@@ -59,7 +59,7 @@ void draw_background_low(struct gui_t *gui)
 			CLR_MENU_FRAME);
 
 	/* Draw menu area */
-	fb_draw_rect(fb, gui->x + LYT_MENU_AREA_LEFT,
+	fb_draw_rounded_rect(fb, gui->x + LYT_MENU_AREA_LEFT,
 			gui->y + LYT_MENU_AREA_TOP,
 			LYT_MENU_AREA_WIDTH,
 			LYT_MENU_AREA_HEIGHT,
@@ -221,11 +221,19 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 	icon = (kx_picture *)item->data;
 
 	slot_top = gui->y + LYT_MENU_AREA_TOP + LYT_MNI_HEIGHT * (slot-1); /* Slots are numbered from 1 */
+
 	/* Draw background */
-	fb_draw_rect(fb, gui->x + LYT_MNI_LEFT,
-			slot_top,
-			LYT_MNI_WIDTH,
-			height,	cbg);
+	if (iscurrent) {
+		fb_draw_rounded_rect(fb, gui->x + LYT_MNI_LEFT,
+				slot_top,
+				LYT_MNI_WIDTH,
+				height, cline);
+
+		fb_draw_rounded_rect(fb, gui->x + LYT_MNI_LEFT + 1,
+				slot_top + 1,
+				LYT_MNI_WIDTH - 2,
+				height - 2, cbg);
+	}
 
 	/* Draw icon pad */
 	fb_draw_rounded_rect(fb, gui->x + LYT_MNI_PAD_LEFT,
@@ -266,11 +274,12 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 	}
 	*/
 
-	/* Draw line */
+	/* Draw line *
 	fb_draw_rect(fb, gui->x + LYT_MNI_LEFT,
 			slot_top + LYT_MNI_LINE_TOP,
 			LYT_MNI_LINE_WIDTH,
 			LYT_MNI_LINE_HEIGHT, cline);
+	*/
 }
 
 
