@@ -80,10 +80,10 @@
 #define LYT_PAD_ICON_LOFF	1			/* Offset of icon inside pad from left */
 
 /* Layout: header icon pad (logo) */
-#define LYT_HDR_PAD_HEIGHT	33
-#define LYT_HDR_PAD_WIDTH	33
-#define LYT_HDR_PAD_TOP		(LYT_HDR_HEIGHT - LYT_MENU_FRAME_SIZE - LYT_HDR_PAD_HEIGHT)/2
+#define LYT_HDR_PAD_HEIGHT	34
+#define LYT_HDR_PAD_WIDTH	34
 #define LYT_HDR_PAD_LEFT	LYT_FRAME_SIZE + LYT_MENU_FRAME_SIZE + 3
+#define LYT_HDR_PAD_TOP		(LYT_HDR_HEIGHT - LYT_MENU_FRAME_SIZE - LYT_HDR_PAD_HEIGHT)/2 + 1
 
 /* Layout: header text (centered) */
 //#define LYT_HDR_TEXT_TOP	5
@@ -115,7 +115,7 @@
 #define LYT_MNI_PAD_HEIGHT		LYT_HDR_PAD_HEIGHT
 #define LYT_MNI_PAD_WIDTH		LYT_HDR_PAD_WIDTH
 #define LYT_MNI_PAD_LEFT		LYT_HDR_PAD_LEFT
-#define LYT_MNI_PAD_TOP			(LYT_MNI_HEIGHT - LYT_MNI_LINE_HEIGHT - LYT_MNI_PAD_HEIGHT)/2
+#define LYT_MNI_PAD_TOP			(LYT_MNI_HEIGHT - LYT_MNI_LINE_HEIGHT - LYT_MNI_PAD_HEIGHT)/2 + 1
 
 /* Layout: menu item text */
 //#define LYT_MNI_TEXT_TOP		5			/* Menu item text top pos - middle */
