@@ -33,6 +33,15 @@
 #define COMMAND_LINE_SIZE 255
 #endif
 
+/*
+ * klibc <= 1.5.22 have no ULLONG_MAX defined but have ULONGLONG_MAX instead
+ * So define ULLONG_MAX to ULONGLONG_MAX
+ * FIXME: should we check for ULONGLONG_MAX defined?
+ */
+#ifndef ULLONG_MAX
+#define ULLONG_MAX ULONGLONG_MAX
+#endif
+
 #include "config.h"
 
 /* Macro for dealing with NULL strings */
