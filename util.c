@@ -104,31 +104,38 @@ kx_text *log_open(unsigned int size)
 	return log;
 }
 
-/* Log message */
-void log_msg(kx_text* log, char* fmt, ...)
+inline void
+log_plain_msg(kx_text *log, char *msg)
 {
-	static char buf[512];
+	/* Add to charlist */
+	if (log) addto_charlist(log->rows, msg);
+
+	/* Print to stderr */
+	fputs(msg, stderr);
+	fputs("\n", stderr);
+}
+
+/* Log message */
+void log_msg(kx_text *log, char *fmt, ...)
+{
+	static char *b, *e, buf[512];
 	static va_list ap;
-	static int s;
 
 	/* Format string */
 	va_start(ap, fmt);
 	vsnprintf((char *)&buf, sizeof(buf), fmt, ap);
 	va_end(ap);
 	
-	s = strlen(buf);
-
-	/* Add to charlist */
-	if (log) addto_charlist(log->rows, buf);
-
-	/* Append '\n' */
-	if ((s + 1) < sizeof(buf)) {
-		buf[s] = '\n';
-		buf[s+1] = '\0';
+	/* Split strings by '\n' and add to charlist */
+	b = buf;
+	while (NULL != (e = strchr(b, '\n'))) {
+		*e = '\0'; /* Terminate this part of string */
+		log_plain_msg(log, b);
+		b = e+1;
 	}
-	
-	/* Print to stderr */
-	fputs(buf, stderr);
+
+	/* Process latest part of string if any */
+	if (*b != '\0') log_plain_msg(log, b);
 }
 
 void log_close(kx_text *log)
