@@ -58,6 +58,9 @@ int evdev_is_suitable(int fd)
 		if (test_bit(yalv, evtype_bitmask)) {
 			/* this means that the bit is set in the event types list */
 			switch (yalv) {
+			case EV_SYN:
+				log_msg(lg, " + Sync");
+				break;
 			case EV_KEY:
 				log_msg(lg, " + Keys or Buttons");
 				break;
@@ -276,6 +279,10 @@ int inputs_process_evdev(int fd)
 		log_msg(lg, "Short read of event structure (%d bytes)", nready);
 		return A_ERROR;
 	}
+#ifdef DEBUG
+	log_msg(lg, "+ Read event type %x, code %d (0x%x) value %x",
+			evt.type, evt.code, evt.code, evt.value);
+#endif
 
 	/* EV_KEY event actions */
 	if ((EV_KEY == evt.type) && (0 != evt.value)) {
