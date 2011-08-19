@@ -362,7 +362,7 @@ int devscan_next(FILE *fp, struct charlist *fslist, struct device_t *dev)
 	strcpy(device, "/dev/");
 	strncat(device, tmp, len);
 
-	log_msg(lg, "Found device '%s' (%d, %d) of size %dMb",
+	log_msg(lg, "Found device '%s' (%d, %d) of size %lluMb",
 			device, major, minor, blocks>>10);
 
 #ifdef USE_DEVICES_RECREATING
