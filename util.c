@@ -292,6 +292,9 @@ void setup_terminal(char *ttydev, int *echo_state, int mode)
 	struct termios tc;
 	FILE *f;
 
+	/* Flush unread input */
+	tcflush(fileno(stdin), TCIFLUSH);
+
 	/* Deactivate/Activate terminal input */
 	tcgetattr(fileno(stdin), &tc);
 

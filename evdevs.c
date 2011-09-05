@@ -119,8 +119,6 @@ void evdev_prepare_fd(int fd)
 	/* Set repeat rate on device */
 	ioctl(fd, EVIOCSREP, rep);	/* We don't care about result */
 #endif
-	/* Grab device exclusively */
-	ioctl(fd, EVIOCGRAB, (void *)1);	/* We don't care about result */
 }
 
 /* Initialize inputs structure */
