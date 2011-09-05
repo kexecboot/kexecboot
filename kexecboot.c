@@ -635,6 +635,13 @@ int do_init(void)
 
 	log_msg(lg, "I'm the init-process!");
 
+#ifdef USE_DEVTMPFS
+	if (-1 == mount("devtmpfs", "/dev", "devtmpfs",
+			0, NULL) ) {
+		perror("Can't mount devtmpfs");
+	}
+#endif
+
 	/* Mount procfs */
 	if ( -1 == mount("proc", "/proc", "proc",
 			0, NULL) ) {
