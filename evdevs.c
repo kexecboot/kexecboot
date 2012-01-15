@@ -286,9 +286,11 @@ int inputs_process_evdev(int fd)
 	if ((EV_KEY == evt.type) && (0 != evt.value)) {
 		switch (evt.code) {
 		case KEY_UP:
+		case KEY_VOLUMEUP:
 			action = A_UP;
 			break;
 		case KEY_DOWN:
+		case KEY_VOLUMEDOWN:
 		case BTN_TOUCH:	/* GTA02: touchscreen touch (330) */
 			action = A_DOWN;
 			break;
