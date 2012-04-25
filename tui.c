@@ -39,7 +39,7 @@ struct winsize {
 
 #include "tui.h"
 #include "termseq.h"
-#include "res/theme.h"
+#include "res/theme-tui.h"
 
 /* Get text size */
 void term_text_size(int *width, int *height, const char *text)

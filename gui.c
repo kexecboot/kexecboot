@@ -27,7 +27,7 @@
 #include "xpm.h"
 #include "gui.h"
 
-#include "res/theme.h"
+#include "res/theme-gui.h"
 
 
 /* Draw background with logo */
