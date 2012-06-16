@@ -121,6 +121,8 @@ kx_tui *tui_init(FILE *ts)
 
 void tui_show_menu(kx_tui *tui, kx_menu *menu)
 {
+	if (!tui) return;
+
 	int i,j;
 	int slots = TUI_LYT_MENU_HEIGHT/TUI_LYT_MNI_HEIGHT;
 	kx_menu_level *ml;
@@ -156,6 +158,8 @@ void tui_show_menu(kx_tui *tui, kx_menu *menu)
 
 void tui_show_text(kx_tui *tui, kx_text *text)
 {
+	if (!tui) return;
+
 	int i, y, w, h;
 	int max_y;
 	
@@ -183,6 +187,8 @@ void tui_show_text(kx_tui *tui, kx_text *text)
 
 void tui_show_msg(kx_tui *tui, const char *text)
 {
+	if (!tui) return;
+
 	/* Goto 1,1; switch color; draw 3 lines */
 	fprintf(tui->ts, TERM_CSI_ED TERM_CSI "1;1" TERM_CUP TUI_CLR_BG TERM_CSI_EL "\n"
 		" %s" TERM_CSI_EEL "\n" TERM_CSI_EL "\n", text);

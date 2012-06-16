@@ -294,6 +294,8 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 /* Display bootlist menu with selection */
 void gui_show_menu(struct gui_t *gui, kx_menu *menu)
 {
+	if (!gui) return;
+
 	int i,j;
 	int slotheight = LYT_MNI_HEIGHT;
 	int slots = gui->height/slotheight -1;
@@ -328,6 +330,8 @@ void gui_show_menu(struct gui_t *gui, kx_menu *menu)
 
 void gui_show_text(struct gui_t *gui, kx_text *text)
 {
+	if (!gui) return;
+
 	int i, y;
 	int max_x, max_y;
 
@@ -356,6 +360,8 @@ void gui_show_text(struct gui_t *gui, kx_text *text)
 /* Display custom text near logo */
 void gui_show_msg(struct gui_t *gui, const char *text)
 {
+	if (!gui) return;
+
 	draw_background(gui, text);
 	fb_render(gui->fb);
 }
