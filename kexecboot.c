@@ -328,7 +328,8 @@ int scan_devices(struct params_t *params)
 	int rows, bpp;
 	char **xpm_data;
 
-	bpp = params->gui->fb->bpp;
+	if (params->gui) bpp = params->gui->fb->bpp;
+	else bpp = 0;
 #endif
 
 	bootconf = create_bootcfg(4);
@@ -376,24 +377,26 @@ int scan_devices(struct params_t *params)
 
 #ifdef USE_ICONS
 		/* Iterate over sections found */
-		for (i = 0; i < cfgdata.count; i++) {
-			sc = cfgdata.list[i];
-			if (!sc) continue;
+		if (params->gui) {
+			for (i = 0; i < cfgdata.count; i++) {
+				sc = cfgdata.list[i];
+				if (!sc) continue;
 
-			/* Load custom icon */
-			if (sc->iconpath) {
-				rows = xpm_load_image(&xpm_data, sc->iconpath);
-				if (-1 == rows) {
-					log_msg(lg, "+ can't load xpm icon %s", sc->iconpath);
-					continue;
-				}
+				/* Load custom icon */
+				if (sc->iconpath) {
+					rows = xpm_load_image(&xpm_data, sc->iconpath);
+					if (-1 == rows) {
+						log_msg(lg, "+ can't load xpm icon %s", sc->iconpath);
+						continue;
+					}
 
-				sc->icondata = xpm_parse_image(xpm_data, rows, bpp);
-				if (!sc->icondata) {
-					log_msg(lg, "+ can't parse xpm icon %s", sc->iconpath);
-					continue;
+					sc->icondata = xpm_parse_image(xpm_data, rows, bpp);
+					if (!sc->icondata) {
+						log_msg(lg, "+ can't parse xpm icon %s", sc->iconpath);
+						continue;
+					}
+					xpm_destroy_image(xpm_data, rows);
 				}
-				xpm_destroy_image(xpm_data, rows);
 			}
 		}
 #endif
@@ -450,7 +453,8 @@ kx_menu *build_menu(struct params_t *params)
 #ifdef USE_ICONS
 	kx_picture **icons;
 	
-	icons = params->gui->icons;
+	if (params->gui) icons = params->gui->icons;
+	else icons = NULL;
 #endif
 	
 	/* Create menu with 2 levels (main and system) */
@@ -474,38 +478,38 @@ kx_menu *build_menu(struct params_t *params)
 	or we should set item's data to icon somewhere else */
 	mi = menu_item_add(menu->top, A_SUBMENU, "System menu", NULL, ml);
 #ifdef USE_ICONS
-	menu_item_set_data(mi, icons[ICON_SYSTEM]);
+	if (icons) menu_item_set_data(mi, icons[ICON_SYSTEM]);
 #endif
 
 	mi = menu_item_add(ml, A_PARENTMENU, "Back", NULL, NULL);
 #ifdef USE_ICONS
-	menu_item_set_data(mi, icons[ICON_BACK]);
+	if (icons) menu_item_set_data(mi, icons[ICON_BACK]);
 #endif
 
 	mi = menu_item_add(ml, A_RESCAN, "Rescan", NULL, NULL);
 #ifdef USE_ICONS
-	menu_item_set_data(mi, icons[ICON_RESCAN]);
+	if (icons) menu_item_set_data(mi, icons[ICON_RESCAN]);
 #endif
 
 	mi = menu_item_add(ml, A_DEBUG, "Show debug info", NULL, NULL);
 #ifdef USE_ICONS
-	menu_item_set_data(mi, icons[ICON_DEBUG]);
+	if (icons) menu_item_set_data(mi, icons[ICON_DEBUG]);
 #endif
 
 	mi = menu_item_add(ml, A_REBOOT, "Reboot", NULL, NULL);
 #ifdef USE_ICONS
-	menu_item_set_data(mi, icons[ICON_REBOOT]);
+	if (icons) menu_item_set_data(mi, icons[ICON_REBOOT]);
 #endif
 
 	mi = menu_item_add(ml, A_SHUTDOWN, "Shutdown", NULL, NULL);
 #ifdef USE_ICONS
-	menu_item_set_data(mi, icons[ICON_SHUTDOWN]);
+	if (icons) menu_item_set_data(mi, icons[ICON_SHUTDOWN]);
 #endif
 
 	if (!initmode) {
 		mi = menu_item_add(ml, A_EXIT, "Exit", NULL, NULL);
 #ifdef USE_ICONS
-		menu_item_set_data(mi, icons[ICON_EXIT]);
+		if (icons) menu_item_set_data(mi, icons[ICON_EXIT]);
 #endif
 	}
 
@@ -587,28 +591,30 @@ int fill_menu(struct params_t *params)
 					label, desc, NULL);
 
 #ifdef USE_FBMENU
-			/* Search associated with boot item icon if any */
-			icon = tbi->icondata;
-			if (NULL == icon) {
-				/* We have no custom icon - use default */
-				switch (tbi->dtype) {
-				case DVT_STORAGE:
-					icon = gui->icons[ICON_STORAGE];
-					break;
-				case DVT_MMC:
-					icon = gui->icons[ICON_MMC];
-					break;
-				case DVT_MTD:
-					icon = gui->icons[ICON_MEMORY];
-					break;
-				case DVT_UNKNOWN:
-				default:
-					break;
+			if (gui) {
+				/* Search associated with boot item icon if any */
+				icon = tbi->icondata;
+				if (!icon && (gui->icons)) {
+					/* We have no custom icon - use default */
+					switch (tbi->dtype) {
+					case DVT_STORAGE:
+						icon = gui->icons[ICON_STORAGE];
+						break;
+					case DVT_MMC:
+						icon = gui->icons[ICON_MMC];
+						break;
+					case DVT_MTD:
+						icon = gui->icons[ICON_MEMORY];
+						break;
+					case DVT_UNKNOWN:
+					default:
+						break;
+					}
 				}
+
+				/* Add icon to menu */
+				if (mi) mi->data = icon;
 			}
-			
-			/* Add icon to menu */
-			if (mi) mi->data = icon;
 #endif
 		}
 
@@ -705,12 +711,6 @@ int process_ctx_menu(struct params_t *params, int action) {
 	static int rc;
 	static int menu_action;
 	static kx_menu *menu;
-#ifdef USE_FBMENU
-	static struct gui_t *gui;
-
-	gui = params->gui;
-#endif
-
 	menu = params->menu;
 
 #ifdef USE_NUMKEYS
@@ -745,7 +745,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 
 	case A_REBOOT:
 #ifdef USE_FBMENU
-		gui_show_msg(gui, "Rebooting...");
+		gui_show_msg(params->gui, "Rebooting...");
 #endif
 #ifdef USE_TEXTUI
 		tui_show_msg(params->tui, "Rebooting...");
@@ -762,7 +762,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 		break;
 	case A_SHUTDOWN:
 #ifdef USE_FBMENU
-		gui_show_msg(gui, "Shutting down...");
+		gui_show_msg(params->gui, "Shutting down...");
 #endif
 #ifdef USE_TEXTUI
 		tui_show_msg(params->tui, "Shutting down...");
@@ -780,7 +780,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 
 	case A_RESCAN:
 #ifdef USE_FBMENU
-		gui_show_msg(gui, "Rescanning devices.\nPlease wait...");
+		gui_show_msg(params->gui, "Rescanning devices.\nPlease wait...");
 #endif
 #ifdef USE_TEXTUI
 		tui_show_msg(params->tui, "Rescanning devices.\nPlease wait...");
@@ -954,26 +954,32 @@ int main(int argc, char **argv)
 	sleep(USE_DELAY);
 #endif
 
+	int no_ui = 1;	/* UI presence flag */
 #ifdef USE_FBMENU
-	params.gui = gui_init(cfg.angle);
-	if (NULL == params.gui) {
-		DPRINTF("Can't initialize GUI");
-		exit(-1);	/* FIXME dont exit while other UI exists */
+	params.gui = NULL;
+	if (no_ui) {
+		params.gui = gui_init(cfg.angle);
+		if (NULL == params.gui) {
+			log_msg(lg, "Can't initialize GUI");
+		} else no_ui = 0;
 	}
 #endif
 #ifdef USE_TEXTUI
 	FILE *ttyfp;
+	params.tui = NULL;
+	if (no_ui) {
 
-	if (cfg.ttydev) ttyfp = fopen(cfg.ttydev, "w");
-	else ttyfp = stdout;
+		if (cfg.ttydev) ttyfp = fopen(cfg.ttydev, "w");
+		else ttyfp = stdout;
 
-	params.tui = tui_init(ttyfp);
-	if (NULL == params.tui) {
-		DPRINTF("Can't initialize TUI");
-		if (ttyfp != stdout) fclose(ttyfp);
-		exit(-1);	/* FIXME dont exit while other UI exists */
+		params.tui = tui_init(ttyfp);
+		if (NULL == params.tui) {
+			log_msg(lg, "Can't initialize TUI");
+			if (ttyfp != stdout) fclose(ttyfp);
+		} else no_ui = 0;
 	}
 #endif
+	if (no_ui) exit(-1); /* Exit if no one UI was initialized */
 	
 	params.menu = build_menu(&params);
 	params.bootcfg = NULL;
@@ -993,12 +999,16 @@ int main(int argc, char **argv)
 	rc = do_main_loop(&params, &inputs);
 
 #ifdef USE_FBMENU
-	if (rc < 0) gui_clear(params.gui);
-	gui_destroy(params.gui);
+	if (params.gui) {
+		if (rc < 0) gui_clear(params.gui);
+		gui_destroy(params.gui);
+	}
 #endif
 #ifdef USE_TEXTUI
-	tui_destroy(params.tui);
-	if (ttyfp != stdout) fclose(ttyfp);
+	if (params.tui) {
+		tui_destroy(params.tui);
+		if (ttyfp != stdout) fclose(ttyfp);
+	}
 #endif
 	inputs_close(&inputs);
 	inputs_clean(&inputs);
