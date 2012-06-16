@@ -941,14 +941,13 @@ int fb_draw_constrained_text(FB * fb, int x, int y,
 		int max_x, int max_y, kx_rgba rgba,
 		const Font * font, const char *text)
 {
-	int h, w, n, cx, cy, dx, dy;
+	int h, w, cx, cy, dx, dy;
 	char *c = (char *) text;
 	kx_ccomp r, g, b, a;
 	u_int32_t gl;
 
 	rgba2comp(rgba, &r, &g, &b, &a);
 
-	n = strlen(text);
 	h = font->height;
 	dx = x; dy = y;
 
