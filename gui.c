@@ -91,6 +91,7 @@ struct gui_t *gui_init(int angle)
 
 	if (NULL == fb) {
 		log_msg(lg, "Can't initialize framebuffer");
+		free(gui);
 		return NULL;
 	}
 
