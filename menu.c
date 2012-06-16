@@ -45,6 +45,8 @@ kx_menu *menu_create(kx_menu_dim size)
 	menu->size = size;
 	menu->count = 0;
 	menu->next_id = 0;
+	menu->top = NULL;
+	menu->current = NULL;
 	return menu;
 }
 
@@ -94,10 +96,15 @@ kx_menu_level *menu_level_create(kx_menu *menu, kx_menu_dim size,
 	level->size = size;
 	level->count = 0;
 	level->current_no = 0;
+	level->current = NULL;
 	level->parent = parent;
-	
-	menu->list[menu->count++] = level;
-	
+
+	menu->list[menu->count] = level;
+
+	if (!menu->current) menu->current = level;
+
+	++menu->count;
+
 	return level;
 }
 
@@ -136,9 +143,17 @@ kx_menu_item *menu_item_add(kx_menu_level *level, kx_menu_id id,
 	item->description = ( description ? strdup(description) : NULL );
 	item->id = id;
 	item->submenu = submenu;
-	
-	level->list[level->count++] = item;
-	
+
+	level->list[level->count] = item;
+
+	/* If there is no current item yet then make this item current */
+	if (!level->current) {
+		level->current = item;
+		level->current_no = level->count;
+	}
+
+	++level->count;
+
 	return item;
 }
 
