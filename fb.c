@@ -570,11 +570,11 @@ attempt_to_change_pixel_format(FB * fb, struct fb_var_screeninfo *fb_var)
 	fb_var->transp.offset = 0;
 	fb_var->transp.length = 0;
 
-	if (ioctl(fb->fd, FBIOPUT_VSCREENINFO, fb_var) == 0) {
-		log_msg(lg, "Switched to a 32 bpp 8,8,8 frame buffer");
+	if ((ioctl(fb->fd, FBIOPUT_VSCREENINFO, fb_var) == 0) && (32 == fb_var->bits_per_pixel)) {
+		log_msg(lg, "Switched to a 32bpp mode");
 		return 1;
 	} else {
-		log_msg(lg, "Error, failed to switch to a 32 bpp 8,8,8 frame buffer");
+		log_msg(lg, "Failed to switch to a 32bpp mode, trying 16bpp");
 	}
 
 	/* Otherwise try a 16bpp 5,6,5 format */
@@ -593,11 +593,11 @@ attempt_to_change_pixel_format(FB * fb, struct fb_var_screeninfo *fb_var)
 	fb_var->transp.offset = 0;
 	fb_var->transp.length = 0;
 
-	if (ioctl(fb->fd, FBIOPUT_VSCREENINFO, fb_var) == 0) {
-		log_msg(lg, "Switched to a 16 bpp 5,6,5 frame buffer");
+	if ((ioctl(fb->fd, FBIOPUT_VSCREENINFO, fb_var) == 0) && (16 == fb_var->bits_per_pixel)) {
+		log_msg(lg, "Switched to a 16bpp mode");
 		return 1;
 	} else {
-		log_msg(lg, "Error, failed to switch to a 16 bpp 5,6,5 frame buffer");
+		log_msg(lg, "Failed to switch to a 16bpp mode, giving up");
 	}
 
 	return 0;
@@ -761,6 +761,10 @@ FB *fb_new(int angle)
 		break;
 	}
 
+#ifdef DEBUG
+	print_fb(fb);
+#endif
+
 	switch (fb->depth) {
 #ifdef USE_32BPP
 	case 32:
@@ -811,10 +815,6 @@ FB *fb_new(int angle)
 		return NULL;
 		break;
 	}
-
-#ifdef DEBUG
-	print_fb(fb);
-#endif
 
 	return fb;
 
