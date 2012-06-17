@@ -15,12 +15,14 @@
  *
  */
 
+#include "config.h"
+
+#ifdef USE_FBMENU
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
-#include "config.h"
 #include "rgb.h"
 #include "rgbtab.h"
 
@@ -162,3 +164,4 @@ kx_rgba cname2rgba(char *cname)
 	}
 }
 
+#endif	/* USE_FBMENU */

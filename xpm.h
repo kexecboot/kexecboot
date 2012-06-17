@@ -34,6 +34,8 @@
 #define _HAVE_XPM_H
 
 #include "config.h"
+
+#ifdef USE_ICONS
 #include "fb.h"
 
 /* Limit maximum xpm file size to 64Kb */
@@ -103,4 +105,5 @@ int xpm_load_image(char ***xpm_data, const char *filename);
 kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 		unsigned int bpp);
 
+#endif // USE_ICONS
 #endif // _HAVE_XPM_H

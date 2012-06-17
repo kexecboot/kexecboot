@@ -20,6 +20,9 @@
 #ifndef _HAVE_FB_H
 #define _HAVE_FB_H
 
+#include "config.h"
+
+#ifdef USE_FBMENU
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -31,7 +34,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "config.h"
 #include "util.h"
 #include "res/fonts/font.h"
 #include "rgb.h"
@@ -128,4 +130,5 @@ void fb_draw_picture(FB * fb, int x, int y, kx_picture *pic);
 /* Free picture's data structure */
 void fb_destroy_picture(kx_picture *pic);
 
+#endif	/* USE_FBMENU */
 #endif	/* _HAVE_FB_H */

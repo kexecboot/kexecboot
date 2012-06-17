@@ -19,6 +19,8 @@
 #define _HAVE_RGB_H
 
 #include "config.h"
+
+#ifdef USE_FBMENU
 #include "util.h"
 
 /* RGB ordering */
@@ -59,4 +61,5 @@ kx_rgba hex2rgba(char *hex);
 /* Convert color name to rgba color */
 kx_rgba cname2rgba(char *cname);
 
+#endif	/* USE_FBMENU */
 #endif	/* HAVE_RGB_H */

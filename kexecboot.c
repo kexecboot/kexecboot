@@ -474,8 +474,6 @@ kx_menu *build_menu(struct params_t *params)
 		return menu;
 	}
 
-	/* FIXME: sysmenu icons should be passed here somehow
-	or we should set item's data to icon somewhere else */
 	mi = menu_item_add(menu->top, A_SUBMENU, "System menu", NULL, ml);
 #ifdef USE_ICONS
 	if (icons) menu_item_set_data(mi, icons[ICON_SYSTEM]);
@@ -528,7 +526,7 @@ int fill_menu(struct params_t *params)
 	struct bootconf_t *bl;
 	const int sizeof_desc = 160;
 	char *desc, *label;
-#ifdef USE_FBMENU
+#ifdef USE_ICONS
 	kx_picture *icon;
 	struct gui_t *gui;
 
@@ -590,7 +588,7 @@ int fill_menu(struct params_t *params)
 			mi = menu_item_add(params->menu->top, A_DEVICES + max_i,
 					label, desc, NULL);
 
-#ifdef USE_FBMENU
+#ifdef USE_ICONS
 			if (gui) {
 				/* Search associated with boot item icon if any */
 				icon = tbi->icondata;

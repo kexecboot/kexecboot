@@ -16,6 +16,9 @@
  *
  */
 
+#include "config.h"
+
+#ifdef USE_ICONS
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,7 +29,6 @@
 #include <ctype.h>
 #include <errno.h>
 
-#include "config.h"
 #include "xpm.h"
 
 /* XPM metadata (internal, not needed for drawing code) */
@@ -638,3 +640,4 @@ free_nothing:
 
 }
 
+#endif	// USE_ICONS

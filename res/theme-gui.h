@@ -81,7 +81,11 @@
 
 /* Layout: header icon pad (logo) */
 #define LYT_HDR_PAD_HEIGHT	34
+#ifdef USE_ICONS
 #define LYT_HDR_PAD_WIDTH	34
+#else
+#define LYT_HDR_PAD_WIDTH	0
+#endif
 #define LYT_HDR_PAD_LEFT	LYT_FRAME_SIZE + LYT_MENU_FRAME_SIZE + 3
 #define LYT_HDR_PAD_TOP		(LYT_HDR_HEIGHT - LYT_MENU_FRAME_SIZE - LYT_HDR_PAD_HEIGHT)/2 + 1
 
@@ -121,5 +125,3 @@
 //#define LYT_MNI_TEXT_TOP		5			/* Menu item text top pos - middle */
 #define LYT_MNI_TEXT_LEFT		LYT_MNI_PAD_LEFT + LYT_MNI_PAD_WIDTH + 3
 #endif	/* USE_FBMENU */
-
-

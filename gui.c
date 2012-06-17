@@ -24,8 +24,11 @@
 #include <string.h>
 
 #include "fb.h"
-#include "xpm.h"
 #include "gui.h"
+
+#ifdef USE_ICONS
+#include "xpm.h"
+#endif
 
 #include "res/theme-gui.h"
 
@@ -41,6 +44,7 @@ void draw_background_low(struct gui_t *gui)
 	/* Fill background */
 	fb_draw_rect(fb, 0, 0, fb->width, fb->height, CLR_BG);
 
+#ifdef USE_ICONS
 	/* Draw icon pad */
 	fb_draw_rounded_rect(fb, gui->x + LYT_HDR_PAD_LEFT,
 			gui->y + LYT_HDR_PAD_TOP,
@@ -50,6 +54,7 @@ void draw_background_low(struct gui_t *gui)
 	fb_draw_picture(fb, gui->x + LYT_HDR_PAD_LEFT + LYT_PAD_ICON_LOFF,
 			gui->y + LYT_HDR_PAD_TOP + LYT_PAD_ICON_TOFF,
 			gui->icons[ICON_LOGO]);
+#endif
 
 	/* Draw menu frame */
 	fb_draw_rounded_rect(fb, gui->x + LYT_MENU_FRAME_LEFT,
@@ -78,7 +83,6 @@ struct gui_t *gui_init(int angle)
 {
 	struct gui_t *gui;
 	FB *fb;
-	int bpp;
 
 	gui = malloc(sizeof(*gui));
 	if (NULL == gui) {
@@ -115,9 +119,11 @@ struct gui_t *gui_init(int angle)
 	gui->x = (fb->width - gui->width)/2;
 	gui->y = (fb->height - gui->height)/2;
 
+#ifdef USE_ICONS
 	/* Parse compiled images.
 	 * We don't care about result because drawing code is aware
 	 */
+	int bpp;
 	bpp = fb->bpp;
 
 	gui->icons = malloc(sizeof(*(gui->icons)) * ICON_ARRAY_SIZE);
@@ -133,6 +139,7 @@ struct gui_t *gui_init(int angle)
 	gui->icons[ICON_REBOOT] = xpm_parse_image(reboot_xpm, ROWS(reboot_xpm), bpp);
 	gui->icons[ICON_SHUTDOWN] = xpm_parse_image(shutdown_xpm, ROWS(shutdown_xpm), bpp);
 	gui->icons[ICON_EXIT] = xpm_parse_image(exit_xpm, ROWS(exit_xpm), bpp);
+#endif
 
 #ifdef USE_BG_BUFFER
 	/* Pre-draw background and store it in special buffer */
@@ -148,12 +155,15 @@ struct gui_t *gui_init(int angle)
 void gui_destroy(struct gui_t *gui)
 {
 	if (NULL == gui) return;
+
+#ifdef USE_ICONS
 	enum icon_id_t i;
 
 	for (i=ICON_LOGO; i<ICON_ARRAY_SIZE; i++) {
 		fb_destroy_picture(gui->icons[i]);
 	}
 	free(gui->icons);
+#endif
 
 	fb_destroy(gui->fb);
 	free(gui);
@@ -211,7 +221,6 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 	static FB *fb;
 	static kx_rgba cbg, cpad, ctext, cline;
 	static int slot_top, w, h, h2;
-	static kx_picture *icon;
 	
 	fb = gui->fb;
 
@@ -227,7 +236,10 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 		cline = CLR_SMNI_LINE;
 	}
 	
+#ifdef USE_ICONS
+	static kx_picture *icon;
 	icon = (kx_picture *)item->data;
+#endif
 
 	slot_top = gui->y + LYT_MENU_AREA_TOP + LYT_MNI_HEIGHT * (slot-1); /* Slots are numbered from 1 */
 
@@ -244,6 +256,7 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 				height - 2, cbg);
 	}
 
+#ifdef USE_ICONS
 	/* Draw icon pad */
 	fb_draw_rounded_rect(fb, gui->x + LYT_MNI_PAD_LEFT,
 			slot_top + LYT_MNI_PAD_TOP,
@@ -255,6 +268,7 @@ void draw_slot(struct gui_t *gui, kx_menu_item *item, int slot, int height,
 				slot_top + LYT_MNI_PAD_TOP + LYT_PAD_ICON_TOFF,
 				icon);
 	}
+#endif
 
 	/* Calculate text size */
 	fb_text_size(fb, &w, &h, DEFAULT_FONT, item->label);

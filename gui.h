@@ -23,8 +23,10 @@
 
 #ifdef USE_FBMENU
 #include "fb.h"
-#include "xpm.h"
 #include "menu.h"
+
+#ifdef USE_ICONS
+#include "xpm.h"
 
 enum icon_id_t {
 	ICON_LOGO = 0,
@@ -41,6 +43,7 @@ enum icon_id_t {
 
 	ICON_ARRAY_SIZE		/* should be latest item */
 };
+#endif
 
 struct gui_t {
 	FB *fb;
@@ -49,7 +52,9 @@ struct gui_t {
 #ifdef USE_BG_BUFFER
 	char *bg_buffer;
 #endif
+#ifdef USE_ICONS
 	kx_picture **icons;
+#endif
 };
 
 
