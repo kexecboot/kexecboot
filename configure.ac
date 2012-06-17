@@ -53,6 +53,15 @@ AC_ARG_ENABLE([bpp], [AS_HELP_STRING([--enable-bpp@<:@=list@:>@],[enable support
 ],
 [enable_all_bpp=yes])
 
+AC_ARG_ENABLE([fb-transfer-width], [AS_HELP_STRING([--enable-fb-transfer-width@<:@=bits@:>@],[choose RAM to framebuffer transfer width (32/16/8 bits) @<:@default=32@:>@])],
+[
+	case ${enable_fb_transfer_width} in
+		32 | 16 | 8) ;;
+		*) echo "ERROR: $enable_fb_transfer_width is wrong value for --enable-fb-transfer-width!"; exit 1;;
+	esac
+],
+[enable_fb_transfer_width=32])
+
 AC_ARG_ENABLE([evdev-rate],[AS_HELP_STRING([--enable-evdev-rate@<:@=first_delay,repeat_delay@:>@],[change evdev (keyboard/mouse) repeat rate (in milliseconds) @<:@default=no@:>@])], [
 	test "x$enable_evdev_rate" = xyes && enable_evdev_rate="1000,250"
 ],[enable_evdev_rate=no])
@@ -122,6 +131,22 @@ AS_IF([test "x$enable_fbui" != xno],
 			AC_DEFINE([USE_4BPP],  [1], [Define if you want to support this bpp mode])
 			AC_DEFINE([USE_2BPP],  [1], [Define if you want to support this bpp mode])
 			AC_DEFINE([USE_1BPP],  [1], [Define if you want to support this bpp mode])
+			],[])
+
+		AS_IF([test "x$enable_fb_transfer_width" == x32],
+			[
+			AC_DEFINE([USE_FB_TRANS_TYPE], [uint32_t], [Data type for RAM-to-FB transfers])
+			AC_DEFINE([USE_FB_TRANS_LENGTH(x)], [(x >> 2)], [How to change data length for RAM-to-FB transfers])
+			],[])
+		AS_IF([test "x$enable_fb_transfer_width" == x16],
+			[
+			AC_DEFINE([USE_FB_TRANS_TYPE], [uint16_t], [Data type for RAM-to-FB transfers])
+			AC_DEFINE([USE_FB_TRANS_LENGTH(x)], [(x >> 1)], [How to change data length for RAM-to-FB transfers])
+			],[])
+		AS_IF([test "x$enable_fb_transfer_width" == x8],
+			[
+			AC_DEFINE([USE_FB_TRANS_TYPE], [uint8_t], [Data type for RAM-to-FB transfers])
+			AC_DEFINE([USE_FB_TRANS_LENGTH(x)], [(x)], [How to change data length for RAM-to-FB transfers])
 			],[])
 		],[])
 

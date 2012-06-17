@@ -494,12 +494,12 @@ fb_draw_hline_1bpp(FB *fb, int x, int y, int length, kx_ccomp red, kx_ccomp gree
 void
 fb_memcpy(char *src, char *dst, int length)
 {
-	static uint32_t *s, *d;
+	static USE_FB_TRANS_TYPE *s, *d;
 	static int n;
 
-	s = (uint32_t *)src;
-	d = (uint32_t *)dst;
-	n = length >> 2;
+	s = (USE_FB_TRANS_TYPE *)src;
+	d = (USE_FB_TRANS_TYPE *)dst;
+	n = USE_FB_TRANS_LENGTH(length);
 
 	while (n--) {
 		*(d++) = *(s++);
