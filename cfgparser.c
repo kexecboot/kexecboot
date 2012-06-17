@@ -117,10 +117,11 @@ static int set_label(struct cfgdata_t *cfgdata, char *value)
 {
 	kx_cfg_section *sc;
 
-	sc = cfgdata->current;
+	/* Allocate new section */
+	sc = cfg_section_new(cfgdata);
+
 	if (!sc) return -1;
 
-	dispose(sc->label);
 	sc->label = strdup(value);
 	return 0;
 }
@@ -128,12 +129,11 @@ static int set_label(struct cfgdata_t *cfgdata, char *value)
 static int set_kernel(struct cfgdata_t *cfgdata, char *value)
 {
 	kx_cfg_section *sc;
-	
-	/* Allocate new section */
-	sc = cfg_section_new(cfgdata);
 
+	sc = cfgdata->current;
 	if (!sc) return -1;
-	
+
+	dispose(sc->kernelpath);
 	/* Add our mountpoint, since the enduser won't know it */
 	sc->kernelpath = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
 	if (NULL == sc->kernelpath) {
