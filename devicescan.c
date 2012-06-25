@@ -232,8 +232,14 @@ const char *detect_fstype(char *device, struct charlist *fl)
 
 	/* Check that FS is known */
 	if (in_charlist(fl, fstype) < 0) {
-		log_msg(lg, "+ FS %s is not supported by kernel", fstype);
+
+		/* whitelist 'ubi', we assume it is ubifs */
+		if (!strncmp(fstype, "ubi",3)) {
+			log_msg(lg, "+ found %s container: assume ubifs", fstype);
+		} else {
+			log_msg(lg, "+ FS %s is not supported by kernel", fstype);
 		return NULL;
+		}
 	}
 
 	return(fstype);
