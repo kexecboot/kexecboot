@@ -653,6 +653,13 @@ int do_init(void)
 		exit(-1);
 	}
 
+	/* Mount sysfs */
+	if ( -1 == mount("sysfs", "/sys", "sysfs",
+			0, NULL) ) {
+		perror("Can't mount sysfs");
+		exit(-1);
+	}
+
 	FILE *f;
 	/* Set up console loglevel */
 	f = fopen("/proc/sys/kernel/printk", "w");
