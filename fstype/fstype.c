@@ -66,6 +66,19 @@
 /* Swap needs the definition of block size */
 #include "swap_fs.h"
 
+static int ubi_image(const void *buf, unsigned long long *blocks)
+{
+	const unsigned char *p = buf;
+	/* Erase count header (always Big Endian) */
+	/* UBI#  0x55 0x42 0x49 0x23 */
+	/*        U    B    I    #   */
+	if (p[0] == 0x55 && p[1] == 0x42 && p[2] == 0x49 && p[3] == 0x23) {
+		*blocks=0;
+		return 1;
+	}
+	return 0;
+}
+
 static int jffs2_image(const void *buf, unsigned long long *blocks)
 {
 	const unsigned char *p = buf;
@@ -525,6 +538,7 @@ static struct imagetype images[] = {
 	{1, "ext3", ext3_image},
 	{1, "ext2", ext2_image},
 	{1, "minix", minix_image},
+	{0, "ubi", ubi_image},
 	{0, "jffs2", jffs2_image},
 	{0, "vfat", vfat_image},
 	{1, "nilfs2", nilfs2_image},
