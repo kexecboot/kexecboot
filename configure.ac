@@ -71,6 +71,12 @@ AC_ARG_WITH([kexec-binary],[AS_HELP_STRING([--with-kexec-binary="path"],[look fo
 test "x$with_kexec_binary" = xyes && with_kexec_binary="/usr/sbin/kexec"
 ],[with_kexec_binary="/usr/sbin/kexec"])
 
+AC_ARG_WITH([ubiattach-binary],[AS_HELP_STRING([--with-ubiattach-binary="path"],[look for ubiattach binary at path @<:@default="/usr/sbin/ubiattach"@:>@])],[
+test "x$with_ubiattach_binary" = xyes && with_ubiattach_binary="/usr/sbin/ubiattach"
+],[with_ubiattach_binary="/usr/sbin/ubiattach"])
+
+AC_ARG_ENABLE([ubi-vid-hdr-offset],[AS_HELP_STRING([--enable-ubi-vid-hdr-offset@<:@=bytes@:>@],[UBI VID header offset @<:@default=no@:>@])], [],[enable_ubi_vid_hdr_offset=no])
+
 
 AS_IF([test "x$enable_fbui" != xno],
 		[
@@ -213,6 +219,16 @@ AS_IF([test "x$enable_delay" != xno],
 AS_IF([test "x$with_kexec_binary" != "xno"],
 		[
 		AC_DEFINE_UNQUOTED([KEXEC_PATH], ["${with_kexec_binary}"], [Where to look for kexec binary])
+		], [])
+
+AS_IF([test "x$with_ubiattach_binary" != "xno"],
+		[
+		AC_DEFINE_UNQUOTED([UBIATTACH_PATH], ["${with_ubiattach_binary}"], [Where to look for ubiattach binary])
+		], [])
+
+AS_IF([test "x$enable_ubi_vid_hdr_offset" != "xno"],
+		[
+		AC_DEFINE_UNQUOTED([UBI_VID_HDR_OFFSET], ["${enable_ubi_vid_hdr_offset}"], [UBI VID header offset])
 		], [])
 
 AS_IF([test "x$enable_evdev_rate" != xno],
