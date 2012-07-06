@@ -186,6 +186,18 @@ void start_kernel(struct params_t *params, int choice)
 	const char str_cmdline_start[] = "--command-line=root=";
 	const char str_rootfstype[] = " rootfstype=";
 	const char str_rootwait[] = " rootwait";
+	const char str_ubirootdev[] = "ubi0";
+	const char str_ubimtd[] = " ubi.mtd="; /* max ' ubi.mtd=15' len 11 +1 = 12 */
+
+#ifdef UBI_VID_HDR_OFFSET
+	const char str_ubimtd_off[] = UBI_VID_HDR_OFFSET;
+#else
+	const char str_ubimtd_off[] = "";
+#endif
+
+	char mount_dev[16];
+	char mount_fstype[16];
+	char str_mtd_id[3];
 
 	/* Tags passed from host kernel cmdline to kexec'ed kernel */
 	const char str_mtdparts[] = " mtdparts=";
@@ -200,7 +212,7 @@ void start_kernel(struct params_t *params, int choice)
 	const char *exec_argv[] = { NULL, "-e", NULL, NULL};
 
 	char *cmdline_arg = NULL, *initrd_arg = NULL;
-	int n, idx;
+	int n, idx, u;
 	struct stat sinfo;
 	struct boot_item_t *item;
 
@@ -214,10 +226,15 @@ void start_kernel(struct params_t *params, int choice)
 
 	/* fill '--command-line' option */
 	if (item->device) {
+		/* default device to mount */
+		strcpy(mount_dev, item->device);
+
 		/* allocate space */
 		n = sizeof(str_cmdline_start) + strlen(item->device) +
+				sizeof(str_ubirootdev) + 2 +
+				sizeof(str_ubimtd) + 2 + sizeof(str_ubimtd_off) + 1 +
 				sizeof(str_rootwait) +
-				sizeof(str_rootfstype) + strlen(item->fstype) +
+				sizeof(str_rootfstype) + strlen(item->fstype) + 2 +
 				sizeof(str_mtdparts) + strlenn(params->cfg->mtdparts) +
 				sizeof(str_fbcon) + strlenn(params->cfg->fbcon) +
 				sizeof(char) + strlenn(item->cmdline);
@@ -226,13 +243,52 @@ void start_kernel(struct params_t *params, int choice)
 		if (NULL == cmdline_arg) {
 			perror("Can't allocate memory for cmdline_arg");
 		} else {
+
 			strcpy(cmdline_arg, str_cmdline_start);	/* --command-line=root= */
-			strcat(cmdline_arg, item->device);
+
 			if (item->fstype) {
-				strcat(cmdline_arg, str_rootfstype);	/* rootfstype */
-				strcat(cmdline_arg, item->fstype);
+
+				/* default fstype to mount */
+				strcpy(mount_fstype, item->fstype);
+
+				/* extra tags when we detect UBI */
+				if (!strncmp(item->fstype,"ubi",3)) {
+
+					/* mtd id [0-15] - one or two digits */
+					if(isdigit(atoi(item->device+strlen(item->device)-2))) {
+						strcpy(str_mtd_id, item->device+strlen(item->device)-2);
+						strcat(str_mtd_id, item->device+strlen(item->device)-1);
+					} else {
+						strcpy(str_mtd_id, item->device+strlen(item->device)-1);
+					}
+					/* get corresponding ubi dev to mount */
+					u = find_attached_ubi_device(str_mtd_id);
+
+					sprintf(mount_dev, "/dev/ubi%d", u);
+					 /* FIXME: first volume is hardcoded */
+					strcat(mount_dev, "_0");
+
+					/* HARDCODED: we assume it's ubifs */
+					strcpy(mount_fstype,"ubifs");
+
+					/* extra cmdline tags when we detect ubi */
+					strcat(cmdline_arg, str_ubirootdev);
+					 /* FIXME: first volume is hardcoded */
+					strcat(cmdline_arg, "_0");
+
+					strcat(cmdline_arg, str_ubimtd);
+					strcat(cmdline_arg, str_mtd_id);
+#ifdef UBI_VID_HDR_OFFSET
+					strcat(cmdline_arg, ",");
+					strcat(cmdline_arg, str_ubimtd_off);
+#endif
+				} else {
+					strcat(cmdline_arg, item->device); /* root=item->device */
+				}
+				strcat(cmdline_arg, str_rootfstype);
+				strcat(cmdline_arg, mount_fstype);
 			}
-			strcat(cmdline_arg, str_rootwait);			/* rootwait */
+			strcat(cmdline_arg, str_rootwait);
 
 			if (params->cfg->mtdparts) {
 				strcat(cmdline_arg, str_mtdparts);
@@ -277,7 +333,7 @@ void start_kernel(struct params_t *params, int choice)
 			load_argv[3], load_argv[4]);
 
 	/* Mount boot device */
-	if ( -1 == mount(item->device, mount_point, item->fstype,
+	if ( -1 == mount(mount_dev, mount_point, mount_fstype,
 			MS_RDONLY, NULL) ) {
 		perror("Can't mount boot device");
 		exit(-1);
@@ -320,8 +376,13 @@ int scan_devices(struct params_t *params)
 	struct bootconf_t *bootconf;
 	struct device_t dev;
 	struct cfgdata_t cfgdata;
-	int rc;
+	int rc,n;
 	FILE *f;
+
+	char mount_dev[16];
+	char mount_fstype[16];
+	char str_mtd_id[3];
+
 #ifdef USE_ICONS
 	kx_cfg_section *sc;
 	int i;
@@ -360,9 +421,34 @@ int scan_devices(struct params_t *params)
 		if (rc < 0) continue;	/* Error */
 		if (0 == rc) break;		/* EOF */
 
+		/* initialize with defaults */
+		strcpy(mount_dev, dev.device);
+		strcpy(mount_fstype, dev.fstype);
+
+		/* We found an ubi erase counter */
+		if (!strncmp(dev.fstype, "ubi",3)) {
+
+			/* attach ubi boot device - mtd id [0-15] */
+			if(isdigit(atoi(dev.device+strlen(dev.device)-2))) {
+				strcpy(str_mtd_id, dev.device+strlen(dev.device)-2);
+				strcat(str_mtd_id, dev.device+strlen(dev.device)-1);
+			} else {
+				strcpy(str_mtd_id, dev.device+strlen(dev.device)-1);
+			}
+			n = ubi_attach(str_mtd_id);
+
+			/* we have attached ubiX and we mount /dev/ubiX_0  */
+			sprintf(mount_dev, "/dev/ubi%d", n);
+			 /* HARDCODED: first volume */
+			strcat(mount_dev, "_0");
+
+			/* HARDCODED: we assume it's ubifs */
+			strcpy(mount_fstype, "ubifs");
+		}
+
 		/* Mount device */
-		if (-1 == mount(dev.device, MOUNTPOINT, dev.fstype, MS_RDONLY, NULL)) {
-			log_msg(lg, "+ can't mount device: %s", ERRMSG);
+		if (-1 == mount(mount_dev, MOUNTPOINT, mount_fstype, MS_RDONLY, NULL)) {
+			log_msg(lg, "+ can't mount device %s: %s", mount_dev, ERRMSG);
 			goto free_device;
 		}
 
