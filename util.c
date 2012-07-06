@@ -388,3 +388,67 @@ int fexecw(const char *path, char *const argv[], char *const envp[])
 	return status;
 }
 
+/* wrapper around fexecw ubiattach          */
+/* returns ubi_id attached to mtd_id        */
+/* on error, returns -1 so that mount fails */
+int ubi_attach(const char *mtd_id)
+{
+	/* prepare ubiattach_argv[] */
+	const char *ubiattach_argv[] = { NULL, NULL, NULL, NULL, NULL, NULL };
+	const char ubiattach_path[] = UBIATTACH_PATH;
+    char *const envp[] = { NULL };
+    int n,res;
+
+	ubiattach_argv[0] = ubiattach_path;
+	ubiattach_argv[1] = "-m";
+	ubiattach_argv[2] = mtd_id;
+
+#ifdef UBI_VID_HDR_OFFSET
+	ubiattach_argv[3] = "-O";
+	ubiattach_argv[4] = UBI_VID_HDR_OFFSET;
+#endif
+
+	/* fexecw ubiattach */
+	n = fexecw(ubiattach_path, (char *const *)ubiattach_argv, envp);
+	if (-1 == n) {
+		log_msg(lg, "+ ubiattach failed: %s", ERRMSG);
+		res = -1;
+	} else {
+		res = find_attached_ubi_device(mtd_id);
+	}
+	return res;
+}
+
+
+/* loop until /sys/class/ubi/ubiX/mtd_num == mtd_id */
+/* kernel: max 32 ubi devices (0-31)                */
+/* kernel: max 16 mtd char devices (0-15)           */
+int find_attached_ubi_device(const char *mtd_id)
+{
+	char sys_class_ubi[32]; /* max 26 + 2 + 1 */
+	int ubi_id;
+	char line[3];
+	int res = -1;
+	FILE *f;
+
+	for (ubi_id = 0; ubi_id < 32; ubi_id++)
+	{
+		snprintf(sys_class_ubi, sizeof(sys_class_ubi), "/sys/class/ubi/ubi%d/mtd_num", ubi_id);
+		f = fopen(sys_class_ubi, "r");
+		if (NULL == f) {
+			/* log_msg(lg, "+ missing ubi%d in sysfs: %s", ubi_id, ERRMSG); */
+		} else {
+			/* We have only one line in that file */
+			if (fgets(line, sizeof(line), f)) {
+				line[strlen(line) - 1] = '\0';
+				if (!strncmp(line, mtd_id, 2)) {
+					log_msg(lg, "+ map /dev/ubi%d on /dev/mtd%s", ubi_id, mtd_id);
+					res = ubi_id;
+				}
+			}
+			fclose(f);
+			if (res >= 0) break;
+		}
+	}
+	return res;
+}

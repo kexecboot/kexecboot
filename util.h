@@ -159,4 +159,10 @@ void setup_terminal(char *ttydev, int *echo_state, int mode);
  */
 int fexecw(const char *path, char *const argv[], char *const envp[]);
 
+/* UBI attach MTD device to mtd_id */
+int ubi_attach(const char *mtd_id);
+
+/* Find UBI device attached to mtd_id */
+int find_attached_ubi_device(const char *mtd_id);
+
 #endif //_HAVE_UTIL_H_
