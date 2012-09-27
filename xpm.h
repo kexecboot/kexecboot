@@ -102,8 +102,7 @@ int xpm_load_image(char ***xpm_data, const char *filename);
  * - NULL on error
  * Should be free()'d
  */
-kx_picture *xpm_parse_image(char **xpm_data, const int rows,
-		unsigned int bpp);
+kx_picture *xpm_parse_image(char **xpm_data, const int rows);
 
 #endif // USE_ICONS
 #endif // _HAVE_XPM_H

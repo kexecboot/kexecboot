@@ -355,8 +355,7 @@ void parse_cline(char *data, char **colors)
 
 
 /* Local function that parse colors */
-int xpm_parse_colors(char **xpm_data, unsigned int bpp,
-		struct xpm_meta_t *xpm_meta)
+int xpm_parse_colors(char **xpm_data, struct xpm_meta_t *xpm_meta)
 {
 	int chpp;
 	kx_rgba cval, *ctable;
@@ -383,9 +382,9 @@ int xpm_parse_colors(char **xpm_data, unsigned int bpp,
 
 		/* Select color according to supplied bpp */
 		color = NULL;
-		if ( 1 == bpp ) {		/* mono */
+		if ( 1 == fb.bpp ) {		/* mono */
 			color = colors[XPM_KEY_MONO];
-		} else if ( 2 == bpp) {	/* 4 grays */
+		} else if ( 2 == fb.bpp) {	/* 4 grays */
 			color = colors[XPM_KEY_GRAY4];
 		}
 
@@ -516,8 +515,7 @@ int xpm_parse_pixels(char **xpm_data, struct xpm_meta_t *xpm_meta)
 
 
 /* Process XPM image data and make it 'drawable' */
-kx_picture *xpm_parse_image(char **xpm_data, const int rows,
-		unsigned int bpp)
+kx_picture *xpm_parse_image(char **xpm_data, const int rows)
 {
 	int width = 0, height = 0, ncolors = 0, chpp = 0;	/* XPM image values */
 	kx_picture *xpm_parsed;	/* return value */
@@ -602,7 +600,7 @@ kx_picture *xpm_parse_image(char **xpm_data, const int rows,
 	}
 
 	/* Parse colors data */
-	if ( -1 == xpm_parse_colors(xpm_data + 1, bpp, &xpm_meta) )
+	if ( -1 == xpm_parse_colors(xpm_data + 1, &xpm_meta) )
 	{
 		log_msg(lg, "Can't parse xpm colors");
 		goto free_ctable;

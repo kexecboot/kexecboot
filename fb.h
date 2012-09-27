@@ -38,12 +38,10 @@
 #include "res/fonts/font.h"
 #include "rgb.h"
 
-typedef struct FB *FBPTR;
-
-typedef void (*plot_pixel_func)(FBPTR fb, int x, int y,
+typedef void (*plot_pixel_func)(int x, int y,
 		kx_ccomp red, kx_ccomp green, kx_ccomp blue);
 
-typedef void (*draw_hline_func)(FBPTR fb, int x, int y, int length,
+typedef void (*draw_hline_func)(int x, int y, int length,
 		kx_ccomp red, kx_ccomp green, kx_ccomp blue);
 
 typedef struct FB {
@@ -75,6 +73,8 @@ typedef struct FB {
 	draw_hline_func draw_hline;
 } FB;
 
+FB fb;
+
 /* Picture structure */
 /* FIXME: store pixels as colors triplets per uint32_t value */
 typedef struct {
@@ -84,48 +84,48 @@ typedef struct {
 } kx_picture;
 
 
-void fb_destroy(FB * fb);
+void fb_destroy();
 
-FB *fb_new(int angle);
+int fb_new(int angle);
 
 #ifdef DEBUG
-void print_fb(FB *fb);
+void print_fb();
 #endif
 
 void
-fb_draw_rect(FB * fb, int x, int y,
+fb_draw_rect(int x, int y,
 		int width, int height, kx_rgba rgba);
 
 void
-fb_draw_rounded_rect(FB * fb, int x, int y,
+fb_draw_rounded_rect(int x, int y,
 		int width, int height, kx_rgba rgba);
 
 
 /* Return text width and height in pixels. Will return 0,0 for empty text */
 void
-fb_text_size(FB * fb, int *width, int *height,
+fb_text_size(int *width, int *height,
 		const Font * font, const char *text);
 
 int
-fb_draw_constrained_text(FB * fb, int x, int y,
+fb_draw_constrained_text(int x, int y,
 		int max_x, int max_y, kx_rgba rgba,
 		const Font * font, const char *text);
 
 void
-fb_draw_text(FB * fb, int x, int y, kx_rgba rgba,
+fb_draw_text(int x, int y, kx_rgba rgba,
 		const Font * font, const char *text);
 
 /* Move backbuffer contents to videomemory */
-void fb_render(FB * fb);
+void fb_render();
 
 /* Save backbuffer contents to further usage */
-char *fb_dump(FB * fb);
+char *fb_dump();
 
 /* Restore saved backbuffer */
-void fb_restore(FB * fb, char *dump);
+void fb_restore(char *dump);
 
 /* Draw picture on framebuffer */
-void fb_draw_picture(FB * fb, int x, int y, kx_picture *pic);
+void fb_draw_picture(int x, int y, kx_picture *pic);
 
 /* Free picture's data structure */
 void fb_destroy_picture(kx_picture *pic);

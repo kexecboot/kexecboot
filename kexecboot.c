@@ -386,11 +386,9 @@ int scan_devices(struct params_t *params)
 #ifdef USE_ICONS
 	kx_cfg_section *sc;
 	int i;
-	int rows, bpp;
+	int rows;
 	char **xpm_data;
 
-	if (params->gui) bpp = params->gui->fb->bpp;
-	else bpp = 0;
 #endif
 
 	bootconf = create_bootcfg(4);
@@ -476,7 +474,7 @@ int scan_devices(struct params_t *params)
 						continue;
 					}
 
-					sc->icondata = xpm_parse_image(xpm_data, rows, bpp);
+					sc->icondata = xpm_parse_image(xpm_data, rows);
 					if (!sc->icondata) {
 						log_msg(lg, "+ can't parse xpm icon %s", sc->iconpath);
 						continue;

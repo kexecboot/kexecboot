@@ -46,7 +46,6 @@ enum icon_id_t {
 #endif
 
 struct gui_t {
-	FB *fb;
 	int x,y;
 	int height, width;
 #ifdef USE_BG_BUFFER
