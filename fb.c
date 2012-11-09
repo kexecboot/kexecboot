@@ -17,11 +17,6 @@
  *
  */
 
-/*
- * TODO: Add support for 8bpp, 12bpp and 15bpp modes.
- * NOTE: Modes 1bpp, 2bpp, 4bpp and 18bpp should be tested.
- */
-
 #include "config.h"
 
 #ifdef USE_FBMENU
@@ -193,68 +188,6 @@ fb_plot_pixel_16bpp(int x, int y, kx_rgba color)
 }
 #endif
 
-#ifdef USE_4BPP
-static void
-fb_plot_pixel_4bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
-{
-	static char *offset;
-	static int off, ox, oy;
-
-	fb_respect_angle(x, y, &ox, &oy, NULL);
-	off = (oy * fb.real_width + ox) << 2; /* Bit offset */
-	oy = off >> 3; /* Target byte offset */
-
-	offset = fb.backbuffer + oy;
-	if (offset > (fb.backbuffer + fb.screensize)) return;
-
-	ox = 4 - off + (oy << 3); /* 8 - bpp - off % 8 = bits num for left shift */
-	*offset = (*offset & ~(0x0F << ox))
-			| ( ((11*red + (green << 4) + 5*blue) >> 8) << ox );
-}
-#endif
-
-#ifdef USE_2BPP
-static void
-fb_plot_pixel_2bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
-{
-	static char *offset;
-	static int off, ox, oy;
-
-	fb_respect_angle(x, y, &ox, &oy, NULL);
-	off = (oy * fb.real_width + ox) << 1; /* Bit offset */
-	oy = off >> 3; /* Target byte offset */
-
-	offset = fb.backbuffer + oy;
-	if (offset > (fb.backbuffer + fb.screensize)) return;
-
-	ox = 6 - off + (oy << 3); /* 8 - bpp - off % 8 = bits num for left shift */
-	*offset = (*offset & ~(3 << ox))
-			| ( ((11*red + (green << 4) + 5*blue) >> 11) << ox );
-}
-#endif
-
-#ifdef USE_1BPP
-static void
-fb_plot_pixel_1bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
-{
-	static char *offset;
-	static int off, ox, oy;
-
-	fb_respect_angle(x, y, &ox, &oy, NULL);
-	off = oy * fb.real_width + ox; /* Bit offset */
-	oy = off >> 3; /* Target byte offset */
-
-	offset = fb.backbuffer + oy;
-	if (offset > (fb.backbuffer + fb.screensize)) return;
-
-	/* off - (obyte << 3) = off % 8;  8 - bpp - off % 8 = bits num for left shift */
-	if (((11*red + (green << 4) + 5*blue) >> 5) >= 128)
-		*offset = *offset | ( 1 << (7 - off + (oy << 3) ) );
-	else
-		*offset = *offset & (~( 1 << (7 - off + (oy << 3) ) ));
-}
-#endif
-
 /**************************************************************************
  * Horizontal line drawing routines
  */
@@ -353,129 +286,6 @@ fb_draw_hline_16bpp(int x, int y, int length, kx_rgba color)
 		*(volatile uint16_t *) offset = (uint16_t) color;
 		offset += nx;
 	}
-}
-#endif
-
-#ifdef USE_4BPP
-/* FIXME: BROKEN for rotated fb */
-static void
-fb_draw_hline_4bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
-{
-	static char *offset;
-	static int off, ox, oy, len, mask, color;
-	static int cdata[2];
-
-	fb_respect_angle(x, y, &ox, &oy, NULL);
-	off = (oy * fb.real_width + ox) << 2; /* Bit offset */
-	oy = off >> 3; /* Target byte offset */
-
-	offset = fb.backbuffer + oy;
-	if (offset > (fb.backbuffer + fb.screensize)) return;
-
-	if (length > fb.width - ox)
-		len = fb.width - ox;
-	else
-		len = length;
-
-	ox = off + (oy << 3);
-	mask = ~(0x0F << ox); /* 0 -> F0, 4 -> 0F */
-	ox = ox >> 2; /* ox = ox/4 -> [0..1] */
-	color = (11*red + (green << 4) + 5*blue) >> 8;
-	cdata[0] = color << 4;
-	cdata[1] = color;
-	for(; len > 0; len--) {
-		*offset = (*offset & mask) | cdata[ox];
-		ox = ~ox & 1;
-		mask = ~mask;
-		if (!ox) ++offset;
-	}
-}
-#endif
-
-#ifdef USE_2BPP
-/* FIXME: BROKEN for rotated fb */
-static void
-fb_draw_hline_2bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
-{
-	static char *offset;
-	static int off, ox, oy, len, color;
-	static int cdata[4], mask[4];
-
-	fb_respect_angle(x, y, &ox, &oy, NULL);
-	off = (oy * fb.real_width + ox) << 1; /* Bit offset */
-	oy = off >> 3; /* Target byte offset */
-
-	offset = fb.backbuffer + oy;
-	if (offset > (fb.backbuffer + fb.screensize)) return;
-
-	if (length > fb.width - ox)
-		len = fb.width - ox;
-	else
-		len = length;
-
-	ox = off + (oy << 3);
-	ox = ox >> 1; /* ox = ox/2 -> [0..3] */
-	color = (11*red + (green << 4) + 5*blue) >> 11;
-	cdata[0] = color << 6;
-	cdata[1] = color << 4;
-	cdata[2] = color << 2;
-	cdata[3] = color;
-	mask[0] = 0b00111111;
-	mask[1] = 0b11001111;
-	mask[2] = 0b11110011;
-	mask[3] = 0b11111100;
-	for(; len > 0; len--) {
-		*offset = (*offset & mask[ox]) | cdata[ox];
-		if (++ox > 6) {
-			ox = 0;
-			++offset;
-		}
-	}
-}
-#endif
-
-#ifdef USE_1BPP
-/* FIXME: BROKEN for rotated fb */
-static void
-fb_draw_hline_1bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
-{
-	static char *offset;
-	static int off, ox, oy, len, color;
-
-	fb_respect_angle(x, y, &ox, &oy, NULL);
-	off = oy * fb.real_width + ox; /* Bit offset */
-	oy = off >> 3; /* Target byte offset */
-
-	offset = fb.backbuffer + oy;
-	if (offset > (fb.backbuffer + fb.screensize)) return;
-
-	if (length > fb.width - ox)
-		len = fb.width - ox;
-	else
-		len = length;
-
-	ox = off + (oy << 3); /* [0-7] */
-	color = 1 << (7 - ox);
-	if ( ((11*red + (green << 4) + 5*blue) >> 5) >= 128 )
-		for(; len > 0; len--) {
-			*offset = *offset | color;
-			color >>= 1;	/* shift right by 1 bit */
-			if (++ox > 7) {
-				ox = 0;
-				++offset;
-				color = 128;
-			}
-		}
-	else
-		for(; len > 0; len--) {
-			*offset = *offset & ~color;
-			color >>= 1;	/* shift right by 1 bit */
-			if (++ox > 7) {
-				ox = 0;
-				++offset;
-				color = 128;
-			}
-		}
 }
 #endif
 
@@ -644,11 +454,10 @@ int fb_new(int angle)
 		goto fail;
 	}
 
-	if (fb_var.bits_per_pixel != 1 && fb_var.bits_per_pixel != 2
-		&& fb_var.bits_per_pixel < 16)
+	if (fb_var.bits_per_pixel < 16)
 	{
 		log_msg(lg,
-			"Error, no support currently for %i bpp frame buffers\n"
+			"Error, no support for %i bpp frame buffers\n"
 			"Trying to change pixel format...",
 			fb_var.bits_per_pixel);
 		if (!attempt_to_change_pixel_format(&fb_var))
@@ -713,27 +522,6 @@ int fb_new(int angle)
 	    (unsigned long) getpagesize();
 
 	fb.data = fb.base + off;
-#if 0
-	/* FIXME: No support for 8pp as yet  */
-	if (visual == FB_VISUAL_PSEUDOCOLOR
-	    || visual == FB_VISUAL_STATIC_PSEUDOCOLOR) {
-		static struct fb_cmap cmap;
-
-		cmap.start = 0;
-		cmap.len = 16;
-		cmap.red = saved_red;
-		cmap.green = saved_green;
-		cmap.blue = saved_blue;
-		cmap.transp = NULL;
-
-		ioctl(fb, FBIOGETCMAP, &cmap);
-	}
-
-	if (!status)
-		atexit(bogl_done);
-	status = 2;
-#endif
-
 	fb.angle = angle;
 
 	switch (fb.angle) {
@@ -775,24 +563,6 @@ int fb_new(int angle)
 	case 16:
 		fb.plot_pixel = fb_plot_pixel_16bpp;
 		fb.draw_hline = fb_draw_hline_16bpp;
-		break;
-#endif
-#ifdef USE_4BPP
-	case 4:
-		fb.plot_pixel = fb_plot_pixel_4bpp;
-		fb.draw_hline = fb_draw_hline_4bpp;
-		break;
-#endif
-#ifdef USE_2BPP
-	case 2:
-		fb.plot_pixel = fb_plot_pixel_2bpp;
-		fb.draw_hline = fb_draw_hline_2bpp;
-		break;
-#endif
-#ifdef USE_1BPP
-	case 1:
-		fb.plot_pixel = fb_plot_pixel_1bpp;
-		fb.draw_hline = fb_draw_hline_1bpp;
 		break;
 #endif
 	default:

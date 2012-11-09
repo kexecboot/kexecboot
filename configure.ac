@@ -32,7 +32,7 @@ AC_ARG_ENABLE([delay],[AS_HELP_STRING([--enable-delay@<:@=sec@:>@],[specify dela
 	test "x$enable_delay" = xyes && enable_delay=1
 ],[enable_delay=1])
 
-AC_ARG_ENABLE([bpp], [AS_HELP_STRING([--enable-bpp@<:@=list@:>@],[enable support of specified bpp modes (all,32,24,18,16,4,2,1) @<:@default=all@:>@])],
+AC_ARG_ENABLE([bpp], [AS_HELP_STRING([--enable-bpp@<:@=list@:>@],[enable support of specified bpp modes (all,32,24,18,16) @<:@default=all@:>@])],
 [
 	SIFS=${IFS}
 	IFS=','
@@ -43,9 +43,6 @@ AC_ARG_ENABLE([bpp], [AS_HELP_STRING([--enable-bpp@<:@=list@:>@],[enable support
 			24) enable_24bpp=yes;;
 			18) enable_18bpp=yes;;
 			16) enable_16bpp=yes;;
-			4) enable_4bpp=yes;;
-			2) enable_2bpp=yes;;
-			1) enable_1bpp=yes;;
 			*) enable_all_bpp=yes;;
 		esac
 	done
@@ -116,27 +113,12 @@ AS_IF([test "x$enable_fbui" != xno],
 			[
 			AC_DEFINE([USE_16BPP], [1], [Define if you want to support this bpp mode])
 			],[])
-		AS_IF([test "x$enable_4bpp" == xyes],
-			[
-			AC_DEFINE([USE_4BPP],  [1], [Define if you want to support this bpp mode])
-			],[])
-		AS_IF([test "x$enable_2bpp" == xyes],
-			[
-			AC_DEFINE([USE_2BPP],  [1], [Define if you want to support this bpp mode])
-			],[])
-		AS_IF([test "x$enable_1bpp" == xyes],
-			[
-			AC_DEFINE([USE_1BPP],  [1], [Define if you want to support this bpp mode])
-			],[])
 		AS_IF([test "x$enable_all_bpp" == xyes],
 			[
 			AC_DEFINE([USE_32BPP], [1], [Define if you want to support this bpp mode])
 			AC_DEFINE([USE_24BPP], [1], [Define if you want to support this bpp mode])
 			AC_DEFINE([USE_18BPP], [1], [Define if you want to support this bpp mode])
 			AC_DEFINE([USE_16BPP], [1], [Define if you want to support this bpp mode])
-			AC_DEFINE([USE_4BPP],  [1], [Define if you want to support this bpp mode])
-			AC_DEFINE([USE_2BPP],  [1], [Define if you want to support this bpp mode])
-			AC_DEFINE([USE_1BPP],  [1], [Define if you want to support this bpp mode])
 			],[])
 
 		AS_IF([test "x$enable_fb_transfer_width" == x32],
