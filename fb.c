@@ -29,6 +29,57 @@
 
 #include "fb.h"
 
+
+static unsigned int compose_color (kx_rgba rgba) {
+
+	kx_ccomp r, g, b, a;
+	kx_ccomp c1, c2, c3;
+	kx_rgba color;
+
+	rgba2comp(rgba, &r, &g, &b, &a);
+
+	switch (fb.bpp) {
+
+		case 16:
+			if (RGB == fb.rgbmode)
+				color = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+			else
+				color = ((b >> 3) << 11) | ((g >> 2) << 5) | (r >> 3);
+			break;
+
+		case 18:
+			if (RGB == fb.rgbmode) {
+
+				c1 = (r >> 2) | ((g & 0x0C) << 4);
+				c2 = ((g & 0xF0) >> 4) | ((b & 0x3C) << 2);
+				c3 = (b & 0xC0) >> 6;
+			}
+			else {
+				c1 = (b >> 2) | ((g & 0x0C) << 4);
+			        c2 = ((g & 0xF0) >> 4) | ((r & 0x3C) << 2);
+				c3 = (r & 0xC0) >> 6;
+			}
+
+			color = (uint32_t)c1 << 16 | (uint32_t)c2 << 8 | (uint32_t)c3;
+			break;
+		case 24:
+		case 32:
+			if (RGB == fb.rgbmode)
+				color = (uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b;
+			else
+				color = (uint32_t)b << 16 | (uint32_t)g << 8 | (uint32_t)r;
+			break;
+		default:
+			color = rgba;
+			break;
+	}
+
+	/* add alpha channel */
+	color = (a << 24) | color;
+
+	return color;
+}
+
 static inline void
 fb_respect_angle(int x, int y, int *dx, int *dy, int *nx)
 {
@@ -78,7 +129,7 @@ fb_respect_angle(int x, int y, int *dx, int *dy, int *nx)
  */
 #ifdef USE_32BPP
 static void
-fb_plot_pixel_32bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
+fb_plot_pixel_32bpp(int x, int y, kx_rgba color)
 {
 	static char *offset;
 	static int ox, oy;
@@ -87,20 +138,13 @@ fb_plot_pixel_32bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
 	offset = fb.backbuffer + ((oy * fb.real_width + ox) << 2);
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
-	if (RGB == fb.rgbmode) {
-		*(offset) = blue;
-		*(offset + 2) = red;
-	} else {
-		*(offset) = red;
-		*(offset + 2) = blue;
-	}
-	*(offset + 1) = green;
+	*(volatile uint32_t *) offset = (uint32_t) color;
 }
 #endif
 
 #ifdef USE_24BPP
 static void
-fb_plot_pixel_24bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
+fb_plot_pixel_24bpp(int x, int y, kx_rgba color)
 {
 	static char *offset;
 	static int ox, oy, r;
@@ -110,20 +154,15 @@ fb_plot_pixel_24bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
 	offset = fb.backbuffer + (r + (r << 1));
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
-	if (RGB == fb.rgbmode) {
-		*(offset) = blue;
-		*(offset + 2) = red;
-	} else {
-		*(offset) = red;
-		*(offset + 2) = blue;
-	}
-	*(offset + 1) = green;
+	*(volatile char *) (offset) = (color & 0x000000FF);
+	*(volatile char *) (offset + 1) = (color & 0x0000FF00) >> 8;
+	*(volatile char *) (offset + 2) = (color & 0x00FF0000) >> 16;
 }
 #endif
 
 #ifdef USE_18BPP
 static void
-fb_plot_pixel_18bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
+fb_plot_pixel_18bpp(int x, int y, kx_rgba color)
 {
 	static char *offset;
 	static int ox, oy, r;
@@ -133,21 +172,15 @@ fb_plot_pixel_18bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
 	offset = fb.backbuffer + (r + (r << 1));
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
-	if (RGB == fb.rgbmode) {
-			*(offset++)     = (blue >> 2) | ((green & 0x0C) << 4);
-			*(offset++) = ((green & 0xF0) >> 4) | ((red & 0x3C) << 2);
-			*(offset++) = (red & 0xC0) >> 6;
-	} else {
-			*(offset++)     = (red >> 2) | ((green & 0x0C) << 4);
-			*(offset++) = ((green & 0xF0) >> 4) | ((blue & 0x3C) << 2);
-			*(offset++) = (blue & 0xC0) >> 6;
-	}
+	*(volatile char *) (offset) = (color & 0x000000FF);
+	*(volatile char *) (offset + 1) = (color & 0x0000FF00) >> 8;
+	*(volatile char *) (offset + 2) = (color & 0x00FF0000) >> 16;
 }
 #endif
 
 #ifdef USE_16BPP
 static void
-fb_plot_pixel_16bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
+fb_plot_pixel_16bpp(int x, int y, kx_rgba color)
 {
 	static char *offset;
 	static int ox, oy;
@@ -156,13 +189,7 @@ fb_plot_pixel_16bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
 	offset = fb.backbuffer + ((oy * fb.real_width + ox) << 1);
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
-	if (RGB == fb.rgbmode) {
-		*(volatile uint16_t *) (offset)
-			= ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
-	} else {
-		*(volatile uint16_t *) (offset)
-			= ((blue >> 3) << 11) | ((green >> 2) << 5) | (red >> 3);
-	}
+	*(volatile uint16_t *) offset = (uint16_t) color;
 }
 #endif
 
@@ -233,21 +260,14 @@ fb_plot_pixel_1bpp(int x, int y, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
  */
 #ifdef USE_32BPP
 static void
-fb_draw_hline_32bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
+fb_draw_hline_32bpp(int x, int y, int length, kx_rgba color)
 {
 	static char *offset;
 	static int ox, oy, nx;
-	static uint32_t color;
 
 	fb_respect_angle(x, y, &ox, &oy, &nx);
 	offset = fb.backbuffer + ((oy * fb.real_width + ox) << 2);
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
-
-	if (RGB == fb.rgbmode) {
-		color = (uint32_t)blue << 16 | (uint32_t)green << 8 | (uint32_t)red;
-	} else {
-		color = (uint32_t)red << 16 | (uint32_t)green << 8 | (uint32_t)blue;
-	}
 
 	if (length > fb.width - x)
 		oy = fb.width - x;
@@ -263,24 +283,15 @@ fb_draw_hline_32bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_c
 
 #ifdef USE_24BPP
 static void
-fb_draw_hline_24bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
+fb_draw_hline_24bpp(int x, int y, int length, kx_rgba color)
 {
 	static char *offset;
 	static int ox, oy, nx, r;
-	static kx_ccomp c1, c3;
 
 	fb_respect_angle(x, y, &ox, &oy, &nx);
 	r = oy * fb.real_width + ox;
 	offset = fb.backbuffer + (r + (r << 1));
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
-
-	if (RGB == fb.rgbmode) {
-		c1 = blue;
-		c3 = red;
-	} else {
-		c1 = red;
-		c3 = blue;
-	}
 
 	if (length > fb.width - x)
 		oy = fb.width - x;
@@ -288,9 +299,9 @@ fb_draw_hline_24bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_c
 		oy = length;
 
 	for(; oy > 0; oy--) {
-		*(offset) = c1;
-		*(offset+1) = green;
-		*(offset+2) = c3;
+		*(volatile char *) (offset) = (color & 0x000000FF);
+		*(volatile char *) (offset + 1) = (color & 0x0000FF00) >> 8;
+		*(volatile char *) (offset + 2) = (color & 0x00FF0000) >> 16;
 		offset += nx;
 	}
 }
@@ -298,26 +309,15 @@ fb_draw_hline_24bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_c
 
 #ifdef USE_18BPP
 static void
-fb_draw_hline_18bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
+fb_draw_hline_18bpp(int x, int y, int length, kx_rgba color)
 {
 	static char *offset;
 	static int ox, oy, nx, r;
-	static kx_ccomp c1, c2, c3;
 
 	fb_respect_angle(x, y, &ox, &oy, &nx);
 	r = oy * fb.real_width + ox;
 	offset = fb.backbuffer + (r + (r << 1));
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
-
-	if (RGB == fb.rgbmode) {
-		c1 = (blue >> 2) | ((green & 0x0C) << 4);
-		c2 = ((green & 0xF0) >> 4) | ((red & 0x3C) << 2);
-		c3 = (red & 0xC0) >> 6;
-	} else {
-		c1 = (red >> 2) | ((green & 0x0C) << 4);
-		c2 = ((green & 0xF0) >> 4) | ((blue & 0x3C) << 2);
-		c3 = (blue & 0xC0) >> 6;
-	}
 
 	if (length > fb.width - x)
 		oy = fb.width - x;
@@ -325,9 +325,9 @@ fb_draw_hline_18bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_c
 		oy = length;
 
 	for(; oy > 0; oy--) {
-		*(offset) = c1;
-		*(offset+1) = c2;
-		*(offset+2) = c3;
+		*(volatile char *) (offset) = (color & 0x000000FF);
+		*(volatile char *) (offset + 1) = (color & 0x0000FF00) >> 8;
+		*(volatile char *) (offset + 2) = (color & 0x00FF0000) >> 16;
 		offset += nx;
 	}
 }
@@ -335,21 +335,14 @@ fb_draw_hline_18bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_c
 
 #ifdef USE_16BPP
 static void
-fb_draw_hline_16bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_ccomp blue)
+fb_draw_hline_16bpp(int x, int y, int length, kx_rgba color)
 {
 	static char *offset;
 	static int ox, oy, nx;
-	static uint16_t color;
 
 	fb_respect_angle(x, y, &ox, &oy, &nx);
 	offset = fb.backbuffer + ((oy * fb.real_width + ox) << 1);
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
-
-	if (RGB == fb.rgbmode) {
-		color = ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
-	} else {
-		color = ((blue >> 3) << 11) | ((green >> 2) << 5) | (red >> 3);
-	}
 
 	if (length > fb.width - x)
 		oy = fb.width - x;
@@ -357,7 +350,7 @@ fb_draw_hline_16bpp(int x, int y, int length, kx_ccomp red, kx_ccomp green, kx_c
 		oy = length;
 
 	for(; oy > 0; oy--) {
-		*(volatile uint16_t *) offset = color;
+		*(volatile uint16_t *) offset = (uint16_t) color;
 		offset += nx;
 	}
 }
@@ -823,19 +816,21 @@ fail:
  */
 void fb_plot_pixel(int x, int y, kx_rgba rgba)
 {
-	kx_ccomp r, g, b, a;
+	kx_rgba color;
 
-	rgba2comp(rgba, &r, &g, &b, &a);
-	fb.plot_pixel(x, y, r, g, b);
+	color = compose_color(rgba);
+
+	fb.plot_pixel(x, y, color);
 }
 
 
 void fb_draw_hline(int x, int y, int length, kx_rgba rgba)
 {
-	kx_ccomp r, g, b, a;
+	kx_rgba color;
 
-	rgba2comp(rgba, &r, &g, &b, &a);
-	fb.draw_hline(x, y, length, r, g, b);
+	color = compose_color(rgba);
+
+	fb.draw_hline(x, y, length, color);
 }
 
 
@@ -843,11 +838,12 @@ void fb_draw_rect(int x, int y, int width, int height,
 		kx_rgba rgba)
 {
 	static int dy;
-	kx_ccomp r, g, b, a;
+	kx_rgba color;
 
-	rgba2comp(rgba, &r, &g, &b, &a);
+	color = compose_color(rgba);
+
 	for (dy = y; dy < y+height; dy++)
-		fb.draw_hline(x, dy, width, r, g, b);
+		fb.draw_hline(x, dy, width, color);
 }
 
 
@@ -855,23 +851,23 @@ void fb_draw_rounded_rect(int x, int y, int width, int height,
 		kx_rgba rgba)
 {
 	static int dy;
-	kx_ccomp r, g, b, a;
+	kx_rgba color;
 
 	if (height < 4) return;
 
-	rgba2comp(rgba, &r, &g, &b, &a);
+	color = compose_color(rgba);
 
 	/* Top rounded part */
 	dy = y;
-	fb.draw_hline(x+2, dy++, width-4, r, g, b);
-	fb.draw_hline(x+1, dy++, width-2, r, g, b);
+	fb.draw_hline(x+2, dy++, width-4, color);
+	fb.draw_hline(x+1, dy++, width-2, color);
 
 	for (; dy < y+height-2; dy++)
-		fb.draw_hline(x, dy, width, r, g, b);
+		fb.draw_hline(x, dy, width, color);
 
 	/* Bottom rounded part */
-	fb.draw_hline(x+1, dy++, width-2, r, g, b);
-	fb.draw_hline(x+2, dy++, width-4, r, g, b);
+	fb.draw_hline(x+1, dy++, width-2, color);
+	fb.draw_hline(x+2, dy++, width-4, color);
 }
 
 
@@ -935,10 +931,10 @@ int fb_draw_constrained_text(int x, int y,
 {
 	int h, w, cx, cy, dx, dy;
 	char *c = (char *) text;
-	kx_ccomp r, g, b, a;
 	u_int32_t gl;
+	kx_rgba color;
 
-	rgba2comp(rgba, &r, &g, &b, &a);
+	color = compose_color(rgba);
 
 	h = font->height;
 	dx = x; dy = y;
@@ -974,7 +970,7 @@ int fb_draw_constrained_text(int x, int y,
 			for (cx = 0; cx < w; cx++) {
 				if (gl & 0x80000000)
 					fb.plot_pixel(dx + cx,
-						      dy + cy, r, g, b);
+						      dy + cy, color);
 				gl <<= 1;
 			}
 		}
@@ -1001,7 +997,6 @@ void fb_draw_picture(int x, int y, kx_picture *pic)
 	unsigned int i, j;
 	int dx = 0, dy = 0;
 	kx_rgba *pixel, color;
-	kx_ccomp r, g, b, a;
 
 	pixel = pic->pixels;
 	dy = y;
@@ -1009,10 +1004,11 @@ void fb_draw_picture(int x, int y, kx_picture *pic)
 		dx = x;
 		for (j = 0; j < pic->width; j++) {
 			color = *pixel;
-			rgba2comp(color, &r, &g, &b, &a);
+			color = compose_color (color);
 			/* TODO Add transparency processing */
 			/* Draw pixel if not fully transparent */
-			if (255 != a) fb.plot_pixel(dx, dy, r, g, b);
+			if ((color & 0xFF000000) == 0)
+				fb.plot_pixel(dx, dy, color);
 			++dx;
 			++pixel;
 		}

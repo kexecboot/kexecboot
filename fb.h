@@ -39,10 +39,10 @@
 #include "rgb.h"
 
 typedef void (*plot_pixel_func)(int x, int y,
-		kx_ccomp red, kx_ccomp green, kx_ccomp blue);
+		kx_rgba color);
 
 typedef void (*draw_hline_func)(int x, int y, int length,
-		kx_ccomp red, kx_ccomp green, kx_ccomp blue);
+		kx_rgba color);
 
 typedef struct FB {
 	int fd;
