@@ -977,27 +977,31 @@ int do_main_loop(struct params_t *params, kx_inputs *inputs)
 	do {
 		/* Read events */
 		action = inputs_process(inputs);
+		if (action != A_NONE) {
 
-		/* Process events in current context */
-		switch (params->context) {
-		case KX_CTX_MENU:
-			rc = process_ctx_menu(params, action);
-			break;
-		case KX_CTX_TEXTVIEW:
-			rc = process_ctx_textview(params, action);
-		}
-
-		/* Draw current context */
-		if (rc > 0) {
+			/* Process events in current context */
 			switch (params->context) {
 			case KX_CTX_MENU:
-				draw_ctx_menu(params);
+				rc = process_ctx_menu(params, action);
 				break;
 			case KX_CTX_TEXTVIEW:
-				draw_ctx_textview(params);
-				break;
+				rc = process_ctx_textview(params, action);
+			}
+
+			/* Draw current context */
+			if (rc > 0) {
+				switch (params->context) {
+				case KX_CTX_MENU:
+					draw_ctx_menu(params);
+					break;
+				case KX_CTX_TEXTVIEW:
+					draw_ctx_textview(params);
+					break;
+				}
 			}
 		}
+		else
+			rc = 1;
 
 	/* rc: 0 - select, <0 - raise error, >0 - continue */
 	} while (rc > 0);
