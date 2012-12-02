@@ -27,21 +27,24 @@
 #include <asm/types.h>
 #include <stdint.h>
 #include <linux/input.h>
+#include <limits.h>
 
 #include "config.h"
 #include "evdevs.h"
 #include "util.h"
 
+#define BITS_PER_LONG (sizeof(long) * CHAR_BIT)
+
 /* this macro is used to tell if "bit" is set in "array"
- * it selects a byte from the array, and does a boolean AND
- * operation with a byte that only has the relevant bit set.
- * eg. to check for the 12th bit, we do (array[1] & 1<<4)
+ * it selects a long from the array, and does a boolean AND
+ * operation with a long that only has the relevant bit set.
+ * eg. to check for the 12th bit, we do (array[0] & 1<<12)
  */
-#define test_bit(bit, array)    (array[bit>>3] & (1<<(bit%8)))
+#define test_bit(bit, array)    (array[bit/BITS_PER_LONG] & (1UL<<(bit%BITS_PER_LONG)))
 
 int evdev_is_suitable(int fd)
 {
-	uint8_t evtype_bitmask[(EV_MAX>>3) + 1];
+	long evtype_bitmask[(EV_MAX/BITS_PER_LONG) + 1];
 
 	/* Clean evtype_bitmask structure */
 	memset(evtype_bitmask, 0, sizeof(evtype_bitmask));
