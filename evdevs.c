@@ -33,7 +33,9 @@
 #include "evdevs.h"
 #include "util.h"
 
+#ifndef BITS_PER_LONG
 #define BITS_PER_LONG (sizeof(long) * CHAR_BIT)
+#endif
 
 /* this macro is used to tell if "bit" is set in "array"
  * it selects a long from the array, and does a boolean AND
