@@ -21,18 +21,8 @@
 
 #include <stdint.h>     /* uint's below */
 
-#define __ASSEMBLY__ /* Avoid C declarations with unknown typedefs */
-#include <asm/setup.h> // for COMMAND_LINE_SIZE
-#undef __ASSEMBLY__
-/**
- * Only ARM still defines COMMAND_LINE_SIZE. In cases where COMMAND_LINE_SIZE
- * is undefined, lets set a safe value. 255 should be safe; it was what i386
- * used until 2.6.21(?.)
- *
- * FIXME: Find a better way to do this
- **/
 #ifndef COMMAND_LINE_SIZE
-#define COMMAND_LINE_SIZE 255
+#define COMMAND_LINE_SIZE 1024
 #endif
 
 /*
