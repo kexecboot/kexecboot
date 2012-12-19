@@ -130,7 +130,7 @@ fb_plot_pixel_32bpp(int x, int y, kx_rgba color)
 	static int ox, oy;
 
 	fb_respect_angle(x, y, &ox, &oy, NULL);
-	offset = fb.backbuffer + ((oy * fb.real_width + ox) << 2);
+	offset = fb.backbuffer + oy * fb.stride + (ox << 2);
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
 	*(volatile uint32_t *) offset = (uint32_t) color;
@@ -142,11 +142,10 @@ static void
 fb_plot_pixel_24bpp(int x, int y, kx_rgba color)
 {
 	static char *offset;
-	static int ox, oy, r;
+	static int ox, oy;
 
 	fb_respect_angle(x, y, &ox, &oy, NULL);
-	r = oy * fb.real_width + ox;
-	offset = fb.backbuffer + (r + (r << 1));
+	offset = fb.backbuffer + oy * fb.stride + (ox + (ox << 1));
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
 	*(volatile char *) (offset) = (color & 0x000000FF);
@@ -160,11 +159,10 @@ static void
 fb_plot_pixel_18bpp(int x, int y, kx_rgba color)
 {
 	static char *offset;
-	static int ox, oy, r;
+	static int ox, oy;
 
 	fb_respect_angle(x, y, &ox, &oy, NULL);
-	r = oy * fb.real_width + ox;
-	offset = fb.backbuffer + (r + (r << 1));
+	offset = fb.backbuffer + oy * fb.stride + (ox + (ox << 1));
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
 	*(volatile char *) (offset) = (color & 0x000000FF);
@@ -181,7 +179,7 @@ fb_plot_pixel_16bpp(int x, int y, kx_rgba color)
 	static int ox, oy;
 
 	fb_respect_angle(x, y, &ox, &oy, NULL);
-	offset = fb.backbuffer + ((oy * fb.real_width + ox) << 1);
+	offset = fb.backbuffer + oy * fb.stride + (ox << 1);
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
 	*(volatile uint16_t *) offset = (uint16_t) color;
@@ -199,7 +197,7 @@ fb_draw_hline_32bpp(int x, int y, int length, kx_rgba color)
 	static int ox, oy, nx;
 
 	fb_respect_angle(x, y, &ox, &oy, &nx);
-	offset = fb.backbuffer + ((oy * fb.real_width + ox) << 2);
+	offset = fb.backbuffer + oy * fb.stride + (ox << 2);
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
 	if (length > fb.width - x)
@@ -219,11 +217,10 @@ static void
 fb_draw_hline_24bpp(int x, int y, int length, kx_rgba color)
 {
 	static char *offset;
-	static int ox, oy, nx, r;
+	static int ox, oy, nx;
 
 	fb_respect_angle(x, y, &ox, &oy, &nx);
-	r = oy * fb.real_width + ox;
-	offset = fb.backbuffer + (r + (r << 1));
+	offset = fb.backbuffer + oy * fb.stride + (ox + (ox << 1));
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
 	if (length > fb.width - x)
@@ -245,11 +242,10 @@ static void
 fb_draw_hline_18bpp(int x, int y, int length, kx_rgba color)
 {
 	static char *offset;
-	static int ox, oy, nx, r;
+	static int ox, oy, nx;
 
 	fb_respect_angle(x, y, &ox, &oy, &nx);
-	r = oy * fb.real_width + ox;
-	offset = fb.backbuffer + (r + (r << 1));
+	offset = fb.backbuffer + oy * fb.stride + (ox + (ox << 1));
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
 	if (length > fb.width - x)
@@ -274,7 +270,7 @@ fb_draw_hline_16bpp(int x, int y, int length, kx_rgba color)
 	static int ox, oy, nx;
 
 	fb_respect_angle(x, y, &ox, &oy, &nx);
-	offset = fb.backbuffer + ((oy * fb.real_width + ox) << 1);
+	offset = fb.backbuffer + oy * fb.stride + (ox << 1);
 	if (offset > (fb.backbuffer + fb.screensize - fb.byte_pp)) return;
 
 	if (length > fb.width - x)
