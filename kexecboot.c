@@ -19,11 +19,6 @@
  *
  */
 
-/*
- * TODO Show debug info in special dialog
- * TODO Cleanup debug info
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
