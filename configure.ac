@@ -3,7 +3,7 @@ AC_INIT([kexecboot], [0.5.9], [kexecboot-devel@linuxtogo.org])
 AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE([-Wall foreign])
 AC_CONFIG_SRCDIR(kexecboot.c)
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS(config.h)
 AM_MAINTAINER_MODE
 
 AC_ARG_ENABLE([static-linking],[AS_HELP_STRING([--enable-static-linking],[compiles kexecboot as a static executable @<:@default=no@:>@])],[],[enable_static_linking=no])
