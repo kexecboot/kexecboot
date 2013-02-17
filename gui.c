@@ -312,7 +312,7 @@ void gui_show_menu(struct gui_t *gui, kx_menu *menu)
 	/* FIXME: shouldn't be done here */
 	if (1 == ml->count) {
 		/* Only system menu in list */
-		draw_background(gui, "No boot devices found.\nR: Reboot  S: Rescan");
+		draw_background(gui, "No boot devices found\nR: Reboot S: Rescan");
 	} else {
 		draw_background(gui, "KEXECBOOT");
 	}
