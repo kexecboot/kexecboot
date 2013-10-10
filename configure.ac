@@ -1,5 +1,5 @@
 AC_PREREQ(2.53)
-AC_INIT([kexecboot], [0.5.9], [kexecboot-devel@linuxtogo.org])
+AC_INIT([kexecboot], [0.6], [kexecboot-devel@linuxtogo.org])
 AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE([-Wall foreign])
 AC_CONFIG_SRCDIR(kexecboot.c)
