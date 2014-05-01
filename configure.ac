@@ -1,7 +1,7 @@
 AC_PREREQ(2.53)
 AC_INIT([kexecboot], [0.6], [kexecboot-devel@linuxtogo.org])
 AC_CANONICAL_HOST
-AM_INIT_AUTOMAKE([-Wall foreign])
+AM_INIT_AUTOMAKE([-Wall foreign] [subdir-objects])
 AC_CONFIG_SRCDIR(kexecboot.c)
 AC_CONFIG_HEADERS(config.h)
 AM_MAINTAINER_MODE
