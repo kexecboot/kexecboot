@@ -15,11 +15,11 @@
  *
  */
 
-#include "../config.h"
+#include "config.h"
 
 #ifdef USE_TEXTUI
 /** TEXT UI colors **/
-#include "../termseq.h"
+#include "termseq.h"
 
 /* Background color pair */
 #define TUI_CLR_BG		TERM_CSI TERM_BG_BLACK ";" TERM_FG_WHITE TERM_SGR

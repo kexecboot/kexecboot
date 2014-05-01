@@ -15,7 +15,7 @@
  *
  */
 
-#include "../config.h"
+#include "config.h"
 
 #ifdef USE_ICONS
 /** Icons **/
