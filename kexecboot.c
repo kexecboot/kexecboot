@@ -57,20 +57,22 @@
 #endif
 
 #ifdef USE_MACHINE_KERNEL
-/* Machine-dependent kernel patch */
+/* Machine-dependent kernel path */
 char *machine_kernel = NULL;
 #endif
+
+#define PREPEND_MOUNTPATH(string) MOUNTPOINT""string
 
 /* NULL-terminated array of kernel search paths
  * First item should be filled with machine-dependent path */
 char *default_kernels[] = {
 #ifdef USE_ZIMAGE
-	"/mnt/boot/zImage",
-	"/mnt/zImage",
+	PREPEND_MOUNTPATH("/boot/zImage"),
+	PREPEND_MOUNTPATH("/zImage"),
 #endif
 #ifdef USE_UIMAGE
-	"/mnt/boot/uImage",
-	"/mnt/uImage",
+	PREPEND_MOUNTPATH("/boot/uImage"),
+	PREPEND_MOUNTPATH("/uImage"),
 #endif
 	NULL
 };
@@ -149,14 +151,14 @@ char *get_machine_kernelpath() {
 			++tmp;
 		}
 
-		/* Prepend "/mnt/boot/zImage-" to hw */
-		tmp = malloc(strlen(hw) + 17 + 1);	/* strlen("/mnt/boot/zImage-") */
+		/* Prepend  MOUNTPOINT"/boot/zImage-" to hw */
+		tmp = malloc(strlen(PREPEND_MOUNTPATH("/boot/zImage-")) + strlen(hw) + 1);
 		if (NULL == tmp) {
 			DPRINTF("Can't allocate memory for machine-specific kernel path");
 			return NULL;
 		}
 
-		strcpy(tmp, "/mnt/boot/zImage-");
+		strcpy(tmp, PREPEND_MOUNTPATH("/boot/zImage-"));
 		strcat(tmp, hw);
 
 		return tmp;

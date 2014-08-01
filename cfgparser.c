@@ -141,7 +141,7 @@ static int set_kernel(struct cfgdata_t *cfgdata, char *value)
 		return -1;
 	}
 
-	strcpy(sc->kernelpath, "/mnt");
+	strcpy(sc->kernelpath, MOUNTPOINT);
 	strcat(sc->kernelpath, value);
 	return 0;
 }
@@ -155,7 +155,7 @@ static int set_icon(struct cfgdata_t *cfgdata, char *value)
 
 	dispose(sc->iconpath);
 	/* Add our mountpoint, since the enduser won't know it */
-	sc->iconpath = malloc(sizeof(MOUNTPOINT)+strlen(value));
+	sc->iconpath = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
 	if (NULL == sc->iconpath) {
 		DPRINTF("Can't allocate memory to store iconpath '%s'", value);
 		return -1;
@@ -194,7 +194,7 @@ static int set_initrd(struct cfgdata_t *cfgdata, char *value)
 		return -1;
 	}
 
-	strcpy(sc->initrd, "/mnt");
+	strcpy(sc->initrd, MOUNTPOINT);
 	strcat(sc->initrd, value);
 	return 0;
 }
