@@ -208,10 +208,15 @@ void start_kernel(struct params_t *params, int choice)
 	const char *load_argv[] = { NULL, "-l", NULL, NULL, NULL, NULL };
 	const char *exec_argv[] = { NULL, "-e", NULL, NULL};
 
-	char *cmdline_arg = NULL, *initrd_arg = NULL;
+	char *cmdline_arg = NULL, *initrd_arg = NULL, *kernel_arg = NULL;
 	int n, idx, u;
 	struct stat sinfo;
 	struct boot_item_t *item;
+
+	/* buffer for readlink (could be truncated) */
+	char buf[512];
+	int len;
+
 
 	item = params->bootcfg->list[choice];
 
@@ -306,10 +311,17 @@ void start_kernel(struct params_t *params, int choice)
 		}
 	}
 
+	/* Mount boot device */
+	if ( -1 == mount(mount_dev, mount_point, mount_fstype,
+			MS_RDONLY, NULL) ) {
+		perror("Can't mount boot device");
+		exit(-1);
+	}
+
 	/* fill '--initrd' option */
 	if (item->initrd) {
 		/* allocate space */
-		n = sizeof(str_initrd_start) + strlen(item->initrd);
+		n = sizeof(str_initrd_start) + strlen(item->initrd) + 1 + sizeof(mount_point) + sizeof(buf);
 
 		initrd_arg = (char *)malloc(n);
 		if (NULL == initrd_arg) {
@@ -317,24 +329,46 @@ void start_kernel(struct params_t *params, int choice)
 		} else {
 			strcpy(initrd_arg, str_initrd_start);	/* --initrd= */
 			strcat(initrd_arg, item->initrd);
+
+			if ((len = readlink(item->initrd, buf, sizeof(buf)-1)) != -1) {
+				buf[len] = '\0';
+				/* Fix absolute symlinks: prepend MOUNTPOINT */
+				if (buf[0] == '/') {
+					strcpy(initrd_arg, str_initrd_start);	/* --initrd= */
+					strcat(initrd_arg, mount_point);
+					strcat(initrd_arg, buf);
+				}
+			}
 			load_argv[idx] = initrd_arg;
 			++idx;
 		}
 	}
 
 	/* Append kernelpath as last arg of kexec */
-	load_argv[idx] = item->kernelpath;
+		/* allocate space */
+		n = strlen(item->kernelpath) + 1 + sizeof(mount_point) + sizeof(buf);
+
+		kernel_arg = (char *)malloc(n);
+		if (NULL == kernel_arg) {
+			perror("Can't allocate memory for kernel_arg");
+		} else {
+			strcpy(kernel_arg, item->kernelpath);
+
+			if ((len = readlink(item->kernelpath, buf, sizeof(buf)-1)) != -1) {
+				buf[len] = '\0';
+				/* Fix absolute symlinks: prepend MOUNTPOINT */
+				if (buf[0] == '/') {
+					strcpy(kernel_arg, mount_point);
+					strcat(kernel_arg, buf);
+				}
+			}
+			load_argv[idx] = kernel_arg;
+		}
 
 	DPRINTF("load_argv: %s, %s, %s, %s, %s", load_argv[0],
 			load_argv[1], load_argv[2],
 			load_argv[3], load_argv[4]);
 
-	/* Mount boot device */
-	if ( -1 == mount(mount_dev, mount_point, mount_fstype,
-			MS_RDONLY, NULL) ) {
-		perror("Can't mount boot device");
-		exit(-1);
-	}
 
 	/* Load kernel */
 	n = fexecw(kexec_path, (char *const *)load_argv, envp);
@@ -347,6 +381,7 @@ void start_kernel(struct params_t *params, int choice)
 
 	dispose(cmdline_arg);
 	dispose(initrd_arg);
+	dispose(kernel_arg);
 
 	/* Check /proc/sys/net presence */
 	if ( -1 == stat("/proc/sys/net", &sinfo) ) {
