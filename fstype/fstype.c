@@ -37,6 +37,7 @@
 #include "romfs_fs.h"
 #include "squashfs_fs.h"
 #include "xfs_sb.h"
+#include "f2fs_fs.h"
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 #include <linux/byteorder/big_endian.h>
@@ -509,6 +510,18 @@ static int btrfs_image(const void *buf, unsigned long long *bytes)
 	return 0;
 }
 
+static int f2fs_image(const void *buf, unsigned long long *bytes)
+{
+	const struct f2fs_super_block *sb =
+		(const struct f2fs_super_block *)buf;
+
+	if (sb->magic == __cpu_to_le32(F2FS_SUPER_MAGIC)) {
+		*bytes = 0;
+		return 1;
+	}
+	return 0;
+}
+
 struct imagetype {
 	off_t block;
 	const char name[12];
@@ -542,6 +555,7 @@ static struct imagetype images[] = {
 	{0, "jffs2", jffs2_image},
 	{0, "vfat", vfat_image},
 	{1, "nilfs2", nilfs2_image},
+	{1, "f2fs", f2fs_image},
 	{2, "ocfs2", ocfs2_image},
 	{8, "reiserfs", reiserfs_image},
 	{64, "reiserfs", reiserfs_image},
