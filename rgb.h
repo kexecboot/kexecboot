@@ -51,8 +51,7 @@ typedef struct {
 } kx_named_color;
 
 /* Convert RGBA uint32 to red/green/blue/alpha components */
-inline void
-rgba2comp(kx_rgba rgba, kx_ccomp *red, kx_ccomp *green,
+void rgba2comp(kx_rgba rgba, kx_ccomp *red, kx_ccomp *green,
 		kx_ccomp *blue, kx_ccomp *alpha);
 
 /* Convert hex rgb color to rgba color */
