@@ -104,8 +104,7 @@ kx_text *log_open(unsigned int size)
 	return log;
 }
 
-inline void
-log_plain_msg(kx_text *log, char *msg)
+void log_plain_msg(kx_text *log, char *msg)
 {
 	/* Add to charlist */
 	if (log) addto_charlist(log->rows, msg);
