@@ -112,6 +112,23 @@ void destroy_cfgdata(struct cfgdata_t *cfgdata)
 	cfgdata->current = NULL;
 }
 
+static int set_path(char **path, char *value)
+{
+	dispose(*path);
+
+	/* Prepend the current  mountpoint, since the enduser won't know it */
+	*path = malloc(strlen(MOUNTPOINT) + strlen(value) + 1);
+	if (NULL == *path) {
+		DPRINTF("Can't allocate memory to store path '%s'", value);
+
+		return -1;
+	}
+
+	strcpy(*path, MOUNTPOINT);
+	strcat(*path, value);
+
+	return 0;
+}
 
 static int set_label(struct cfgdata_t *cfgdata, char *value)
 {
@@ -133,17 +150,7 @@ static int set_kernel(struct cfgdata_t *cfgdata, char *value)
 	sc = cfgdata->current;
 	if (!sc) return -1;
 
-	dispose(sc->kernelpath);
-	/* Add our mountpoint, since the enduser won't know it */
-	sc->kernelpath = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
-	if (NULL == sc->kernelpath) {
-		DPRINTF("Can't allocate memory to store kernelpath '%s'", value);
-		return -1;
-	}
-
-	strcpy(sc->kernelpath, MOUNTPOINT);
-	strcat(sc->kernelpath, value);
-	return 0;
+	return set_path(&sc->kernelpath, value);
 }
 
 static int set_icon(struct cfgdata_t *cfgdata, char *value)
@@ -153,18 +160,7 @@ static int set_icon(struct cfgdata_t *cfgdata, char *value)
 	sc = cfgdata->current;
 	if (!sc) return -1;
 
-	dispose(sc->iconpath);
-	/* Add our mountpoint, since the enduser won't know it */
-	sc->iconpath = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
-	if (NULL == sc->iconpath) {
-		DPRINTF("Can't allocate memory to store iconpath '%s'", value);
-		return -1;
-	}
-
-	strcpy(sc->iconpath, MOUNTPOINT);
-	strcat(sc->iconpath, value);
-
-	return 0;
+	return set_path(&sc->iconpath, value);
 }
 
 static int set_cmdline(struct cfgdata_t *cfgdata, char *value)
@@ -186,17 +182,7 @@ static int set_initrd(struct cfgdata_t *cfgdata, char *value)
 	sc = cfgdata->current;
 	if (!sc) return -1;
 
-	dispose(sc->initrd);
-	/* Add our mountpoint, since the enduser won't know it */
-	sc->initrd = malloc(strlen(MOUNTPOINT)+strlen(value)+1);
-	if (NULL == sc->initrd) {
-		DPRINTF("Can't allocate memory to store initrd '%s'", value);
-		return -1;
-	}
-
-	strcpy(sc->initrd, MOUNTPOINT);
-	strcat(sc->initrd, value);
-	return 0;
+	return set_path(&sc->initrd, value);
 }
 
 static int set_priority(struct cfgdata_t *cfgdata, char *value)
