@@ -251,7 +251,8 @@ void start_kernel(struct params_t *params, int choice)
 	/* empty environment */
 	char *const envp[] = { NULL };
 
-	const char *load_argv[] = { NULL, "-l", NULL, NULL, NULL, NULL, NULL };
+	const char *load_argv[] = { NULL, "-d", "-l",
+				    NULL, NULL, NULL, NULL, NULL };
 	const char *exec_argv[] = { NULL, "-e", NULL, NULL};
 
 	char *cmdline_arg = NULL, *dtb_arg = NULL, *initrd_arg = NULL, *kernel_arg = NULL;
@@ -265,7 +266,7 @@ void start_kernel(struct params_t *params, int choice)
 	load_argv[0] = kexec_path;
 
 	/* --command-line arg generation */
-	idx = 2;	/* load_argv current option index */
+	idx = 3;	/* load_argv current option index */
 
 	/* fill '--command-line' option */
 	if (item->device) {
