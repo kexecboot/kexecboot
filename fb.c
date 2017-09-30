@@ -307,10 +307,65 @@ fb_memcpy(char *src, char *dst, int length)
 	}
 }
 
+#ifdef USE_FBUI_UPDATE
+
+/*
+ * Many phones use command mode LCDs to save power where the LCD panel needs to
+ * be manually refreshed. Kernel can do that for us in some cases if configured
+ * so, but at least the Motorola phones like droid 4 has the signed stock kernel
+ * locked into command mode only. We can check this and enable the manual update
+ * mode if needed.
+ */
+static int fb_quirk_check_manual_update(void)
+{
+	enum omapfb_update_mode update_mode;
+	int error;
+
+	if (strncmp("omapfb", fb.id, 5))
+		return 0;
+
+	error = ioctl(fb.fd, OMAPFB_GET_UPDATE_MODE, &update_mode);
+	if (error < 0)
+		return 0;
+
+	if (update_mode == OMAPFB_MANUAL_UPDATE)
+		return 1;
+
+	return 0;
+}
+
+/* Flush command mode LCD if needed */
+static void fb_quirk_manual_update(void)
+{
+	struct omapfb_update_window uw;
+
+	if (!fb.needs_manual_update)
+		return;
+
+	uw.x = 0;
+	uw.y = 0;
+	uw.width = fb.real_width;
+	uw.height = fb.real_height;
+
+	ioctl(fb.fd, OMAPFB_UPDATE_WINDOW, &uw);
+	ioctl(fb.fd, OMAPFB_SYNC_GFX);
+}
+
+#else
+static inline int fb_quirk_check_manual_update(void)
+{
+	return 0;
+}
+static inline void fb_quirk_manual_update(void)
+{
+}
+#endif
+
 /* Move backbuffer contents to videomemory */
 void fb_render()
 {
 	fb_memcpy(fb.backbuffer, fb.data, fb.screensize);
+	fb_quirk_manual_update();
 }
 
 /* Save backbuffer contents to further usage */
@@ -480,6 +535,7 @@ int fb_new(int angle)
 	fb.stride = fb_fix.line_length;
 	fb.type = fb_fix.type;
 	fb.visual = fb_fix.visual;
+	strncpy(fb.id, fb_fix.id, 16);
 
 	fb.screensize = fb.stride * fb.height;
 	fb.backbuffer = malloc(fb.screensize);
@@ -501,6 +557,9 @@ int fb_new(int angle)
 	} else {
 		fb.rgbmode = GENERIC;
 	}
+
+	if (fb_quirk_check_manual_update())
+		fb.needs_manual_update = 1;
 
 	fb.base = (char *) mmap((caddr_t) NULL,
 				 /*fb_fix.smem_len */

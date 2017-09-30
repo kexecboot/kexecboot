@@ -29,6 +29,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <linux/fb.h>
+#include <linux/omapfb.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -68,6 +69,9 @@ typedef struct FB {
 	int green_length;
 	int blue_offset;
 	int blue_length;
+
+	char id[16];
+	int needs_manual_update;
 
 	plot_pixel_func plot_pixel;
 	draw_hline_func draw_hline;

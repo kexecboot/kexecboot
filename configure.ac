@@ -10,6 +10,7 @@ AC_ARG_ENABLE([static-linking],[AS_HELP_STRING([--enable-static-linking],[compil
 AC_ARG_ENABLE([fbui],[AS_HELP_STRING([--enable-fbui],[support framebuffer user interface @<:@default=yes@:>@])],[],[enable_fbui=yes])
 AC_ARG_ENABLE([fbui-width],[AS_HELP_STRING([--enable-fbui-width],[limit FB UI width to specified value @<:@default=no@:>@])],[],[enable_fbui_width=no])
 AC_ARG_ENABLE([fbui-height],[AS_HELP_STRING([--enable-fbui-height],[limit FB UI height to specified value @<:@default=no@:>@])],[],[enable_fbui_height=no])
+AC_ARG_ENABLE([fbui-update],[AS_HELP_STRING([--enable-fbui-update],[enable support for manual update LCD panels @<:@default=no@:>@])],[],[enable_fbui_update=no])
 AC_ARG_ENABLE([textui],[AS_HELP_STRING([--enable-textui],[support console text user interface @<:@default=no@:>@])],[],[enable_textui=no])
 AC_ARG_ENABLE([cfgfiles],[AS_HELP_STRING([--enable-cfgfiles],[support config files @<:@default=yes@:>@])],[],[enable_cfgfiles=yes])
 AC_ARG_ENABLE([icons],[AS_HELP_STRING([--enable-icons],[support custom icons (depends on fbui) @<:@default=yes@:>@])],[],[enable_icons=yes])
@@ -96,6 +97,11 @@ AS_IF([test "x$enable_fbui" != xno],
 			[
 			AC_DEFINE_UNQUOTED([USE_FBUI_HEIGHT], [${enable_fbui_height}], [Define if you want to limit FB UI height to specified value])
 			],[])
+
+		AS_IF([test "x$enable_fbui_update" = xyes],
+			[
+			AC_DEFINE([USE_FBUI_UPDATE], [1], [Define if you wish to enable support for manual update LCD panels])
+			], [])
 
 		AS_IF([test "x$enable_32bpp" == xyes],
 			[
