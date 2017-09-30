@@ -29,6 +29,7 @@ enum ui_type_t { GUI, TEXTUI };
 
 typedef struct {
 	char *label;		/* Partition label (name) */
+	char *dtbpath;		/* Found dtb (/boot/dtb) */
 	char *kernelpath;	/* Found kernel (/boot/zImage) */
 	char *cmdline;		/* Kernel cmdline (logo.nologo debug) */
 	char *initrd;		/* Initial ramdisk file */

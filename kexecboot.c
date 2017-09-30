@@ -244,15 +244,16 @@ void start_kernel(struct params_t *params, int choice)
 	const char str_mtdparts[] = " mtdparts=";
 	const char str_fbcon[] = " fbcon=";
 
+	const char str_dtb_start[] = "--dtb=";
 	const char str_initrd_start[] = "--initrd=";
 
 	/* empty environment */
 	char *const envp[] = { NULL };
 
-	const char *load_argv[] = { NULL, "-l", NULL, NULL, NULL, NULL };
+	const char *load_argv[] = { NULL, "-l", NULL, NULL, NULL, NULL, NULL };
 	const char *exec_argv[] = { NULL, "-e", NULL, NULL};
 
-	char *cmdline_arg = NULL, *initrd_arg = NULL, *kernel_arg = NULL;
+	char *cmdline_arg = NULL, *dtb_arg = NULL, *initrd_arg = NULL, *kernel_arg = NULL;
 	int n, idx, u;
 	struct stat sinfo;
 	struct boot_item_t *item;
@@ -357,6 +358,7 @@ void start_kernel(struct params_t *params, int choice)
 		exit(-1);
 	}
 
+	add_cmd_option(load_argv, str_dtb_start, item->dtbpath, &idx);
 	add_cmd_option(load_argv, str_initrd_start, item->initrd, &idx);
 	add_cmd_option(load_argv, NULL, item->kernelpath, &idx);
 
@@ -375,6 +377,7 @@ void start_kernel(struct params_t *params, int choice)
 	umount(mount_point);
 
 	dispose(cmdline_arg);
+	dispose(dtb_arg);
 	dispose(initrd_arg);
 	dispose(kernel_arg);
 
@@ -389,8 +392,8 @@ void start_kernel(struct params_t *params, int choice)
 		}
 	}
 
-	DPRINTF("exec_argv: %s, %s, %s", exec_argv[0],
-			exec_argv[1], exec_argv[2]);
+	DPRINTF("exec_argv: %s, %s, %s, %s", exec_argv[0],
+			exec_argv[1], exec_argv[2], exec_argv[3]);
 
 	/* Boot new kernel */
 	execve(kexec_path, (char *const *)exec_argv, envp);

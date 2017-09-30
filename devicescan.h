@@ -42,6 +42,7 @@ struct boot_item_t {
 	const char *fstype;	/* Filesystem (ext2) */
 	unsigned long long blocks;	/* Device size in 1K blocks */
 	char *label;		/* Partition label (name) */
+	char *dtbpath;		/* Found dtb (/boot/dtb) */
 	char *kernelpath;	/* Found kernel (/boot/zImage) */
 	char *cmdline;		/* Kernel cmdline (logo.nologo debug) */
 	char *initrd;		/* Initial ramdisk file */

@@ -57,6 +57,7 @@ kx_cfg_section *cfg_section_new(struct cfgdata_t *cfgdata)
 	}
 
 	sc->label = NULL;
+	sc->dtbpath = NULL;
 	sc->kernelpath = NULL;
 	sc->cmdline = NULL;
 	sc->initrd = NULL;
@@ -141,6 +142,16 @@ static int set_label(struct cfgdata_t *cfgdata, char *value)
 
 	sc->label = strdup(value);
 	return 0;
+}
+
+static int set_dtb(struct cfgdata_t *cfgdata, char *value)
+{
+	kx_cfg_section *sc;
+
+	sc = cfgdata->current;
+	if (!sc) return -1;
+
+	return set_path(&sc->dtbpath, value);
 }
 
 static int set_kernel(struct cfgdata_t *cfgdata, char *value)
@@ -360,6 +371,7 @@ static struct cfg_keyfunc_t cfg_keyfunc[] = {
 	/* Individual item settings */
 	{ CFG_FILE, 0, "DEFAULT", set_default },
 	{ CFG_FILE, 1, "LABEL", set_label },
+	{ CFG_FILE, 1, "DTB", set_dtb },
 	{ CFG_FILE, 1, "KERNEL", set_kernel },
 	{ CFG_FILE, 1, "ICON", set_icon },
 	{ CFG_FILE, 1, "APPEND", set_cmdline },
