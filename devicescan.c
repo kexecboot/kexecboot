@@ -134,6 +134,7 @@ int addto_bootcfg(struct bootconf_t *bc, struct device_t *dev,
 		bi->label = sc->label;
 		bi->dtbpath = sc->dtbpath;
 		bi->kernelpath = sc->kernelpath;
+		bi->cmdline_append = sc->cmdline_append;
 		bi->cmdline = sc->cmdline;
 		bi->initrd = sc->initrd;
 		bi->icondata = sc->icondata;

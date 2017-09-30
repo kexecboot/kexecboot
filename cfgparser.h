@@ -31,7 +31,8 @@ typedef struct {
 	char *label;		/* Partition label (name) */
 	char *dtbpath;		/* Found dtb (/boot/dtb) */
 	char *kernelpath;	/* Found kernel (/boot/zImage) */
-	char *cmdline;		/* Kernel cmdline (logo.nologo debug) */
+	char *cmdline_append;	/* Appended kernel cmdline (logo.nologo debug) */
+	char *cmdline;		/* Kernel cmdline */
 	char *initrd;		/* Initial ramdisk file */
 	char *iconpath;		/* Custom partition icon path */
 	void *icondata;		/* Icon data */

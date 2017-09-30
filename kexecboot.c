@@ -224,7 +224,8 @@ void start_kernel(struct params_t *params, int choice)
 #endif
 	const char mount_point[] = MOUNTPOINT;
 
-	const char str_cmdline_start[] = "--command-line=root=";
+	const char str_cmdline_start[] = "--command-line=";
+	const char str_cmdline_root[] = "root=";
 	const char str_rootfstype[] = " rootfstype=";
 	const char str_rootwait[] = " rootwait";
 	const char str_ubirootdev[] = "ubi0";
@@ -271,27 +272,37 @@ void start_kernel(struct params_t *params, int choice)
 		/* default device to mount */
 		strcpy(mount_dev, item->device);
 
-		/* allocate space */
-		n = sizeof(str_cmdline_start) + strlen(item->device) +
+		/* default fstype to mount */
+		strcpy(mount_fstype, item->fstype);
+
+		/* Overwrite if CMDLINE is configured, append if APPEND is configured */
+		if (item->cmdline) {
+			n = sizeof(str_cmdline_start) + strlenn(item->cmdline);
+
+			cmdline_arg = (char *)malloc(n);
+			if (NULL == cmdline_arg)
+				perror("Can't allocate memory for cmdline_arg");
+
+			add_cmd_option(load_argv, str_cmdline_start, item->cmdline, &idx);
+		} else {
+			/* allocate space */
+			n = sizeof(str_cmdline_start) + sizeof(str_cmdline_root) + strlen(item->device) +
 				sizeof(str_ubirootdev) + 2 +
 				sizeof(str_ubimtd) + 2 + sizeof(str_ubimtd_off) + 1 +
 				sizeof(str_rootwait) +
 				sizeof(str_rootfstype) + strlen(item->fstype) + 2 +
 				sizeof(str_mtdparts) + strlenn(params->cfg->mtdparts) +
 				sizeof(str_fbcon) + strlenn(params->cfg->fbcon) +
-				sizeof(char) + strlenn(item->cmdline);
+				sizeof(char) + strlenn(item->cmdline_append);
 
-		cmdline_arg = (char *)malloc(n);
-		if (NULL == cmdline_arg) {
-			perror("Can't allocate memory for cmdline_arg");
-		} else {
+			cmdline_arg = (char *)malloc(n);
+			if (NULL == cmdline_arg)
+				perror("Can't allocate memory for cmdline_arg");
 
-			strcpy(cmdline_arg, str_cmdline_start);	/* --command-line=root= */
+			strcpy(cmdline_arg, str_cmdline_start);	/* --command-line= */
+			strcat(cmdline_arg, str_cmdline_root);	/* root= */
 
 			if (item->fstype) {
-
-				/* default fstype to mount */
-				strcpy(mount_fstype, item->fstype);
 
 				/* extra tags when we detect UBI */
 				if (!strncmp(item->fstype,"ubi",3)) {
@@ -342,9 +353,9 @@ void start_kernel(struct params_t *params, int choice)
 				strcat(cmdline_arg, params->cfg->fbcon);
 			}
 
-			if (item->cmdline) {
+			if (item->cmdline_append) {
 				strcat(cmdline_arg, " ");
-				strcat(cmdline_arg, item->cmdline);
+				strcat(cmdline_arg, item->cmdline_append);
 			}
 			load_argv[idx] = cmdline_arg;
 			++idx;

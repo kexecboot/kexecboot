@@ -59,6 +59,7 @@ kx_cfg_section *cfg_section_new(struct cfgdata_t *cfgdata)
 	sc->label = NULL;
 	sc->dtbpath = NULL;
 	sc->kernelpath = NULL;
+	sc->cmdline_append = NULL;
 	sc->cmdline = NULL;
 	sc->initrd = NULL;
 	sc->iconpath = NULL;
@@ -172,6 +173,18 @@ static int set_icon(struct cfgdata_t *cfgdata, char *value)
 	if (!sc) return -1;
 
 	return set_path(&sc->iconpath, value);
+}
+
+static int set_cmdline_append(struct cfgdata_t *cfgdata, char *value)
+{
+	kx_cfg_section *sc;
+
+	sc = cfgdata->current;
+	if (!sc) return -1;
+
+	dispose(sc->cmdline_append);
+	sc->cmdline_append = strdup(value);
+	return 0;
 }
 
 static int set_cmdline(struct cfgdata_t *cfgdata, char *value)
@@ -374,7 +387,8 @@ static struct cfg_keyfunc_t cfg_keyfunc[] = {
 	{ CFG_FILE, 1, "DTB", set_dtb },
 	{ CFG_FILE, 1, "KERNEL", set_kernel },
 	{ CFG_FILE, 1, "ICON", set_icon },
-	{ CFG_FILE, 1, "APPEND", set_cmdline },
+	{ CFG_FILE, 1, "APPEND", set_cmdline_append },
+	{ CFG_FILE, 1, "CMDLINE", set_cmdline },
 	{ CFG_FILE, 1, "INITRD", set_initrd },
 	{ CFG_FILE, 1, "PRIORITY", set_priority },
 	{ CFG_CMDLINE, 1, "FBCON", set_fbcon },
