@@ -169,6 +169,50 @@ char *get_machine_kernelpath() {
 }
 #endif	/* USE_MACHINE_KERNEL */
 
+static void add_cmd_option(const char **load_argv,
+			   const char *start,
+			   char *path, int *idx)
+{
+	const char mount_point[] = MOUNTPOINT;
+	char buf[512];
+	char *arg;
+	int len;
+
+	if (!path)
+		return;
+
+	/* allocate space */
+	if (start)
+		len = sizeof(start) + strlen(path) + 1;
+	else
+		len = strlen(path) + 1;
+	len += sizeof(mount_point) + sizeof(buf);
+
+	arg = (char *)malloc(len);
+	if (NULL == arg) {
+		perror("Can't allocate memory for arg");
+
+		return;
+	}
+
+	memset(arg, '\0', len);
+	if (start)
+		strcpy(arg, start);
+	strcat(arg, path);
+
+	if ((len = readlink(path, buf, sizeof(buf) - 1)) != -1) {
+		buf[len] = '\0';
+		/* Fix absolute symlinks: prepend MOUNTPOINT */
+		if (buf[0] == '/') {
+			memset(arg, '\0', len);
+			if (start)
+				strcpy(arg, start);
+			strcat(arg, mount_point);
+			strcat(arg, buf);
+		}
+	}
+	load_argv[(*idx)++] = arg;
+}
 
 void start_kernel(struct params_t *params, int choice)
 {
@@ -212,11 +256,6 @@ void start_kernel(struct params_t *params, int choice)
 	int n, idx, u;
 	struct stat sinfo;
 	struct boot_item_t *item;
-
-	/* buffer for readlink (could be truncated) */
-	char buf[512];
-	int len;
-
 
 	item = params->bootcfg->list[choice];
 
@@ -318,52 +357,8 @@ void start_kernel(struct params_t *params, int choice)
 		exit(-1);
 	}
 
-	/* fill '--initrd' option */
-	if (item->initrd) {
-		/* allocate space */
-		n = sizeof(str_initrd_start) + strlen(item->initrd) + 1 + sizeof(mount_point) + sizeof(buf);
-
-		initrd_arg = (char *)malloc(n);
-		if (NULL == initrd_arg) {
-			perror("Can't allocate memory for initrd_arg");
-		} else {
-			strcpy(initrd_arg, str_initrd_start);	/* --initrd= */
-			strcat(initrd_arg, item->initrd);
-
-			if ((len = readlink(item->initrd, buf, sizeof(buf)-1)) != -1) {
-				buf[len] = '\0';
-				/* Fix absolute symlinks: prepend MOUNTPOINT */
-				if (buf[0] == '/') {
-					strcpy(initrd_arg, str_initrd_start);	/* --initrd= */
-					strcat(initrd_arg, mount_point);
-					strcat(initrd_arg, buf);
-				}
-			}
-			load_argv[idx] = initrd_arg;
-			++idx;
-		}
-	}
-
-	/* Append kernelpath as last arg of kexec */
-		/* allocate space */
-		n = strlen(item->kernelpath) + 1 + sizeof(mount_point) + sizeof(buf);
-
-		kernel_arg = (char *)malloc(n);
-		if (NULL == kernel_arg) {
-			perror("Can't allocate memory for kernel_arg");
-		} else {
-			strcpy(kernel_arg, item->kernelpath);
-
-			if ((len = readlink(item->kernelpath, buf, sizeof(buf)-1)) != -1) {
-				buf[len] = '\0';
-				/* Fix absolute symlinks: prepend MOUNTPOINT */
-				if (buf[0] == '/') {
-					strcpy(kernel_arg, mount_point);
-					strcat(kernel_arg, buf);
-				}
-			}
-			load_argv[idx] = kernel_arg;
-		}
+	add_cmd_option(load_argv, str_initrd_start, item->initrd, &idx);
+	add_cmd_option(load_argv, NULL, item->kernelpath, &idx);
 
 	DPRINTF("load_argv: %s, %s, %s, %s, %s", load_argv[0],
 			load_argv[1], load_argv[2],
