@@ -30,7 +30,7 @@
 #include "xpm.h"
 #endif
 
-#include "res/theme-gui.h"
+#include "../res/theme-gui.h"
 
 
 /* Draw background with logo */

@@ -36,7 +36,7 @@
 #include <sys/stat.h>
 
 #include "util.h"
-#include "res/fonts/font.h"
+#include "../res/fonts/font.h"
 #include "rgb.h"
 
 typedef void (*plot_pixel_func)(int x, int y,
