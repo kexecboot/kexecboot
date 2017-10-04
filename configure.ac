@@ -14,7 +14,6 @@ AC_ARG_ENABLE([fbui-update],[AS_HELP_STRING([--enable-fbui-update],[enable suppo
 AC_ARG_ENABLE([textui],[AS_HELP_STRING([--enable-textui],[support console text user interface @<:@default=no@:>@])],[],[enable_textui=no])
 AC_ARG_ENABLE([cfgfiles],[AS_HELP_STRING([--enable-cfgfiles],[support config files @<:@default=yes@:>@])],[],[enable_cfgfiles=yes])
 AC_ARG_ENABLE([icons],[AS_HELP_STRING([--enable-icons],[support custom icons (depends on fbui) @<:@default=yes@:>@])],[],[enable_icons=yes])
-AC_ARG_ENABLE([zaurus],[AS_HELP_STRING([--enable-zaurus],[compile Sharp Zaurus specific code @<:@default=no@:>@])],[],[enable_zaurus=no])
 AC_ARG_ENABLE([zimage],[AS_HELP_STRING([--enable-zimage],[compile with zImage support @<:@default=yes@:>@])],[],[enable_zimage=yes])
 AC_ARG_ENABLE([uimage],[AS_HELP_STRING([--enable-uimage],[compile with uImage support @<:@default=no@:>@])],[],[enable_uimage=no])
 AC_ARG_ENABLE([machine-kernel],[AS_HELP_STRING([--enable-machine-kernel],[enable looking for machine-specific zImage kernel @<:@default=no@:>@])],[],[enable_machine_kernel=no])
@@ -172,11 +171,6 @@ AS_IF([test "x$enable_devices_recreating" != xno],
 AS_IF([test "x$enable_host_debug" = xyes],
 		[
 		AC_DEFINE([USE_HOST_DEBUG], [1], [Define if you wish to debug kexecboot right on host system])
-		], [])
-
-AS_IF([test "x$enable_zaurus" = xyes],
-		[
-		AC_DEFINE([USE_ZAURUS], [1], [Define if you wish to compile Sharp Zaurus specific code])
 		], [])
 
 AS_IF([test "x$enable_zimage" = xyes],

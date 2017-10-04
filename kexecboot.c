@@ -47,10 +47,6 @@
 #include "tui.h"
 #endif
 
-#ifdef USE_ZAURUS
-#include "machine/zaurus.h"
-#endif
-
 /* Don't re-create devices when executing on host */
 #ifdef USE_HOST_DEBUG
 #undef USE_DEVICES_RECREATING
@@ -445,17 +441,6 @@ int scan_devices(struct params_t *params)
 		return -1;
 	}
 
-#ifdef USE_ZAURUS
-	struct zaurus_partinfo_t pinfo;
-	int zaurus_error = 0;
-	zaurus_error = zaurus_read_partinfo(&pinfo);
-	if (0 == zaurus_error) {
-		/* Fix mtdparts tag */
-		dispose(params->cfg->mtdparts);
-		params->cfg->mtdparts = zaurus_mtdparts(&pinfo);
-	}
-#endif
-
 	for (;;) {
 		rc = devscan_next(f, fl, &dev);
 		if (rc < 0) continue;	/* Error */
@@ -537,22 +522,6 @@ umount:
 		if (-1 == rc) {	/* Error */
 			goto free_cfgdata;
 		}
-
-#ifdef USE_ZAURUS
-		/* Fix partition sizes. We can have kernel in root and home partitions on NAND */
-		/* HACK: mtdblock devices are hardcoded */
-		if (0 == zaurus_error) {
-			if (0 == strcmp(dev.device, "/dev/mtdblock2")) {	/* root */
-				log_msg(lg, "+ [zaurus root] size of %s will be changed from %llu to %lu",
-						dev.device, dev.blocks, pinfo.root);
-				dev.blocks = pinfo.root;
-			} else if (0 == strcmp(dev.device, "/dev/mtdblock3")) {	/* home */
-				log_msg(lg, "+ [zaurus home] size of %s will be changed from %llu to %lu",
-						dev.device, dev.blocks, pinfo.home);
-				dev.blocks = pinfo.home;
-			}
-		}
-#endif
 
 		/* Now we have something in cfgdata */
 		rc = addto_bootcfg(bootconf, &dev, &cfgdata);
