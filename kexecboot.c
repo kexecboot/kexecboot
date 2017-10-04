@@ -52,11 +52,6 @@
 #undef USE_DEVICES_RECREATING
 #endif
 
-#ifdef USE_MACHINE_KERNEL
-/* Machine-dependent kernel path */
-char *machine_kernel = NULL;
-#endif
-
 #define PREPEND_MOUNTPATH(string) MOUNTPOINT""string
 
 /* NULL-terminated array of kernel search paths
@@ -103,67 +98,6 @@ static void atexit_restore_terminal(void)
 {
 	setup_terminal(kxb_ttydev, &kxb_echo_state, 0);
 }
-
-#ifdef USE_MACHINE_KERNEL
-/* Return lowercased and stripped machine-specific kernel path */
-/* Return value should be free()'d */
-char *get_machine_kernelpath() {
-	FILE *f;
-	char *tmp, *hw = NULL, c;
-	char line[80];
-
-	f = fopen("/proc/cpuinfo", "r");
-	if (!f) {
-		perror("/proc/cpuinfo");
-		exit(-1);
-	}
-
-	/* Search string 'Hardware' */
-	while (fgets(line, sizeof(line), f)) {
-		line[strlen(line) - 1] = '\0';
-		hw = strstr(line, "Hardware");
-		if (NULL != hw) break;
-	}
-	fclose(f);
-
-	if ( NULL != hw) {
-		/* Search colon then skip it and space after */
-		hw = strchr(hw, ':');
-		if (NULL == hw) {	/* Should not happens but anyway */
-			log_msg(lg, "Can't find ':' in 'Hardware' line");
-			return NULL;
-		}
-		hw += 2;	/* May be ltrim()? */
-
-		/* Lowercase name and replace spaces with '_' */
-		tmp = hw;
-		while('\0' != *tmp) {
-			c = *tmp;
-			if (isspace(c)) {
-				*tmp = '_';
-			} else {
-				*tmp = tolower(c);
-			}
-			++tmp;
-		}
-
-		/* Prepend  MOUNTPOINT"/boot/zImage-" to hw */
-		tmp = malloc(strlen(PREPEND_MOUNTPATH("/boot/zImage-")) + strlen(hw) + 1);
-		if (NULL == tmp) {
-			DPRINTF("Can't allocate memory for machine-specific kernel path");
-			return NULL;
-		}
-
-		strcpy(tmp, PREPEND_MOUNTPATH("/boot/zImage-"));
-		strcat(tmp, hw);
-
-		return tmp;
-	}
-
-	log_msg(lg, "Can't find 'Hardware' line in cpuinfo");
-	return NULL;
-}
-#endif	/* USE_MACHINE_KERNEL */
 
 static void add_cmd_option(const char **load_argv,
 			   const char *start,
@@ -1048,10 +982,6 @@ int main(int argc, char **argv)
 	atexit(atexit_restore_terminal);
 
 	log_msg(lg, "FB angle is %d, tty is %s", cfg.angle, cfg.ttydev);
-
-#ifdef USE_MACHINE_KERNEL
-	machine_kernel = get_machine_kernelpath();	/* FIXME should be passed as arg to get_bootinfo() */
-#endif
 
 #ifdef USE_DELAY
 	/* extra delay for initializing slow SD/CF */

@@ -16,7 +16,6 @@ AC_ARG_ENABLE([cfgfiles],[AS_HELP_STRING([--enable-cfgfiles],[support config fil
 AC_ARG_ENABLE([icons],[AS_HELP_STRING([--enable-icons],[support custom icons (depends on fbui) @<:@default=yes@:>@])],[],[enable_icons=yes])
 AC_ARG_ENABLE([zimage],[AS_HELP_STRING([--enable-zimage],[compile with zImage support @<:@default=yes@:>@])],[],[enable_zimage=yes])
 AC_ARG_ENABLE([uimage],[AS_HELP_STRING([--enable-uimage],[compile with uImage support @<:@default=no@:>@])],[],[enable_uimage=no])
-AC_ARG_ENABLE([machine-kernel],[AS_HELP_STRING([--enable-machine-kernel],[enable looking for machine-specific zImage kernel @<:@default=no@:>@])],[],[enable_machine_kernel=no])
 AC_ARG_ENABLE([devices-recreating],[AS_HELP_STRING([--enable-devices-recreating],[enable devices re-creating @<:@default=yes@:>@])], [],[enable_devices_recreating=yes])
 AC_ARG_ENABLE([debug],[AS_HELP_STRING([--enable-debug],[enable debug output @<:@default=no@:>@])], [],[enable_debug=\"no\"])
 AC_ARG_ENABLE([host-debug],[AS_HELP_STRING([--enable-host-debug],[allow for non-destructive executing of kexecboot on host system @<:@default=no@:>@])], [],[enable_host_debug=no])
@@ -181,11 +180,6 @@ AS_IF([test "x$enable_zimage" = xyes],
 AS_IF([test "x$enable_uimage" = xyes],
 		[
 		AC_DEFINE([USE_UIMAGE], [1], [Define if you wish to compile uImage kernel support])
-		], [])
-
-AS_IF([test "x$enable_machine_kernel" = xyes],
-		[
-		AC_DEFINE([USE_MACHINE_KERNEL], [1], [Define if you wish to enable looking for machine-specific zImage kernel])
 		], [])
 
 AS_IF([test "x$enable_timeout" != xno],
