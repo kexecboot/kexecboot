@@ -181,7 +181,7 @@ void start_kernel(struct params_t *params, int choice)
 	/* empty environment */
 	char *const envp[] = { NULL };
 
-	const char *load_argv[] = { NULL, "-d", "-l",
+	const char *load_argv[] = { NULL, "-d", "-l", NULL, NULL,
 				    NULL, NULL, NULL, NULL, NULL };
 	const char *exec_argv[] = { NULL, "-e", NULL, NULL};
 
@@ -199,10 +199,19 @@ void start_kernel(struct params_t *params, int choice)
 	load_argv[2] = "--load-hardboot";
 #endif
 
-
-	/* --command-line arg generation */
 	idx = 3;	/* load_argv current option index */
 
+#ifdef MEM_MIN
+	load_argv[idx] = "--mem-min=" MEM_MIN;
+	idx++;
+#endif
+
+#ifdef MEM_MAX
+	load_argv[idx] = "--mem-max=" MEM_MAX;
+	idx++;
+#endif
+
+	/* --command-line arg generation */
 	/* fill '--command-line' option */
 	if (item->device) {
 		/* default device to mount */
@@ -309,9 +318,10 @@ void start_kernel(struct params_t *params, int choice)
 	add_cmd_option(load_argv, str_initrd_start, item->initrd, &idx);
 	add_cmd_option(load_argv, NULL, item->kernelpath, &idx);
 
-	DPRINTF("load_argv: %s, %s, %s, %s, %s", load_argv[0],
+	DPRINTF("load_argv: %s, %s, %s, %s, %s, %s, %s", load_argv[0],
 			load_argv[1], load_argv[2],
-			load_argv[3], load_argv[4]);
+			load_argv[3], load_argv[4],
+			load_argv[5], load_argv[6]);
 
 
 	/* Load kernel */

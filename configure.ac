@@ -23,6 +23,9 @@ AC_ARG_ENABLE([bg-buffer],[AS_HELP_STRING([--enable-bg-buffer],[enable special b
 AC_ARG_ENABLE([numkeys],[AS_HELP_STRING([--enable-numkeys],[allow to choose menu item by 0-9 keys @<:@default=yes@:>@])], [],[enable_numkeys=yes])
 AC_ARG_ENABLE([devtmpfs],[AS_HELP_STRING([--enable-devtmpfs],[mount devtmpfs at startup in init-mode @<:@default=yes@:>@])], [],[enable_devtmpfs=yes])
 AC_ARG_ENABLE([hardboot],[AS_HELP_STRING([--enable-hardboot],[hardboot is required, needs also --mem-min set @<:@default=no@:>@])], [],[enable_hardboot=no])
+AC_ARG_ENABLE([mem-min],[AS_HELP_STRING([--enable-mem-min@<:@=bytes@:>@],[lowest mem address @<:@default=no@:>@])], [],[enable_mem_min=no])
+AC_ARG_ENABLE([mem-max],[AS_HELP_STRING([--enable-mem-max@<:@=bytes@:>@],[highest mem address @<:@default=no@:>@])], [],[enable_mem_max=no])
+
 AC_ARG_ENABLE([timeout],[AS_HELP_STRING([--enable-timeout@<:@=sec@:>@],[allow to boot 1st kernel after timeout in seconds @<:@default=no@:>@])], [
 	test "x$enable_timeout" = xyes && enable_timeout=10
 ],[enable_timeout=no])
@@ -225,6 +228,16 @@ AS_IF([test "x$enable_devtmpfs" = xyes],
 AS_IF([test "x$enable_hardboot" != "xno"],
 		[
 		AC_DEFINE([USE_HARDBOOT], [1], [Define if you need hardboot])
+		], [])
+
+AS_IF([test "x$enable_mem_min" != "xno"],
+		[
+		AC_DEFINE_UNQUOTED([MEM_MIN], ["${enable_mem_min}"], [Lowest memory address to load code into])
+		], [])
+
+AS_IF([test "x$enable_mem_max" != "xno"],
+		[
+		AC_DEFINE_UNQUOTED([MEM_MAX], ["${enable_mem_max}"], [Highest memory address to load code into])
 		], [])
 
 AC_ISC_POSIX
