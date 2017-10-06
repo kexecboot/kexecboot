@@ -195,6 +195,11 @@ void start_kernel(struct params_t *params, int choice)
 	exec_argv[0] = kexec_path;
 	load_argv[0] = kexec_path;
 
+#ifdef USE_HARDBOOT
+	load_argv[2] = "--load-hardboot";
+#endif
+
+
 	/* --command-line arg generation */
 	idx = 3;	/* load_argv current option index */
 
