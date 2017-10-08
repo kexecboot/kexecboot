@@ -185,7 +185,7 @@ void start_kernel(struct params_t *params, int choice)
 				    NULL, NULL, NULL, NULL, NULL };
 	const char *exec_argv[] = { NULL, "-e", NULL, NULL};
 
-	char *cmdline_arg = NULL, *dtb_arg = NULL, *initrd_arg = NULL, *kernel_arg = NULL;
+	char *cmdline_arg = NULL;
 	int n, idx, u;
 	struct stat sinfo;
 	struct boot_item_t *item;
@@ -319,9 +319,6 @@ void start_kernel(struct params_t *params, int choice)
 	umount(mount_point);
 
 	dispose(cmdline_arg);
-	dispose(dtb_arg);
-	dispose(initrd_arg);
-	dispose(kernel_arg);
 
 	/* Check /proc/sys/net presence */
 	if ( -1 == stat("/proc/sys/net", &sinfo) ) {
