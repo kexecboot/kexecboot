@@ -146,60 +146,58 @@ static void add_cmd_option(const char **load_argv,
 
 void start_kernel(struct params_t *params, int choice)
 {
-	/* we use var[] instead of *var because sizeof(var) using */
+	int n, idx, u;
+	struct stat sinfo;
+	struct boot_item_t *item;
+
+	char mount_dev[16];
+	char mount_fstype[16];
+	char str_mtd_id[3];
+
+	/* empty environment */
+	char *const envp[] = { NULL };
+
+	/* options set during configuration */
 #ifdef USE_HOST_DEBUG
 	const char kexec_path[] = "/bin/echo";
 #else
 	const char kexec_path[] = KEXEC_PATH;
 #endif
 	const char mount_point[] = MOUNTPOINT;
+	const char str_dtb_start[] = "--dtb=";
+	const char str_initrd_start[] = "--initrd=";
 
+	/* for --command-line */
+	char *cmdline_arg = NULL;
 	const char str_cmdline_start[] = "--command-line=";
 	const char str_cmdline_root[] = "root=";
 	const char str_rootfstype[] = " rootfstype=";
 	const char str_rootwait[] = " rootwait";
 	const char str_ubirootdev[] = "ubi0";
 	const char str_ubimtd[] = " ubi.mtd="; /* max ' ubi.mtd=15' len 11 +1 = 12 */
-
 #ifdef UBI_VID_HDR_OFFSET
 	const char str_ubimtd_off[] = UBI_VID_HDR_OFFSET;
 #else
 	const char str_ubimtd_off[] = "";
 #endif
-
-	char mount_dev[16];
-	char mount_fstype[16];
-	char str_mtd_id[3];
-
-	/* Tags passed from host kernel cmdline to kexec'ed kernel */
+	/* selected cmdline tags read from host kernel cmdline */
 	const char str_mtdparts[] = " mtdparts=";
 	const char str_fbcon[] = " fbcon=";
 
-	const char str_dtb_start[] = "--dtb=";
-	const char str_initrd_start[] = "--initrd=";
-
-	/* empty environment */
-	char *const envp[] = { NULL };
-
-	const char *load_argv[] = { NULL, "-d", "-l", NULL, NULL,
+	/* initialize args */
+	const char *load_argv[] = { NULL, NULL, NULL, NULL, NULL,
 				    NULL, NULL, NULL, NULL, NULL };
-	const char *exec_argv[] = { NULL, "-e", NULL, NULL};
+	const char *exec_argv[] = { NULL, NULL, NULL, NULL};
 
-	char *cmdline_arg = NULL;
-	int n, idx, u;
-	struct stat sinfo;
-	struct boot_item_t *item;
+	/*len of following strings is known at compile time */
+	idx = 0;
+	load_argv[idx] = kexec_path;
+	exec_argv[idx] = kexec_path;
+	idx++;
 
-	item = params->bootcfg->list[choice];
-
-	exec_argv[0] = kexec_path;
-	load_argv[0] = kexec_path;
-
-#ifdef USE_HARDBOOT
-	load_argv[2] = "--load-hardboot";
-#endif
-
-	idx = 3;	/* load_argv current option index */
+	load_argv[idx] = "-d";
+	exec_argv[idx] = "-e";
+	idx++;
 
 #ifdef MEM_MIN
 	load_argv[idx] = "--mem-min=" MEM_MIN;
@@ -211,8 +209,18 @@ void start_kernel(struct params_t *params, int choice)
 	idx++;
 #endif
 
-	/* --command-line arg generation */
-	/* fill '--command-line' option */
+#ifdef USE_HARDBOOT
+	load_argv[idx] = "--load-hardboot";
+#else
+	load_argv[idx] = "-l";
+#endif
+	idx++;
+
+	/* size is only known at runtime */
+	item = params->bootcfg->list[choice];
+
+
+	/* fll '--command-line' option */
 	if (item->device) {
 		/* default device to mount */
 		strcpy(mount_dev, item->device);
@@ -307,22 +315,20 @@ void start_kernel(struct params_t *params, int choice)
 		}
 	}
 
+	add_cmd_option(load_argv, str_dtb_start, item->dtbpath, &idx);
+	add_cmd_option(load_argv, str_initrd_start, item->initrd, &idx);
+	add_cmd_option(load_argv, NULL, item->kernelpath, &idx);
+
+	for(u = 0; u < idx; u++) {
+		DPRINTF("load_argv[%d]: %s", u, load_argv[u]);
+	}
+
 	/* Mount boot device */
 	if ( -1 == mount(mount_dev, mount_point, mount_fstype,
 			MS_RDONLY, NULL) ) {
 		perror("Can't mount boot device");
 		exit(-1);
 	}
-
-	add_cmd_option(load_argv, str_dtb_start, item->dtbpath, &idx);
-	add_cmd_option(load_argv, str_initrd_start, item->initrd, &idx);
-	add_cmd_option(load_argv, NULL, item->kernelpath, &idx);
-
-	DPRINTF("load_argv: %s, %s, %s, %s, %s, %s, %s", load_argv[0],
-			load_argv[1], load_argv[2],
-			load_argv[3], load_argv[4],
-			load_argv[5], load_argv[6]);
-
 
 	/* Load kernel */
 	n = fexecw(kexec_path, (char *const *)load_argv, envp);
