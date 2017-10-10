@@ -393,22 +393,19 @@ int fexecw(const char *path, char *const argv[], char *const envp[])
 int ubi_attach(const char *mtd_id)
 {
 	/* prepare ubiattach_argv[] */
-	const char *ubiattach_argv[] = { NULL, NULL, NULL, NULL, NULL, NULL };
-	const char ubiattach_path[] = UBIATTACH_PATH;
-    char *const envp[] = { NULL };
-    int n,res;
+	const char *ubiattach_argv[] = { NULL, NULL, NULL, NULL };
+	char *const envp[] = { NULL };
+	int n,res;
 
-	ubiattach_argv[0] = ubiattach_path;
+	ubiattach_argv[0] = UBIATTACH_PATH;
 	ubiattach_argv[1] = "-m";
 	ubiattach_argv[2] = mtd_id;
-
 #ifdef UBI_VID_HDR_OFFSET
-	ubiattach_argv[3] = "-O";
-	ubiattach_argv[4] = UBI_VID_HDR_OFFSET;
+	ubiattach_argv[3] = "-O" UBI_VID_HDR_OFFSET;
 #endif
 
 	/* fexecw ubiattach */
-	n = fexecw(ubiattach_path, (char *const *)ubiattach_argv, envp);
+	n = fexecw(UBIATTACH_PATH, (char *const *)ubiattach_argv, envp);
 	if (-1 == n) {
 		log_msg(lg, "+ ubiattach failed: %s", ERRMSG);
 		res = -1;
