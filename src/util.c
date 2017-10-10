@@ -387,9 +387,11 @@ int fexecw(const char *path, char *const argv[], char *const envp[])
 	return status;
 }
 
-/* wrapper around fexecw ubiattach          */
-/* returns ubi_id attached to mtd_id        */
-/* on error, returns -1 so that mount fails */
+/*
+ * wrapper around fexecw ubiattach
+ * returns ubi_id attached to mtd_id
+ * on error, returns -1 so that mount fails
+ */
 int ubi_attach(const char *mtd_id)
 {
 	/* prepare ubiattach_argv[] */
@@ -400,6 +402,7 @@ int ubi_attach(const char *mtd_id)
 	ubiattach_argv[0] = UBIATTACH_PATH;
 	ubiattach_argv[1] = "-m";
 	ubiattach_argv[2] = mtd_id;
+
 #ifdef UBI_VID_HDR_OFFSET
 	ubiattach_argv[3] = "-O" UBI_VID_HDR_OFFSET;
 #endif
@@ -416,9 +419,11 @@ int ubi_attach(const char *mtd_id)
 }
 
 
-/* loop until /sys/class/ubi/ubiX/mtd_num == mtd_id */
-/* kernel: max 32 ubi devices (0-31)                */
-/* kernel: max 16 mtd char devices (0-15)           */
+/*
+ * loop until /sys/class/ubi/ubiX/mtd_num == mtd_id
+ * kernel: max 32 ubi devices (0-31)
+ * kernel: max 16 mtd char devices (0-15)
+ */
 int find_attached_ubi_device(const char *mtd_id)
 {
 	char sys_class_ubi[32]; /* max 26 + 2 + 1 */
