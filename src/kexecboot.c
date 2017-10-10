@@ -186,7 +186,7 @@ void start_kernel(struct params_t *params, int choice)
 
 	/* initialize args */
 	const char *load_argv[] = { NULL, NULL, NULL, NULL, NULL,
-				    NULL, NULL, NULL, NULL, NULL };
+				    NULL, NULL, NULL, NULL };
 	const char *exec_argv[] = { NULL, NULL, NULL, NULL};
 
 	/*len of following strings is known at compile time */
