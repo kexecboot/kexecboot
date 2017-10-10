@@ -144,6 +144,59 @@ static void add_cmd_option(const char **load_argv,
 	load_argv[(*idx)++] = arg;
 }
 
+/*
+ * Add extra tags if UBI device is found.
+ *
+ * Sample commandline required to boot ubifs:
+ * root=ubi0_0 ubi.mtd=2 rootfstype=ubifs
+ */
+static int check_for_ubi(struct boot_item_t *item,
+			  char *cmdline_arg,
+			  char *mount_dev,
+			  char *mount_fstype,
+			  const char *str_ubirootdev,
+			  const char *str_ubimtd,
+			  char *str_mtd_id,
+			  const char *str_ubimtd_off)
+{
+	int u;
+
+	if (!strncmp(item->fstype,"ubi",3)) {
+
+		/* mtd id [0-15] - one or two digits */
+		if(isdigit(atoi(item->device+strlen(item->device)-2))) {
+			strcpy(str_mtd_id, item->device+strlen(item->device)-2);
+			strcat(str_mtd_id, item->device+strlen(item->device)-1);
+		} else {
+			strcpy(str_mtd_id, item->device+strlen(item->device)-1);
+		}
+		/* get corresponding ubi dev to mount */
+		u = find_attached_ubi_device(str_mtd_id);
+
+		sprintf(mount_dev, "/dev/ubi%d", u);
+		/* FIXME: first volume is hardcoded */
+		strcat(mount_dev, "_0");
+
+		/* HARDCODED: we assume it's ubifs */
+		strcpy(mount_fstype,"ubifs");
+
+		/* extra cmdline tags when we detect ubi */
+		strcat(cmdline_arg, str_ubirootdev);
+		/* FIXME: first volume is hardcoded */
+		strcat(cmdline_arg, "_0");
+
+		strcat(cmdline_arg, str_ubimtd);
+		strcat(cmdline_arg, str_mtd_id);
+#ifdef UBI_VID_HDR_OFFSET
+		strcat(cmdline_arg, str_ubimtd_off);
+#endif
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+
 void start_kernel(struct params_t *params, int choice)
 {
 	int n, idx, u;
@@ -176,10 +229,11 @@ void start_kernel(struct params_t *params, int choice)
 	const char str_ubirootdev[] = "ubi0";
 	const char str_ubimtd[] = " ubi.mtd="; /* max ' ubi.mtd=15' len 11 +1 = 12 */
 #ifdef UBI_VID_HDR_OFFSET
-	const char str_ubimtd_off[] = UBI_VID_HDR_OFFSET;
+	const char str_ubimtd_off[] = "," UBI_VID_HDR_OFFSET;
 #else
 	const char str_ubimtd_off[] = "";
 #endif
+
 	/* selected cmdline tags read from host kernel cmdline */
 	const char str_mtdparts[] = " mtdparts=";
 	const char str_fbcon[] = " fbcon=";
@@ -238,10 +292,10 @@ void start_kernel(struct params_t *params, int choice)
 
 			add_cmd_option(load_argv, str_cmdline_start, item->cmdline, &idx);
 		} else {
-			/* allocate space */
+			/* allocate space FIXME */
 			n = sizeof(str_cmdline_start) + sizeof(str_cmdline_root) + strlen(item->device) +
 				sizeof(str_ubirootdev) + 2 +
-				sizeof(str_ubimtd) + 2 + sizeof(str_ubimtd_off) + 1 +
+				sizeof(str_ubimtd) + 2 + sizeof(str_ubimtd_off) +
 				sizeof(str_rootwait) +
 				sizeof(str_rootfstype) + strlen(item->fstype) + 2 +
 				sizeof(str_mtdparts) + strlenn(params->cfg->mtdparts) +
@@ -257,43 +311,17 @@ void start_kernel(struct params_t *params, int choice)
 
 			if (item->fstype) {
 
-				/* extra tags when we detect UBI */
-				if (!strncmp(item->fstype,"ubi",3)) {
+				/* inject extra tags for UBI */
+				if (!check_for_ubi(item, cmdline_arg,
+						   mount_dev, mount_fstype,
+						   str_ubirootdev, str_ubimtd,
+						   str_mtd_id, str_ubimtd_off))
+					strcat(cmdline_arg, item->device);
 
-					/* mtd id [0-15] - one or two digits */
-					if(isdigit(atoi(item->device+strlen(item->device)-2))) {
-						strcpy(str_mtd_id, item->device+strlen(item->device)-2);
-						strcat(str_mtd_id, item->device+strlen(item->device)-1);
-					} else {
-						strcpy(str_mtd_id, item->device+strlen(item->device)-1);
-					}
-					/* get corresponding ubi dev to mount */
-					u = find_attached_ubi_device(str_mtd_id);
-
-					sprintf(mount_dev, "/dev/ubi%d", u);
-					 /* FIXME: first volume is hardcoded */
-					strcat(mount_dev, "_0");
-
-					/* HARDCODED: we assume it's ubifs */
-					strcpy(mount_fstype,"ubifs");
-
-					/* extra cmdline tags when we detect ubi */
-					strcat(cmdline_arg, str_ubirootdev);
-					 /* FIXME: first volume is hardcoded */
-					strcat(cmdline_arg, "_0");
-
-					strcat(cmdline_arg, str_ubimtd);
-					strcat(cmdline_arg, str_mtd_id);
-#ifdef UBI_VID_HDR_OFFSET
-					strcat(cmdline_arg, ",");
-					strcat(cmdline_arg, str_ubimtd_off);
-#endif
-				} else {
-					strcat(cmdline_arg, item->device); /* root=item->device */
-				}
 				strcat(cmdline_arg, str_rootfstype);
 				strcat(cmdline_arg, mount_fstype);
 			}
+
 			strcat(cmdline_arg, str_rootwait);
 
 			if (params->cfg->mtdparts) {
