@@ -54,6 +54,10 @@
 
 #define PREPEND_MOUNTPATH(string) MOUNTPOINT""string
 
+#define MAX_LOAD_ARGV_NR	(8 + 1)
+#define MAX_EXEC_ARGV_NR	(3 + 1)
+#define MAX_ARG_LEN		256
+
 /* NULL-terminated array of kernel search paths
  * First item should be filled with machine-dependent path */
 char *default_kernels[] = {
@@ -99,7 +103,7 @@ static void atexit_restore_terminal(void)
 	setup_terminal(kxb_ttydev, &kxb_echo_state, 0);
 }
 
-static void add_cmd_option(const char **load_argv,
+static void add_cmd_option(char **load_argv,
 			   const char *start,
 			   char *path, int *idx)
 {
@@ -211,23 +215,11 @@ void start_kernel(struct params_t *params, int choice)
 	char *const envp[] = { NULL };
 
 	/* options set during configuration */
-#ifdef USE_HOST_DEBUG
-	const char kexec_path[] = "/bin/echo";
-#else
-	const char kexec_path[] = KEXEC_PATH;
-#endif
 	const char mount_point[] = MOUNTPOINT;
-	const char str_dtb_start[] = "--dtb=";
-	const char str_initrd_start[] = "--initrd=";
 
 	/* for --command-line */
 	char *cmdline_arg = NULL;
 	const char str_cmdline_start[] = "--command-line=";
-	const char str_cmdline_root[] = "root=";
-	const char str_rootfstype[] = " rootfstype=";
-	const char str_rootwait[] = " rootwait";
-	const char str_ubirootdev[] = "ubi0";
-	const char str_ubimtd[] = " ubi.mtd="; /* max ' ubi.mtd=15' len 11 +1 = 12 */
 #ifdef UBI_VID_HDR_OFFSET
 	const char str_ubimtd_off[] = "," UBI_VID_HDR_OFFSET;
 #else
@@ -239,34 +231,47 @@ void start_kernel(struct params_t *params, int choice)
 	const char str_fbcon[] = " fbcon=";
 
 	/* initialize args */
-	const char *load_argv[] = { NULL, NULL, NULL, NULL, NULL,
-				    NULL, NULL, NULL, NULL };
-	const char *exec_argv[] = { NULL, NULL, NULL, NULL};
+	char **load_argv, **exec_argv;
+
+	load_argv = calloc(MAX_LOAD_ARGV_NR, sizeof(*load_argv));
+	if (!load_argv)
+		return;
+
+	exec_argv = calloc(MAX_EXEC_ARGV_NR, sizeof(*exec_argv));
+	if (!exec_argv) {
+		free(load_argv);
+		return;
+	}
 
 	/*len of following strings is known at compile time */
 	idx = 0;
-	load_argv[idx] = kexec_path;
-	exec_argv[idx] = kexec_path;
+#ifdef USE_HOST_DEBUG
+	load_argv[idx] = strdup("/bin/echo");
+	exec_argv[idx] = strdup(load_argv[idx]);
+#else
+	load_argv[idx] = strdup(KEXEC_PATH);
+	exec_argv[idx] = strdup(load_argv[idx]);
+#endif
 	idx++;
 
-	load_argv[idx] = "-d";
-	exec_argv[idx] = "-e";
+	load_argv[idx] = strdup("-d");
+	exec_argv[idx] = strdup("-e");
 	idx++;
 
 #ifdef MEM_MIN
-	load_argv[idx] = "--mem-min=" MEM_MIN;
+	load_argv[idx] = asprintf("--mem-min=0x%08x", MEM_MIN);
 	idx++;
 #endif
 
 #ifdef MEM_MAX
-	load_argv[idx] = "--mem-max=" MEM_MAX;
+	load_argv[idx] = asprintf("--mem-max==0x%08x", MEM_MAX);
 	idx++;
 #endif
 
 #ifdef USE_HARDBOOT
-	load_argv[idx] = "--load-hardboot";
+	load_argv[idx] = strdup("--load-hardboot");
 #else
-	load_argv[idx] = "-l";
+	load_argv[idx] = strdup("-l");
 #endif
 	idx++;
 
@@ -284,45 +289,30 @@ void start_kernel(struct params_t *params, int choice)
 
 		/* Overwrite if CMDLINE is configured, append if APPEND is configured */
 		if (item->cmdline) {
-			n = sizeof(str_cmdline_start) + strlenn(item->cmdline);
-
-			cmdline_arg = (char *)malloc(n);
-			if (NULL == cmdline_arg)
-				perror("Can't allocate memory for cmdline_arg");
-
 			add_cmd_option(load_argv, str_cmdline_start, item->cmdline, &idx);
 		} else {
 			/* allocate space FIXME */
-			n = sizeof(str_cmdline_start) + sizeof(str_cmdline_root) + strlen(item->device) +
-				sizeof(str_ubirootdev) + 2 +
-				sizeof(str_ubimtd) + 2 + sizeof(str_ubimtd_off) +
-				sizeof(str_rootwait) +
-				sizeof(str_rootfstype) + strlen(item->fstype) + 2 +
-				sizeof(str_mtdparts) + strlenn(params->cfg->mtdparts) +
-				sizeof(str_fbcon) + strlenn(params->cfg->fbcon) +
-				sizeof(char) + strlenn(item->cmdline_append);
-
-			cmdline_arg = (char *)malloc(n);
+			cmdline_arg = malloc(MAX_ARG_LEN);
 			if (NULL == cmdline_arg)
 				perror("Can't allocate memory for cmdline_arg");
 
 			strcpy(cmdline_arg, str_cmdline_start);	/* --command-line= */
-			strcat(cmdline_arg, str_cmdline_root);	/* root= */
+			strcat(cmdline_arg, "root=");
 
 			if (item->fstype) {
 
 				/* inject extra tags for UBI */
 				if (!check_for_ubi(item, cmdline_arg,
 						   mount_dev, mount_fstype,
-						   str_ubirootdev, str_ubimtd,
+						   "ubi0", " ubi.mtd=",
 						   str_mtd_id, str_ubimtd_off))
 					strcat(cmdline_arg, item->device);
 
-				strcat(cmdline_arg, str_rootfstype);
+				strcat(cmdline_arg, " rootfstype=");
 				strcat(cmdline_arg, mount_fstype);
 			}
 
-			strcat(cmdline_arg, str_rootwait);
+			strcat(cmdline_arg, " rootwait");
 
 			if (params->cfg->mtdparts) {
 				strcat(cmdline_arg, str_mtdparts);
@@ -343,8 +333,8 @@ void start_kernel(struct params_t *params, int choice)
 		}
 	}
 
-	add_cmd_option(load_argv, str_dtb_start, item->dtbpath, &idx);
-	add_cmd_option(load_argv, str_initrd_start, item->initrd, &idx);
+	add_cmd_option(load_argv, "--dtb=", item->dtbpath, &idx);
+	add_cmd_option(load_argv, "--initrd=", item->initrd, &idx);
 	add_cmd_option(load_argv, NULL, item->kernelpath, &idx);
 
 	for(u = 0; u < idx; u++) {
@@ -359,7 +349,7 @@ void start_kernel(struct params_t *params, int choice)
 	}
 
 	/* Load kernel */
-	n = fexecw(kexec_path, (char *const *)load_argv, envp);
+	n = fexecw(load_argv[0], (char *const *)load_argv, envp);
 	if (-1 == n) {
 		perror("Kexec can't load kernel");
 		exit(-1);
@@ -384,7 +374,16 @@ void start_kernel(struct params_t *params, int choice)
 			exec_argv[1], exec_argv[2], exec_argv[3]);
 
 	/* Boot new kernel */
-	execve(kexec_path, (char *const *)exec_argv, envp);
+	execve(exec_argv[0], (char *const *)exec_argv, envp);
+
+free:
+	dispose(cmdline_arg);
+	for (idx = 0; idx < MAX_LOAD_ARGV_NR; idx++)
+		free(load_argv[idx]);
+	dispose(load_argv);
+	for (idx = 0; idx < MAX_EXEC_ARGV_NR; idx++)
+		free(exec_argv[idx]);
+	dispose(exec_argv);
 }
 
 
