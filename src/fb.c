@@ -396,18 +396,32 @@ void fb_destroy()
 		free(fb.backbuffer);
 }
 
+/*
+ * By default the framebuffer driver may have set an oversized
+ * yres_virtual to support VT scrolling via the panning interface,
+ * or is using default xres_virtual and yres_virtual values set up
+ * for a larger displays supported by the same kernel as done by the
+ * droid 4 kernel.
+ *
+ * We don't try and maintain this since it's more likely that we
+ * will fail to increase the bpp if the driver's pre allocated
+ * framebuffer isn't large enough.
+ */
+int clear_virtual(struct fb_var_screeninfo *fb_var)
+{
+	if (fb_var->xres_virtual == fb_var->xres &&
+	    fb_var->yres_virtual == fb_var->yres)
+		return 0;
+
+	fb_var->xres_virtual = fb_var->xres;
+	fb_var->yres_virtual = fb_var->yres;
+
+	return ioctl(fb.fd, FBIOPUT_VSCREENINFO, fb_var);
+}
+
 int
 attempt_to_change_pixel_format(struct fb_var_screeninfo *fb_var)
 {
-	/* By default the framebuffer driver may have set an oversized
-	 * yres_virtual to support VT scrolling via the panning interface.
-	 *
-	 * We don't try and maintain this since it's more likely that we
-	 * will fail to increase the bpp if the driver's pre allocated
-	 * framebuffer isn't large enough.
-	 */
-	fb_var->yres_virtual = fb_var->yres;
-
 	/* First try setting an 8,8,8,0 pixel format so we don't have to do
 	 * any conversions while drawing. */
 
@@ -502,6 +516,12 @@ int fb_new(int angle)
 
 	if (ioctl(fb.fd, FBIOGET_VSCREENINFO, &fb_var) == -1) {
 		log_msg(lg, "Error getting variable framebuffer info: %s", ERRMSG);
+		goto fail;
+	}
+
+	if (clear_virtual(&fb_var))
+	{
+		log_msg(lg, "Could not clear virtual resolution\n");
 		goto fail;
 	}
 
