@@ -1,5 +1,7 @@
 bin_PROGRAMS=kexecboot
 
+kexecboot_CFLAGS = -I$(top_srcdir)
+
 kexecboot_SOURCES = \
 	util.c \
 	cfgparser.c \
