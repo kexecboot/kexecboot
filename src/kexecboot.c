@@ -54,7 +54,7 @@
 
 #define PREPEND_MOUNTPATH(string) MOUNTPOINT""string
 
-#define MAX_LOAD_ARGV_NR	(8 + 1)
+#define MAX_LOAD_ARGV_NR	(9 + 1)
 #define MAX_EXEC_ARGV_NR	(3 + 1)
 #define MAX_ARG_LEN		256
 
@@ -274,6 +274,11 @@ void start_kernel(struct params_t *params, int choice)
 	load_argv[idx] = strdup("-l");
 #endif
 	idx++;
+
+#ifdef USE_ATAGS
+	load_argv[idx] = strdup("--atags");
+	idx++;
+#endif
 
 	/* size is only known at runtime */
 	item = params->bootcfg->list[choice];

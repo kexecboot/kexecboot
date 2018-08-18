@@ -25,6 +25,7 @@ AC_ARG_ENABLE([devtmpfs],[AS_HELP_STRING([--enable-devtmpfs],[mount devtmpfs at 
 AC_ARG_ENABLE([hardboot],[AS_HELP_STRING([--enable-hardboot],[hardboot is required, needs also --mem-min set @<:@default=no@:>@])], [],[enable_hardboot=no])
 AC_ARG_ENABLE([mem-min],[AS_HELP_STRING([--enable-mem-min@<:@=bytes@:>@],[lowest mem address @<:@default=no@:>@])], [],[enable_mem_min=no])
 AC_ARG_ENABLE([mem-max],[AS_HELP_STRING([--enable-mem-max@<:@=bytes@:>@],[highest mem address @<:@default=no@:>@])], [],[enable_mem_max=no])
+AC_ARG_ENABLE([atags],[AS_HELP_STRING([--enable-atags],[kexec after v. 2.0.3 requires --atags for arm w/out devicetree @<:@default=no@:>@])],[],[enable_atags=no])
 
 AC_ARG_ENABLE([timeout],[AS_HELP_STRING([--enable-timeout@<:@=sec@:>@],[allow to boot 1st kernel after timeout in seconds @<:@default=no@:>@])], [
 	test "x$enable_timeout" = xyes && enable_timeout=10
@@ -238,6 +239,11 @@ AS_IF([test "x$enable_mem_min" != "xno"],
 AS_IF([test "x$enable_mem_max" != "xno"],
 		[
 		AC_DEFINE_UNQUOTED([MEM_MAX], ["${enable_mem_max}"], [Highest memory address to load code into])
+		], [])
+
+AS_IF([test "x$enable_atags" != "xno"],
+		[
+		AC_DEFINE([USE_ATAGS], [1], [Define if you want to pass --atags for kexec after v. 2.0.3 on arm])
 		], [])
 
 AC_ISC_POSIX
