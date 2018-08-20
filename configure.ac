@@ -6,6 +6,7 @@ AC_CONFIG_SRCDIR(src/kexecboot.c)
 AC_CONFIG_HEADERS(config.h)
 AM_MAINTAINER_MODE
 
+# options for kexecboot
 AC_ARG_ENABLE([static-linking],[AS_HELP_STRING([--enable-static-linking],[compiles kexecboot as a static executable @<:@default=no@:>@])],[],[enable_static_linking=no])
 AC_ARG_ENABLE([fbui],[AS_HELP_STRING([--enable-fbui],[support framebuffer user interface @<:@default=yes@:>@])],[],[enable_fbui=yes])
 AC_ARG_ENABLE([fbui-width],[AS_HELP_STRING([--enable-fbui-width],[limit FB UI width to specified value @<:@default=no@:>@])],[],[enable_fbui_width=no])
@@ -22,13 +23,6 @@ AC_ARG_ENABLE([host-debug],[AS_HELP_STRING([--enable-host-debug],[allow for non-
 AC_ARG_ENABLE([bg-buffer],[AS_HELP_STRING([--enable-bg-buffer],[enable special buffer to hold pre-drawed FB GUI background @<:@default=no@:>@])], [],[enable_bg_buffer=no])
 AC_ARG_ENABLE([numkeys],[AS_HELP_STRING([--enable-numkeys],[allow to choose menu item by 0-9 keys @<:@default=yes@:>@])], [],[enable_numkeys=yes])
 AC_ARG_ENABLE([devtmpfs],[AS_HELP_STRING([--enable-devtmpfs],[mount devtmpfs at startup in init-mode @<:@default=yes@:>@])], [],[enable_devtmpfs=yes])
-AC_ARG_ENABLE([hardboot],[AS_HELP_STRING([--enable-hardboot],[hardboot is required, needs also --mem-min set @<:@default=no@:>@])], [],[enable_hardboot=no])
-AC_ARG_ENABLE([mem-min],[AS_HELP_STRING([--enable-mem-min@<:@=bytes@:>@],[lowest mem address @<:@default=no@:>@])], [],[enable_mem_min=no])
-AC_ARG_ENABLE([mem-max],[AS_HELP_STRING([--enable-mem-max@<:@=bytes@:>@],[highest mem address @<:@default=no@:>@])], [],[enable_mem_max=no])
-AC_ARG_ENABLE([atags],[AS_HELP_STRING([--enable-atags],[kexec after v. 2.0.3 requires --atags for arm w/out devicetree @<:@default=no@:>@])],[],[enable_atags=no])
-AC_ARG_ENABLE([no-checks],[AS_HELP_STRING([--enable-no-checks],[kexec fast reboot, no memory integrity checks @<:@default=no@:>@])],[],[enable_no_checks=no])
-AC_ARG_ENABLE([kexec-file-syscall],[AS_HELP_STRING([--enable-kexec-file-syscall],[Use the new file based syscall for kexec operation @<:@default=no@:>@])],[],[enable_kexec_file_syscall=no])
-AC_ARG_ENABLE([kexec-syscall],[AS_HELP_STRING([--enable-kexec-syscall],[Use the old kexec_load syscall for compatibility @<:@default=no@:>@])],[],[enable_kexec_syscall=no])
 
 AC_ARG_ENABLE([timeout],[AS_HELP_STRING([--enable-timeout@<:@=sec@:>@],[allow to boot 1st kernel after timeout in seconds @<:@default=no@:>@])], [
 	test "x$enable_timeout" = xyes && enable_timeout=10
@@ -69,18 +63,27 @@ AC_ARG_ENABLE([evdev-rate],[AS_HELP_STRING([--enable-evdev-rate@<:@=first_delay,
 	test "x$enable_evdev_rate" = xyes && enable_evdev_rate="1000,250"
 ],[enable_evdev_rate=no])
 
-
+# args for kexec
 AC_ARG_WITH([kexec-binary],[AS_HELP_STRING([--with-kexec-binary="path"],[look for kexec binary at path @<:@default="/usr/sbin/kexec"@:>@])],[
 test "x$with_kexec_binary" = xyes && with_kexec_binary="/usr/sbin/kexec"
 ],[with_kexec_binary="/usr/sbin/kexec"])
 
+AC_ARG_ENABLE([hardboot],[AS_HELP_STRING([--enable-hardboot],[hardboot is required, needs also --mem-min set @<:@default=no@:>@])], [],[enable_hardboot=no])
+AC_ARG_ENABLE([mem-min],[AS_HELP_STRING([--enable-mem-min@<:@=bytes@:>@],[lowest mem address @<:@default=no@:>@])], [],[enable_mem_min=no])
+AC_ARG_ENABLE([mem-max],[AS_HELP_STRING([--enable-mem-max@<:@=bytes@:>@],[highest mem address @<:@default=no@:>@])], [],[enable_mem_max=no])
+AC_ARG_ENABLE([atags],[AS_HELP_STRING([--enable-atags],[kexec after v. 2.0.3 requires --atags for arm w/out devicetree @<:@default=no@:>@])],[],[enable_atags=no])
+AC_ARG_ENABLE([no-checks],[AS_HELP_STRING([--enable-no-checks],[kexec fast reboot, no memory integrity checks @<:@default=no@:>@])],[],[enable_no_checks=no])
+AC_ARG_ENABLE([kexec-file-syscall],[AS_HELP_STRING([--enable-kexec-file-syscall],[Use the new file based syscall for kexec operation @<:@default=no@:>@])],[],[enable_kexec_file_syscall=no])
+AC_ARG_ENABLE([kexec-syscall],[AS_HELP_STRING([--enable-kexec-syscall],[Use the old kexec_load syscall for compatibility @<:@default=no@:>@])],[],[enable_kexec_syscall=no])
+
+# args for ubiattach
 AC_ARG_WITH([ubiattach-binary],[AS_HELP_STRING([--with-ubiattach-binary="path"],[look for ubiattach binary at path @<:@default="/usr/sbin/ubiattach"@:>@])],[
 test "x$with_ubiattach_binary" = xyes && with_ubiattach_binary="/usr/sbin/ubiattach"
 ],[with_ubiattach_binary="/usr/sbin/ubiattach"])
 
 AC_ARG_ENABLE([ubi-vid-hdr-offset],[AS_HELP_STRING([--enable-ubi-vid-hdr-offset@<:@=bytes@:>@],[UBI VID header offset @<:@default=no@:>@])], [],[enable_ubi_vid_hdr_offset=no])
 
-
+# tests
 AS_IF([test "x$enable_fbui" != xno],
 		[
 		AC_DEFINE([USE_FBMENU], [1], [Define if you use the framebuffer user interface])
@@ -199,21 +202,6 @@ AS_IF([test "x$enable_delay" != xno],
 		AC_DEFINE_UNQUOTED([USE_DELAY], [${enable_delay}], [Define delay to sleep before scanning devices])
 		], [])
 
-AS_IF([test "x$with_kexec_binary" != "xno"],
-		[
-		AC_DEFINE_UNQUOTED([KEXEC_PATH], ["${with_kexec_binary}"], [Where to look for kexec binary])
-		], [])
-
-AS_IF([test "x$with_ubiattach_binary" != "xno"],
-		[
-		AC_DEFINE_UNQUOTED([UBIATTACH_PATH], ["${with_ubiattach_binary}"], [Where to look for ubiattach binary])
-		], [])
-
-AS_IF([test "x$enable_ubi_vid_hdr_offset" != "xno"],
-		[
-		AC_DEFINE_UNQUOTED([UBI_VID_HDR_OFFSET], ["${enable_ubi_vid_hdr_offset}"], [UBI VID header offset])
-		], [])
-
 AS_IF([test "x$enable_evdev_rate" != xno],
 		[
 		AC_DEFINE_UNQUOTED([USE_EVDEV_RATE], [${enable_evdev_rate}], [Define evdev (keyboard/mouse) repeat rate to use in milliseconds (first_delay, repeat_delay)])
@@ -227,6 +215,12 @@ AS_IF([test "x$enable_numkeys" = xyes],
 AS_IF([test "x$enable_devtmpfs" = xyes],
 		[
 		AC_DEFINE([USE_DEVTMPFS], [1], [Define if you wish to mount devtmpfs at startup in init-mode])
+		], [])
+
+# tests for kexec args
+AS_IF([test "x$with_kexec_binary" != "xno"],
+		[
+		AC_DEFINE_UNQUOTED([KEXEC_PATH], ["${with_kexec_binary}"], [Where to look for kexec binary])
 		], [])
 
 AS_IF([test "x$enable_hardboot" != "xno"],
@@ -262,6 +256,17 @@ AS_IF([test "x$enable_kexec_file_syscall" != "xno"],
 AS_IF([test "x$enable_kexec_syscall" != "xno"],
 		[
 		AC_DEFINE([USE_KEXEC_SYSCALL], [1], [Define if you want to pass -c, --kexec-syscall])
+		], [])
+
+# tests for ubiattach args
+AS_IF([test "x$with_ubiattach_binary" != "xno"],
+		[
+		AC_DEFINE_UNQUOTED([UBIATTACH_PATH], ["${with_ubiattach_binary}"], [Where to look for ubiattach binary])
+		], [])
+
+AS_IF([test "x$enable_ubi_vid_hdr_offset" != "xno"],
+		[
+		AC_DEFINE_UNQUOTED([UBI_VID_HDR_OFFSET], ["${enable_ubi_vid_hdr_offset}"], [UBI VID header offset])
 		], [])
 
 AC_ISC_POSIX
