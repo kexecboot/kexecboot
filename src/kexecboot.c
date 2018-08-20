@@ -54,7 +54,7 @@
 
 #define PREPEND_MOUNTPATH(string) MOUNTPOINT""string
 
-#define MAX_LOAD_ARGV_NR	(10 + 1)
+#define MAX_LOAD_ARGV_NR	(11 + 1)
 #define MAX_EXEC_ARGV_NR	(3 + 1)
 #define MAX_ARG_LEN		256
 
@@ -282,6 +282,14 @@ void start_kernel(struct params_t *params, int choice)
 
 #ifdef USE_NO_CHECKS
 	load_argv[idx] = strdup("-i");
+	idx++;
+#endif
+
+#ifdef USE_KEXEC_FILE_SYSCALL
+	load_argv[idx] = strdup("-s");
+	idx++;
+#elif defined(USE_KEXEC_SYSCALL)
+	load_argv[idx] = strdup("-c");
 	idx++;
 #endif
 

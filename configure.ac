@@ -27,6 +27,8 @@ AC_ARG_ENABLE([mem-min],[AS_HELP_STRING([--enable-mem-min@<:@=bytes@:>@],[lowest
 AC_ARG_ENABLE([mem-max],[AS_HELP_STRING([--enable-mem-max@<:@=bytes@:>@],[highest mem address @<:@default=no@:>@])], [],[enable_mem_max=no])
 AC_ARG_ENABLE([atags],[AS_HELP_STRING([--enable-atags],[kexec after v. 2.0.3 requires --atags for arm w/out devicetree @<:@default=no@:>@])],[],[enable_atags=no])
 AC_ARG_ENABLE([no-checks],[AS_HELP_STRING([--enable-no-checks],[kexec fast reboot, no memory integrity checks @<:@default=no@:>@])],[],[enable_no_checks=no])
+AC_ARG_ENABLE([kexec-file-syscall],[AS_HELP_STRING([--enable-kexec-file-syscall],[Use the new file based syscall for kexec operation @<:@default=no@:>@])],[],[enable_kexec_file_syscall=no])
+AC_ARG_ENABLE([kexec-syscall],[AS_HELP_STRING([--enable-kexec-syscall],[Use the old kexec_load syscall for compatibility @<:@default=no@:>@])],[],[enable_kexec_syscall=no])
 
 AC_ARG_ENABLE([timeout],[AS_HELP_STRING([--enable-timeout@<:@=sec@:>@],[allow to boot 1st kernel after timeout in seconds @<:@default=no@:>@])], [
 	test "x$enable_timeout" = xyes && enable_timeout=10
@@ -250,6 +252,16 @@ AS_IF([test "x$enable_atags" != "xno"],
 AS_IF([test "x$enable_no_checks" != "xno"],
 		[
 		AC_DEFINE([USE_NO_CHECKS], [1], [Define if you want to pass --no-checks for kexec fast reboot])
+		], [])
+
+AS_IF([test "x$enable_kexec_file_syscall" != "xno"],
+		[
+		AC_DEFINE([USE_KEXEC_FILE_SYSCALL], [1], [Define if you want to pass -s, --kexec-file-syscall])
+		], [])
+
+AS_IF([test "x$enable_kexec_syscall" != "xno"],
+		[
+		AC_DEFINE([USE_KEXEC_SYSCALL], [1], [Define if you want to pass -c, --kexec-syscall])
 		], [])
 
 AC_ISC_POSIX
