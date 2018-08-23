@@ -26,6 +26,7 @@ AC_ARG_ENABLE([hardboot],[AS_HELP_STRING([--enable-hardboot],[hardboot is requir
 AC_ARG_ENABLE([mem-min],[AS_HELP_STRING([--enable-mem-min@<:@=bytes@:>@],[lowest mem address @<:@default=no@:>@])], [],[enable_mem_min=no])
 AC_ARG_ENABLE([mem-max],[AS_HELP_STRING([--enable-mem-max@<:@=bytes@:>@],[highest mem address @<:@default=no@:>@])], [],[enable_mem_max=no])
 AC_ARG_ENABLE([atags],[AS_HELP_STRING([--enable-atags],[kexec after v. 2.0.3 requires --atags for arm w/out devicetree @<:@default=no@:>@])],[],[enable_atags=no])
+AC_ARG_ENABLE([no-checks],[AS_HELP_STRING([--enable-no-checks],[kexec fast reboot, no memory integrity checks @<:@default=no@:>@])],[],[enable_no_checks=no])
 
 AC_ARG_ENABLE([timeout],[AS_HELP_STRING([--enable-timeout@<:@=sec@:>@],[allow to boot 1st kernel after timeout in seconds @<:@default=no@:>@])], [
 	test "x$enable_timeout" = xyes && enable_timeout=10
@@ -244,6 +245,11 @@ AS_IF([test "x$enable_mem_max" != "xno"],
 AS_IF([test "x$enable_atags" != "xno"],
 		[
 		AC_DEFINE([USE_ATAGS], [1], [Define if you want to pass --atags for kexec after v. 2.0.3 on arm])
+		], [])
+
+AS_IF([test "x$enable_no_checks" != "xno"],
+		[
+		AC_DEFINE([USE_NO_CHECKS], [1], [Define if you want to pass --no-checks for kexec fast reboot])
 		], [])
 
 AC_ISC_POSIX
