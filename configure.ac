@@ -72,6 +72,7 @@ AC_ARG_ENABLE([hardboot],[AS_HELP_STRING([--enable-hardboot],[hardboot is requir
 AC_ARG_ENABLE([mem-min],[AS_HELP_STRING([--enable-mem-min@<:@=bytes@:>@],[lowest mem address @<:@default=no@:>@])], [],[enable_mem_min=no])
 AC_ARG_ENABLE([mem-max],[AS_HELP_STRING([--enable-mem-max@<:@=bytes@:>@],[highest mem address @<:@default=no@:>@])], [],[enable_mem_max=no])
 AC_ARG_ENABLE([atags],[AS_HELP_STRING([--enable-atags],[kexec after v. 2.0.3 requires --atags for arm w/out devicetree @<:@default=no@:>@])],[],[enable_atags=no])
+AC_ARG_ENABLE([no-dtb],[AS_HELP_STRING([--enable-no-dtb],[kexec after v. 2.0.13 requires --no-dtb for mips w/out devicetree @<:@default=no@:>@])],[],[enable_no_dtb=no])
 AC_ARG_ENABLE([no-checks],[AS_HELP_STRING([--enable-no-checks],[kexec fast reboot, no memory integrity checks @<:@default=no@:>@])],[],[enable_no_checks=no])
 AC_ARG_ENABLE([kexec-file-syscall],[AS_HELP_STRING([--enable-kexec-file-syscall],[Use the new file based syscall for kexec operation @<:@default=no@:>@])],[],[enable_kexec_file_syscall=no])
 AC_ARG_ENABLE([kexec-syscall],[AS_HELP_STRING([--enable-kexec-syscall],[Use the old kexec_load syscall for compatibility @<:@default=no@:>@])],[],[enable_kexec_syscall=no])
@@ -240,7 +241,12 @@ AS_IF([test "x$enable_mem_max" != "xno"],
 
 AS_IF([test "x$enable_atags" != "xno"],
 		[
-		AC_DEFINE([USE_ATAGS], [1], [Define if you want to pass --atags for kexec after v. 2.0.3 on arm])
+		AC_DEFINE([USE_ATAGS], [1], [Define if you want to pass --atags for kexec after v. 2.0.3 on arm w/out DT])
+		], [])
+
+AS_IF([test "x$enable_no_dtb" != "xno"],
+		[
+		AC_DEFINE([USE_NO_DTB], [1], [Define if you want to pass --no-dtb for kexec after 2.0.13 on mips w/out DT])
 		], [])
 
 AS_IF([test "x$enable_no_checks" != "xno"],

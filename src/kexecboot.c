@@ -54,7 +54,7 @@
 
 #define PREPEND_MOUNTPATH(string) MOUNTPOINT""string
 
-#define MAX_LOAD_ARGV_NR	(11 + 1)
+#define MAX_LOAD_ARGV_NR	(12 + 1)
 #define MAX_EXEC_ARGV_NR	(3 + 1)
 #define MAX_ARG_LEN		256
 
@@ -277,6 +277,11 @@ void start_kernel(struct params_t *params, int choice)
 
 #ifdef USE_ATAGS
 	load_argv[idx] = strdup("--atags");
+	idx++;
+#endif
+
+#ifdef USE_NO_DTB
+	load_argv[idx] = strdup("--no-dtb");
 	idx++;
 #endif
 
