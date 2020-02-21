@@ -1,6 +1,6 @@
 bin_PROGRAMS=kexecboot
 
-kexecboot_CFLAGS = -I$(top_srcdir)
+kexecboot_CFLAGS = -I$(top_srcdir) $(AM_CFLAGS)
 
 kexecboot_SOURCES = \
 	util.c \
