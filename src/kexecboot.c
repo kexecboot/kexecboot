@@ -906,6 +906,7 @@ int process_ctx_menu(struct params_t *params, int action) {
 
 #ifdef USE_TIMEOUT
 	case A_TIMEOUT:		// timeout was reached - boot 1st kernel if exists
+		menu->current = menu->top;		/* go top-level menu */
 		if (menu->current->count > 1) {
 			menu_item_select(menu, 0);	/* choose first item */
 			menu_item_select(menu, 1);	/* and switch to next item */
