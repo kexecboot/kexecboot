@@ -316,6 +316,7 @@ int inputs_process_evdev(int fd)
 		case KEY_HENKAN:	/* Zaurus SL-6000 */
 		case 87:			/* Zaurus: OK (remove?) */
 		case 63:			/* Zaurus: Enter (remove?) */
+		case KEY_END:		/* Motorola Mapphone devices (107) */
 		case KEY_POWER:		/* GTA02: Power (116) */
 		case KEY_PHONE:		/* GTA02: AUX (169) */
 			action = A_SELECT;
