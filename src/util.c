@@ -33,6 +33,8 @@
 #include "util.h"
 
 
+kx_text *lg;
+
 /* Create charlist structure */
 struct charlist *create_charlist(int size)
 {

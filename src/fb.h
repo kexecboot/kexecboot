@@ -77,7 +77,7 @@ typedef struct FB {
 	draw_hline_func draw_hline;
 } FB;
 
-FB fb;
+extern FB fb;
 
 /* Picture structure */
 /* FIXME: store pixels as colors triplets per uint32_t value */
