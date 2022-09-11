@@ -71,7 +71,7 @@ typedef struct {
 } kx_text;
 
 /* Global log structure */
-kx_text *lg;
+extern kx_text *lg;
 
 /*
  * FUNCTIONS
