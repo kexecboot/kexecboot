@@ -24,7 +24,6 @@
 
 #include "fb.h"
 
-FB fb;
 
 static unsigned int compose_color (kx_rgba rgba) {
 
