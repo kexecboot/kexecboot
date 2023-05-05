@@ -1,6 +1,6 @@
 bin_PROGRAMS=kexecboot
 
-kexecboot_CFLAGS = -I$(top_srcdir) $(AM_CFLAGS)
+kexecboot_CFLAGS = -I$(top_srcdir) $(AM_CFLAGS) -I$(shell $(CC) -print-file-name=include)
 
 kexecboot_SOURCES = \
 	global.c \
