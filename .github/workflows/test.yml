@@ -1,0 +1,40 @@
+name: Test
+
+on:
+  pull_request: {}
+  push:
+    branches:
+      - master
+
+jobs:
+  compile:
+    # Expect this to fail when next Ubuntu version promoted
+    strategy:
+      matrix:
+        cc:
+          - gcc-9
+          - gcc-10
+          - gcc-11
+          - gcc-12
+          - clang-15
+        os: [ 'ubuntu-latest' ]
+    runs-on: "${{ matrix.os }}"
+    name: "Compile on ${{ matrix.os }} with ${{ matrix.cc }}"
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Install ${{ matrix.cc }}"
+        run: dpkg-query -W "${{ matrix.cc }}" >/dev/null 2>&1 || sudo apt-get install -y "${{ matrix.cc }}"
+
+      - name: Compile
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cc }}
+        # Use configure options from OpenEmbedded as default
+        run: |
+          ./autogen.sh \
+            --enable-textui \
+            --enable-delay=2 \
+            --enable-evdev-rate=1000,250 \
+            ;
+          make
