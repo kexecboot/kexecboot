@@ -157,7 +157,7 @@ void gui_destroy(struct gui_t *gui)
 	free(gui->icons);
 #endif
 
-	fb_destroy();
+	fb_destroy(fb);
 	free(gui);
 }
 

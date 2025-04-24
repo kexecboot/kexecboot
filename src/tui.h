@@ -33,7 +33,7 @@ typedef struct {
 } kx_tui;
 
 
-kx_tui *tui_init();
+kx_tui *tui_init(FILE *ts);
 
 void tui_show_menu(kx_tui *tui, kx_menu *menu);
 

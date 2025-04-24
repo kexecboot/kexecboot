@@ -388,7 +388,7 @@ void fb_restore(char *dump)
 }
 
 
-void fb_destroy()
+void fb_destroy(FB fb)
 {
 	if (fb.fd >= 0)
 		close(fb.fd);
@@ -651,7 +651,7 @@ int fb_new(int angle)
 	return 0;
 
 fail:
-	fb_destroy();
+	fb_destroy(fb);
 	return -1;
 }
 
