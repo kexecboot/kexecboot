@@ -88,7 +88,7 @@ typedef struct {
 } kx_picture;
 
 
-void fb_destroy();
+void fb_destroy(FB fb);
 
 int fb_new(int angle);
 
